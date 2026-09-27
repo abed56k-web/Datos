@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con restricciones únicas para evitar duplicados)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -35,7 +35,6 @@ c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insu
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 conn.commit()
 
-# Actualización segura por si la tabla asistencia antigua no tenía la columna actividad
 try:
     c.execute('ALTER TABLE asistencia ADD COLUMN actividad TEXT')
     conn.commit()
@@ -324,15 +323,28 @@ with col_form:
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
             
-            if st.form_submit_button("Guardar Asistencia", use_container_width=True):
+            col_fb1, col_fb2 = st.columns(2)
+            with col_fb1:
+                btn_guardar = st.form_submit_button("Guardar Asistencia", use_container_width=True)
+            with col_fb2:
+                btn_limpiar_dia = st.form_submit_button("🧹 Limpiar Este Día", use_container_width=True)
+
+            if btn_guardar:
                 if trabajador:
-                    # REPLACE INTO garantiza que si se registra la misma fecha, se reemplace limpiamente sin duplicados
+                    # REPLACE INTO sobreescribe limpiamente cualquier registro previo de este trabajador en esta fecha exacta
                     c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
                     conn.commit()
-                    st.success("¡Asistencia guardada con éxito (actualizada para esta fecha)!")
+                    st.success("¡Asistencia guardada (actualizada para esta fecha)!")
                     st.rerun()
                 else:
                     st.warning("Selecciona un trabajador.")
+
+            if btn_limpiar_dia:
+                if trabajador:
+                    c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=? AND fecha=?", (st.session_state['partida_actual'], trabajador, str(f_mo)))
+                    conn.commit()
+                    st.success(f"¡Asistencia del {f_mo} borrada para {trabajador}!")
+                    st.rerun()
 
 # Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
@@ -468,7 +480,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON TARJETAS LIMPIAS (FORMATO: Obrero: [Especialidad] [Nombre])
+# 8. MÓDULOS SEMANALES CON FORMATO: Obrero: [Especialidad(cursiva)] - [Nombre(negrita grande)]
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -491,7 +503,6 @@ with tab_planilla:
         df_asist_semana = pd.DataFrame(columns=['trabajador', 'fecha', 'estado', 'almuerzo'])
 
     for trabajador in trabajadores_registrados:
-        # Obtener especialidad del trabajador desde la BD de personal
         df_esp = df_pers_actual[df_pers_actual['nombre'] == trabajador]
         especialidad_trab = df_esp['especialidad'].values[0] if not df_esp.empty else "Obrero"
 
@@ -502,8 +513,10 @@ with tab_planilla:
         cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
         cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.contains('Sí', na=False)]) if not df_t_sem.empty else 0
 
-        # FORMATO LIMPIO: Obrero: [Especialidad] [Nombre]
-        with st.expander(f"👷 Obrero: {especialidad_trab} {trabajador}", expanded=True):
+        # FORMATO SOLICITADO: Obrero: <i>Especialidad</i> - <b>NOMBRE GRANDE</b>
+        titulo_expander = f"👷 Obrero: <i>{especialidad_trab}</i> — <span style='font-size: 1.25rem; font-weight: bold;'>{trabajador}</span>"
+
+        with st.expander(titulo_expander, expanded=True):
             col_w1, col_w2, col_w3 = st.columns(3)
             with col_w1:
                 jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
