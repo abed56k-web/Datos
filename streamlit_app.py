@@ -173,14 +173,14 @@ if st.session_state['partida_actual'] is None:
     with col_p1:
         st.markdown("### 📂 Entrar a Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
-        if st.button("INGRESAR AL PANEL ➡️", width='stretch'):
+        if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
             
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
-        if st.button("CREAR Y ENTRAR ⚡", width='stretch'):
+        if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
             if nueva_partida:
                 st.session_state['lista_partidas'].append(nueva_partida)
                 st.session_state['partida_actual'] = nueva_partida
@@ -258,7 +258,7 @@ with col_form:
             with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
             st.info(f"Total: S/ {cant * pre:.2f}")
             
-            if st.form_submit_button("Guardar Material", width='stretch'):
+            if st.form_submit_button("Guardar Material", use_container_width=True):
                 if mat_nom and und_final:
                     c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
                     conn.commit()
@@ -268,12 +268,11 @@ with col_form:
                     st.warning("Completa el nombre y la unidad del material.")
                     
     with tab_pers:
+        st.write("👤 **Registrar / Gestionar Personal**")
         with st.form("form_nuevo_personal"):
-            st.write("Agrega nuevos obreros para que aparezcan en el menú desplegable.")
             nuevo_nombre = st.text_input("Nombre y Apellido del Trabajador")
             nueva_esp = st.selectbox("Especialidad", ["Operario", "Oficial", "Ayudante / Peón", "Pintor", "Enchapador", "Electricista", "Plomero"])
-            
-            if st.form_submit_button("Registrar Trabajador", width='stretch'):
+            if st.form_submit_button("Registrar Trabajador", use_container_width=True):
                 if nuevo_nombre:
                     try:
                         c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre, nueva_esp))
@@ -281,9 +280,33 @@ with col_form:
                         st.success(f"¡Trabajador {nuevo_nombre} registrado con éxito!")
                         st.rerun()
                     except:
-                        st.warning("Este trabajador ya está registrado en esta partida.")
+                        st.warning("Este trabajador ya está registrado.")
                 else:
-                    st.warning("Escribe el nombre del trabajador.")
+                    st.warning("Escribe el nombre.")
+
+        # Opción para Renombrar o Borrar Personal existente
+        if lista_trabajadores_db:
+            st.write("---")
+            st.write("🛠️ **Modificar o Eliminar Obrero Existente**")
+            trab_a_gestionar = st.selectbox("Seleccione Obrero", lista_trabajadores_db, key="sel_trab_ges")
+            nuevo_nom_edit = st.text_input("Renombrar obrero:", value=trab_a_gestionar)
+            
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                if st.button("Actualizar Nombre"):
+                    if nuevo_nom_edit:
+                        c.execute("UPDATE personal SET nombre=? WHERE partida=? AND nombre=?", (nuevo_nom_edit, st.session_state['partida_actual'], trab_a_gestionar))
+                        c.execute("UPDATE asistencia SET trabajador=? WHERE partida=? AND trabajador=?", (nuevo_nom_edit, st.session_state['partida_actual'], trab_a_gestionar))
+                        conn.commit()
+                        st.success("¡Nombre actualizado!")
+                        st.rerun()
+            with col_g2:
+                if st.button("🗑️ Eliminar Obrero"):
+                    c.execute("DELETE FROM personal WHERE partida=? AND nombre=?", (st.session_state['partida_actual'], trab_a_gestionar))
+                    c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=?", (st.session_state['partida_actual'], trab_a_gestionar))
+                    conn.commit()
+                    st.success(f"Obrero {trab_a_gestionar} eliminado.")
+                    st.rerun()
 
     with tab_mo:
         with st.form("form_mano_obra"):
@@ -298,7 +321,7 @@ with col_form:
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
             
-            if st.form_submit_button("Guardar Asistencia", width='stretch'):
+            if st.form_submit_button("Guardar Asistencia", use_container_width=True):
                 if trabajador:
                     c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
                     conn.commit()
@@ -327,7 +350,7 @@ with col_graf_circulo:
         legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white"))
     )
     fig_dona.update_traces(hoverinfo='label+value', textinfo='percent', textfont_color='white', marker=dict(line=dict(color='#0f172a', width=2)))
-    st.plotly_chart(fig_dona, width='stretch')
+    st.plotly_chart(fig_dona, use_container_width=True)
 
 with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
@@ -344,7 +367,7 @@ with col_graf_linea:
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")),
         font=dict(color="white")
     )
-    st.plotly_chart(fig_linea, width='stretch')
+    st.plotly_chart(fig_linea, use_container_width=True)
 
 st.write("---")
 
@@ -357,14 +380,14 @@ meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JUL
 col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
 
 with col_btn1:
-    if st.button("◀ Mes Anterior", key="btn_ant", width='stretch'):
+    if st.button("◀ Mes Anterior", key="btn_ant", use_container_width=True):
         if st.session_state['cal_mes'] == 1: st.session_state['cal_mes'] = 12; st.session_state['cal_ano'] -= 1
         else: st.session_state['cal_mes'] -= 1
         st.rerun()
 with col_tit:
     st.markdown(f"<h3 style='text-align: center; color: #38bdf8 !important; margin: 0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
 with col_btn2:
-    if st.button("Mes Siguiente ▶", key="btn_sig", width='stretch'):
+    if st.button("Mes Siguiente ▶", key="btn_sig", use_container_width=True):
         if st.session_state['cal_mes'] == 12: st.session_state['cal_mes'] = 1; st.session_state['cal_ano'] += 1
         else: st.session_state['cal_mes'] += 1
         st.rerun()
@@ -437,7 +460,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON COMENTARIO Y MONTO INDEPENDIENTE
+# 8. MÓDULOS SEMANALES CON TARJETAS DESPLEGABLES (EXPANDER) Y COMENTARIO INDEPENDIENTE
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -448,7 +471,7 @@ st.markdown(f"**Filtrando transacciones del {fecha_inicio.strftime('%d/%m/%Y')} 
 tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
 
 with tab_planilla:
-    st.write("Cálculo automático de jornales basados estrictamente en el calendario registrado para cada trabajador.")
+    st.write("Cálculo automático de jornales. Haz clic en el nombre de cada trabajador para **ocultar o mostrar** su información rápidamente.")
 
     gasto_semana_mo = 0
 
@@ -467,43 +490,39 @@ with tab_planilla:
         cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
         cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.contains('Sí', na=False)]) if not df_t_sem.empty else 0
 
-        st.markdown(f"""
-            <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #38bdf8;">
-                <h3 style="color: #38bdf8; margin-top: 0;">👷 {trabajador}</h3>
-            </div>
-        """, unsafe_allow_html=True)
+        # CADA TARJETA DE TRABAJADOR AHORA ES UN EXPANDER DESPLEGABLE PARA OCULTAR/MOSTRAR
+        with st.expander(f"👷 Obrero: {trabajador} (Días: {cant_completos} enteros, {cant_medios} medios) - Clic para ocultar/mostrar", expanded=True):
+            col_w1, col_w2, col_w3 = st.columns(3)
+            with col_w1:
+                jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
+                costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
+            with col_w2:
+                comentario_nota = st.text_input(f"Cuadro Comentario (Ej. Adelanto / Arreglado)", value="", key=f"comentario_{trabajador}")
+            with col_w3:
+                monto_extra = st.number_input(f"Monto (Opcional)", value=0.0, step=10.0, key=f"monto_{trabajador}")
 
-        col_w1, col_w2, col_w3 = st.columns(3)
-        with col_w1:
-            jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
-            costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
-        with col_w2:
-            comentario_nota = st.text_input(f"Cuadro Comentario (Ej. Debe / Adelanto / Arreglado)", value="", key=f"comentario_{trabajador}")
-        with col_w3:
-            monto_extra = st.number_input(f"Monto (+Debe / -Adelanto / 0)", value=0.0, step=10.0, key=f"monto_{trabajador}")
+            pago_completos = cant_completos * jornal_dia
+            pago_medios = cant_medios * (jornal_dia / 2.0)
+            total_almuerzos = cant_almuerzos * costo_almuerzo
+            
+            # El total calcula estrictamente los días y almuerzos (independiente del cuadro de notas/monto)
+            total_trabajador = pago_completos + pago_medios + total_almuerzos
+            gasto_semana_mo += total_trabajador
 
-        pago_completos = cant_completos * jornal_dia
-        pago_medios = cant_medios * (jornal_dia / 2.0)
-        total_almuerzos = cant_almuerzos * costo_almuerzo
-        
-        # El total de la semana calcula estrictamente los días y almuerzos (independiente del cuadro de notas/monto extra)
-        total_trabajador = pago_completos + pago_medios + total_almuerzos
-        gasto_semana_mo += total_trabajador
-
-        st.markdown(f"""
-            <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 25px;">
-                <table style="width:100%; color: #e2e8f0; text-align: left; font-size: 1.05rem;">
-                    <tr><th>Concepto</th><th>Cantidad</th><th>Jornal / Costo</th><th>Parcial (S/)</th></tr>
-                    <tr><td>Días Completos</td><td><b>{cant_completos}</b></td><td>S/ {jornal_dia:.2f}</td><td>S/ {pago_completos:.2f}</td></tr>
-                    <tr><td>Medios Días</td><td><b>{cant_medios}</b></td><td>S/ {jornal_dia/2:.2f}</td><td>S/ {pago_medios:.2f}</td></tr>
-                    <tr><td>Inasistencias</td><td><b>{cant_faltas}</b></td><td>S/ 0.00</td><td>S/ 0.00</td></tr>
-                    <tr><td>Comida - Almuerzo</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
-                    <tr><td><b>Nota / Comentario:</b></td><td colspan="3"><i>{comentario_nota if comentario_nota else 'Sin comentarios'} (Monto: S/ {monto_extra:.2f})</i></td></tr>
-                </table>
-                <hr style="border-color: #334155;">
-                <h3 style="color: #10b981; text-align: right; margin: 0;">TOTAL A PAGAR: S/ {total_trabajador:.2f}</h3>
-            </div>
-        """, unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-top: 10px; margin-bottom: 10px;">
+                    <table style="width:100%; color: #e2e8f0; text-align: left; font-size: 1.05rem;">
+                        <tr><th>Concepto</th><th>Cantidad</th><th>Jornal / Costo</th><th>Parcial (S/)</th></tr>
+                        <tr><td>Días Completos</td><td><b>{cant_completos}</b></td><td>S/ {jornal_dia:.2f}</td><td>S/ {pago_completos:.2f}</td></tr>
+                        <tr><td>Medios Días</td><td><b>{cant_medios}</b></td><td>S/ {jornal_dia/2:.2f}</td><td>S/ {pago_medios:.2f}</td></tr>
+                        <tr><td>Inasistencias</td><td><b>{cant_faltas}</b></td><td>S/ 0.00</td><td>S/ 0.00</td></tr>
+                        <tr><td>Comida - Almuerzo</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
+                        <tr><td><b>Nota / Comentario:</b></td><td colspan="3"><i>{comentario_nota if comentario_nota else 'Sin comentarios'} (Monto ref: S/ {monto_extra:.2f})</i></td></tr>
+                    </table>
+                    <hr style="border-color: #334155;">
+                    <h3 style="color: #10b981; text-align: right; margin: 0;">TOTAL A PAGAR: S/ {total_trabajador:.2f}</h3>
+                </div>
+            """, unsafe_allow_html=True)
 
     st.markdown(f"<h2 style='color: #38bdf8; text-align: center; background-color: #1e293b; padding: 15px; border-radius: 8px;'>Total Planilla General de la Semana: S/ {gasto_semana_mo:.2f}</h2>", unsafe_allow_html=True)
 
@@ -522,7 +541,7 @@ with tab_materiales:
     else:
         df_mats_show = pd.DataFrame(columns=['Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)'])
         
-    df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", width='stretch', hide_index=True)
+    df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", use_container_width=True, hide_index=True)
     
     gasto_semana_mat = 0
     for index, row in df_edit_mat.iterrows():
@@ -547,7 +566,7 @@ df_resumen["Gasto Total Semanal (S/)"] = df_resumen["Gasto Mano Obra (S/)"] + df
 df_resumen["Gasto Acumulado (S/)"] = df_resumen["Gasto Total Semanal (S/)"].cumsum()
 df_resumen["Saldo vs Presupuesto (S/)"] = st.session_state['presupuesto_total'] - df_resumen["Gasto Acumulado (S/)"]
 
-st.dataframe(df_resumen, width='stretch', hide_index=True)
+st.dataframe(df_resumen, use_container_width=True, hide_index=True)
 
 gasto_total_acumulado = df_resumen["Gasto Acumulado (S/)"].iloc[-1]
 saldo_final = st.session_state['presupuesto_total'] - gasto_total_acumulado
