@@ -61,7 +61,7 @@ if 'presupuesto_mo' not in st.session_state: st.session_state['presupuesto_mo'] 
 if 'presupuesto_mat' not in st.session_state: st.session_state['presupuesto_mat'] = 12000.00
 
 # ==========================================
-# 3. PANTALLA DE INICIO (LOGIN)
+# 3. PANTALLA DE INICIO (LOGIN CON RESTAURACIÓN DE EMERGENCIA)
 # ==========================================
 if not st.session_state['autenticado']:
     st.markdown("""
@@ -114,6 +114,18 @@ if not st.session_state['autenticado']:
             if st.button("¿No tienes cuenta? Regístrate aquí"):
                 st.session_state['mostrar_registro'] = True
                 st.rerun()
+                
+            # ZONA DE RESTAURACIÓN DE EMERGENCIA EN EL LOGIN
+            with st.expander("🛠️ ¿Se reinició el servidor? Restaura tu Base de Datos aquí"):
+                archivo_emergencia = st.file_uploader("Sube tu archivo de respaldo (.db)", type=["db"])
+                if archivo_emergencia is not None:
+                    with open("obra_nexus.db", "wb") as f:
+                        f.write(archivo_emergencia.getbuffer())
+                    st.success("¡Base de datos restaurada con éxito! Ya puedes iniciar sesión.")
+                    st.rerun()
+
+            with st.expander("Terms of Service | Privacy Policy"):
+                st.write("**Términos:** Uso exclusivo para gestión interna. **Privacidad:** Datos encriptados localmente.")
         else:
             with st.form("form_registro"):
                 st.markdown("<p style='text-align: center;'><b>Crea tu cuenta de obra</b></p>", unsafe_allow_html=True)
