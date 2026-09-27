@@ -331,7 +331,6 @@ with col_form:
 
             if btn_guardar:
                 if trabajador:
-                    # REPLACE INTO sobreescribe limpiamente cualquier registro previo de este trabajador en esta fecha exacta
                     c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
                     conn.commit()
                     st.success("¡Asistencia guardada (actualizada para esta fecha)!")
@@ -480,7 +479,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON FORMATO: Obrero: [Especialidad(cursiva)] - [Nombre(negrita grande)]
+# 8. MÓDULOS SEMANALES CON TARJETAS LIMPIAS Y CONTEO ESTRICTO DE ALMUERZO EN OBRA
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -511,12 +510,14 @@ with tab_planilla:
         cant_completos = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
         cant_medios = len(df_t_sem[df_t_sem['estado'] == 'Medio Día']) if not df_t_sem.empty else 0
         cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
-        cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.contains('Sí', na=False)]) if not df_t_sem.empty else 0
+        
+        # Conteo exacto: solo cuenta si seleccionó explícitamente "Sí (Se queda a almorzar)"
+        cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.startswith('Sí', na=False)]) if not df_t_sem.empty else 0
 
-        # FORMATO SOLICITADO: Obrero: <i>Especialidad</i> - <b>NOMBRE GRANDE</b>
-        titulo_expander = f"👷 Obrero: <i>{especialidad_trab}</i> — <span style='font-size: 1.25rem; font-weight: bold;'>{trabajador}</span>"
+        # Tarjeta limpia con especialidad en cursiva y nombre grande en negrita
+        titulo_tarjeta = f"Obrero: <i>{especialidad_trab}</i> — <span style='font-size: 1.2rem; font-weight: bold;'>{trabajador}</span>"
 
-        with st.expander(titulo_expander, expanded=True):
+        with st.expander(titulo_tarjeta, expanded=True):
             col_w1, col_w2, col_w3 = st.columns(3)
             with col_w1:
                 jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
@@ -540,7 +541,7 @@ with tab_planilla:
                         <tr><td>Días Completos</td><td><b>{cant_completos}</b></td><td>S/ {jornal_dia:.2f}</td><td>S/ {pago_completos:.2f}</td></tr>
                         <tr><td>Medios Días</td><td><b>{cant_medios}</b></td><td>S/ {jornal_dia/2:.2f}</td><td>S/ {pago_medios:.2f}</td></tr>
                         <tr><td>Inasistencias</td><td><b>{cant_faltas}</b></td><td>S/ 0.00</td><td>S/ 0.00</td></tr>
-                        <tr><td>Comida - Almuerzo</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
+                        <tr><td>Comida - Almuerzo (En Obra)</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
                         <tr><td><b>Nota / Comentario:</b></td><td colspan="3"><i>{comentario_nota if comentario_nota else 'Sin comentarios'} (Monto ref: S/ {monto_extra:.2f})</i></td></tr>
                     </table>
                     <hr style="border-color: #334155;">
