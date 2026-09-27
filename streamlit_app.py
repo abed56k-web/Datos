@@ -25,8 +25,8 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con restricción UNIQUE corregida)
-conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con timeout para evitar bloqueos)
+conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
@@ -174,14 +174,14 @@ if st.session_state['partida_actual'] is None:
     with col_p1:
         st.markdown("### 📂 Entrar a Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
-        if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
+        if st.button("INGRESAR AL PANEL ➡️", width='stretch'):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
             
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
-        if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
+        if st.button("CREAR Y ENTRAR ⚡", width='stretch'):
             if nueva_partida:
                 st.session_state['lista_partidas'].append(nueva_partida)
                 st.session_state['partida_actual'] = nueva_partida
@@ -259,7 +259,7 @@ with col_form:
             with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
             st.info(f"Total: S/ {cant * pre:.2f}")
             
-            if st.form_submit_button("Guardar Material", use_container_width=True):
+            if st.form_submit_button("Guardar Material", width='stretch'):
                 if mat_nom and und_final:
                     c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
                     conn.commit()
@@ -274,7 +274,7 @@ with col_form:
             nuevo_nombre = st.text_input("Nombre y Apellido del Trabajador")
             nueva_esp = st.selectbox("Especialidad", ["Operario", "Oficial", "Ayudante / Peón", "Pintor", "Enchapador", "Electricista", "Plomero"])
             
-            if st.form_submit_button("Registrar Trabajador", use_container_width=True):
+            if st.form_submit_button("Registrar Trabajador", width='stretch'):
                 if nuevo_nombre:
                     try:
                         c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre, nueva_esp))
@@ -299,7 +299,7 @@ with col_form:
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
             
-            if st.form_submit_button("Guardar Asistencia", use_container_width=True):
+            if st.form_submit_button("Guardar Asistencia", width='stretch'):
                 if trabajador:
                     c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
                     conn.commit()
@@ -328,7 +328,7 @@ with col_graf_circulo:
         legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white"))
     )
     fig_dona.update_traces(hoverinfo='label+value', textinfo='percent', textfont_color='white', marker=dict(line=dict(color='#0f172a', width=2)))
-    st.plotly_chart(fig_dona, use_container_width=True)
+    st.plotly_chart(fig_dona, width='stretch')
 
 with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
@@ -345,7 +345,7 @@ with col_graf_linea:
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")),
         font=dict(color="white")
     )
-    st.plotly_chart(fig_linea, use_container_width=True)
+    st.plotly_chart(fig_linea, width='stretch')
 
 st.write("---")
 
@@ -358,14 +358,14 @@ meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JUL
 col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
 
 with col_btn1:
-    if st.button("◀ Mes Anterior", key="btn_ant", use_container_width=True):
+    if st.button("◀ Mes Anterior", key="btn_ant", width='stretch'):
         if st.session_state['cal_mes'] == 1: st.session_state['cal_mes'] = 12; st.session_state['cal_ano'] -= 1
         else: st.session_state['cal_mes'] -= 1
         st.rerun()
 with col_tit:
     st.markdown(f"<h3 style='text-align: center; color: #38bdf8 !important; margin: 0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
 with col_btn2:
-    if st.button("Mes Siguiente ▶", key="btn_sig", use_container_width=True):
+    if st.button("Mes Siguiente ▶", key="btn_sig", width='stretch'):
         if st.session_state['cal_mes'] == 12: st.session_state['cal_mes'] = 1; st.session_state['cal_ano'] += 1
         else: st.session_state['cal_mes'] += 1
         st.rerun()
@@ -527,7 +527,7 @@ with tab_materiales:
     else:
         df_mats_show = pd.DataFrame(columns=['Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)'])
         
-    df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", use_container_width=True, hide_index=True)
+    df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", width='stretch', hide_index=True)
     
     gasto_semana_mat = 0
     for index, row in df_edit_mat.iterrows():
@@ -552,7 +552,7 @@ df_resumen["Gasto Total Semanal (S/)"] = df_resumen["Gasto Mano Obra (S/)"] + df
 df_resumen["Gasto Acumulado (S/)"] = df_resumen["Gasto Total Semanal (S/)"].cumsum()
 df_resumen["Saldo vs Presupuesto (S/)"] = st.session_state['presupuesto_total'] - df_resumen["Gasto Acumulado (S/)"]
 
-st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+st.dataframe(df_resumen, width='stretch', hide_index=True)
 
 gasto_total_acumulado = df_resumen["Gasto Acumulado (S/)"].iloc[-1]
 saldo_final = st.session_state['presupuesto_total'] - gasto_total_acumulado
