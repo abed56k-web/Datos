@@ -6,7 +6,7 @@ from datetime import date, timedelta
 import calendar
 import sqlite3
 import hashlib
-import os
+import random
 
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(
@@ -28,7 +28,6 @@ st.markdown("""
 conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
-# Crear tablas si no existen
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT)')
@@ -202,7 +201,6 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
             st.rerun()
 
     st.write("---")
-    # Botón para descargar el archivo de la base de datos completa (Seguridad para Liquidación)
     if os.path.exists('obra_nexus.db'):
         with open("obra_nexus.db", "rb") as file:
             st.download_button(
@@ -261,14 +259,13 @@ with col_form:
                 else:
                     st.warning("Escribe el nombre del trabajador.")
 
-# Consultar datos reales de materiales de la BD para la partida actual
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 gasto_mat_real = (df_mat_db['cantidad'] * df_mat_db['precio']).sum() if not df_mat_db.empty else 0.0
 
 with col_graf_circulo:
     st.subheader("💰 Distribución")
     labels = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    gasto_mo_simulado = 2500.0 # Base simulada para planilla
+    gasto_mo_simulado = 2500.0 
     values = [gasto_mat_real, gasto_mo_simulado, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real + gasto_mo_simulado))] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
@@ -328,7 +325,10 @@ col_cal, col_leyenda = st.columns([2.5, 1])
 with col_cal:
     calendar.setfirstweekday(calendar.SUNDAY)
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
-    random.seed(hash(trabajador_seleccionado + str(st.session_state['cal_mes'])))
+    
+    # Solución segura sin error de hash
+    safe_seed_val = sum(ord(char) for char in (trabajador_seleccionado + str(st.session_state['cal_mes'])))
+    random.seed(safe_seed_val)
 
     html_cal = """
     <style>
@@ -423,7 +423,6 @@ with tab_planilla:
 with tab_materiales:
     st.write("Ingresa las facturas/boletas de los materiales comprados durante esta semana.")
     
-    # Si hay materiales en la BD, los mostramos, sino cargamos por defecto
     if not df_mat_db.empty:
         df_mats_show = df_mat_db[['insumo', 'cantidad', 'precio']].rename(columns={'insumo': 'Insumo / Material', 'cantidad': 'Cantidad', 'precio': 'Precio Unit. (S/)'})
     else:
