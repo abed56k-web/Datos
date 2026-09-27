@@ -3,95 +3,164 @@ import pandas as pd
 import plotly.express as px
 from datetime import date
 import random
+import sqlite3
+import hashlib
 
-# 1. CONFIGURACIÓN DE LA PÁGINA
+# 1. CONFIGURACIÓN INICIAL (Modo ancho para parecer PowerBI)
 st.set_page_config(page_title="Control de Obra", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. PANTALLA DE INICIO DE SESIÓN
-# Usamos session_state para que recuerde que ya entraste
+# 2. CONFIGURACIÓN DE LA BASE DE DATOS DE USUARIOS
+# Esto crea un archivo llamado "usuarios.db" para guardar las cuentas
+conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+c = conn.cursor()
+c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT, password TEXT)')
+conn.commit()
+
+def encriptar_clave(clave):
+    return hashlib.sha256(str.encode(clave)).hexdigest()
+
+def agregar_usuario(email, clave):
+    c.execute('INSERT INTO usuarios (email, password) VALUES (?, ?)', (email, encriptar_clave(clave)))
+    conn.commit()
+
+def verificar_usuario(email, clave):
+    c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
+    return c.fetchone() is not None
+
+# 3. ESTILOS CSS (Para el diseño PowerBI y la pantalla dividida)
+st.markdown("""
+    <style>
+    /* Fondo claro estilo PowerBI para toda la app */
+    .stApp {
+        background-color: #f3f4f6;
+    }
+    /* Estilo de la caja izquierda del Login */
+    .caja-izquierda {
+        background: linear-gradient(135deg, #6b7280 0%, #374151 100%);
+        padding: 40px;
+        border-radius: 10px;
+        color: white;
+        height: 100%;
+    }
+    /* Tarjetas de métricas estilo PowerBI */
+    div[data-testid="metric-container"] {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 4. PANTALLA DE INICIO DE SESIÓN / REGISTRO
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    # Diseño de la pantalla de login
-    st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>🏗️ Bienvenido a la Obra</h1>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center;'>Ingresa para hacer el seguimiento</h4>", unsafe_allow_html=True)
+    # Creamos dos columnas simulando tu imagen de referencia
+    col1, col2 = st.columns([1, 1], gap="large")
     
-    # Usamos columnas para centrar el cuadro de contraseña
-    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        st.markdown("""
+        <div class="caja-izquierda">
+            <h1 style='font-size: 3rem;'>Bienvenido<br>de Vuelta</h1>
+            <p style='font-size: 1.2rem; margin-top: 20px;'>Plataforma integral para el control de avance, materiales y personal de obra. Registra tus gastos y visualiza tu progreso en tiempo real.</p>
+            <br><br><br>
+            <p>📍 Obra: Ayacucho - Enchapado y Tarrajeo</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
     with col2:
-        st.write("---")
-        clave = st.text_input("Contraseña de acceso:", type="password")
-        if st.button("Iniciar Sesión", use_container_width=True):
-            if clave == "ayacucho2026":  # Tu contraseña
-                st.session_state['autenticado'] = True
-                st.rerun() # Recarga la página para entrar
-            else:
-                st.error("Contraseña incorrecta. Intenta de nuevo.")
-    st.stop() # Detiene el código aquí si no hay contraseña correcta
+        st.write("<br><br>", unsafe_allow_html=True)
+        st.title("Sign in")
+        
+        # Pestañas para elegir entre Iniciar Sesión o Crear Cuenta
+        tab_login, tab_registro = st.tabs(["Ingresar", "Crear nueva cuenta"])
+        
+        with tab_login:
+            with st.form("form_login"):
+                email_login = st.text_input("Email Address")
+                clave_login = st.text_input("Password", type="password")
+                btn_login = st.form_submit_button("Sign in now", use_container_width=True)
+                
+                if btn_login:
+                    if verificar_usuario(email_login, clave_login):
+                        st.session_state['autenticado'] = True
+                        st.session_state['usuario_actual'] = email_login
+                        st.rerun()
+                    else:
+                        st.error("Correo o contraseña incorrectos.")
+                        
+        with tab_registro:
+            with st.form("form_registro"):
+                email_reg = st.text_input("Nuevo Email")
+                clave_reg = st.text_input("Crear Password", type="password")
+                btn_reg = st.form_submit_button("Registrar cuenta", use_container_width=True)
+                
+                if btn_reg:
+                    if email_reg and clave_reg:
+                        agregar_usuario(email_reg, clave_reg)
+                        st.success("¡Cuenta creada! Ahora ve a la pestaña 'Ingresar' para entrar.")
+                    else:
+                        st.warning("Por favor, llena ambos campos.")
+                        
+    st.stop() # Detiene el código para que no se vea el dashboard sin entrar
 
 # ==========================================
-# 3. SISTEMA PRINCIPAL (Solo se ve si entró)
+# 5. DASHBOARD ESTILO POWER BI
 # ==========================================
-st.title("📊 Panel de Control: Avance y Gastos")
+st.title(f"📊 Dashboard de Obra (Usuario: {st.session_state['usuario_actual']})")
 
-# Creamos dos pestañas para organizar la pantalla
-pestana1, pestana2 = st.tabs(["📝 Ingreso de Datos diarios", "📅 Calendario de Avance"])
+# Tarjetas KPI (Indicadores clave) estilo PowerBI
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+with kpi1: st.metric(label="Presupuesto Total", value="S/ 15,000", delta="Base")
+with kpi2: st.metric(label="Gasto en Materiales", value="S/ 4,250", delta="-S/ 450 esta semana", delta_color="inverse")
+with kpi3: st.metric(label="Gasto en Mano de Obra", value="S/ 1,800", delta="-S/ 300 esta semana", delta_color="inverse")
+with kpi4: st.metric(label="Saldo Disponible", value="S/ 8,950", delta="59% Restante")
 
-with pestana1:
-    col_form1, col_form2 = st.columns(2)
+st.write("---")
+
+# Contenedores principales
+col_grafico, col_formularios = st.columns([2, 1])
+
+with col_grafico:
+    st.subheader("📅 Calendario de Inversión Diaria")
     
-    with col_form1:
-        st.subheader("Registro de Personal")
-        with st.form("form_personal"):
-            fecha_p = st.date_input("Fecha", date.today())
-            nombre = st.text_input("Nombre del Trabajador")
-            cargo = st.selectbox("Cargo", ["Operario", "Ayudante"])
-            frente = st.selectbox("Frente de Trabajo", ["2do Piso (Enchapado, pintura, puertas)", "3er Piso (Tarrajeo)"])
-            jornal = st.number_input("Salario / Jornal (S/)", min_value=0.0, format="%.2f")
-            btn_personal = st.form_submit_button("Guardar Asistencia")
-            if btn_personal:
-                st.success(f"Asistencia de {nombre} guardada correctamente.")
-
-    with col_form2:
-        st.subheader("Registro de Materiales")
-        with st.form("form_materiales"):
-            fecha_m = st.date_input("Fecha de compra", date.today())
-            # Opciones precargadas para que sea más rápido llenar desde el celular
-            material = st.selectbox("Material", ["Cemento", "Cerámicos 60x60cm", "Pegamento para cerámico", "Pintura", "Sikaflex-11 FC", "Tubos/Conexiones", "Otro"])
-            cantidad = st.number_input("Cantidad", min_value=1)
-            costo_total = st.number_input("Costo Total (S/)", min_value=0.0, format="%.2f")
-            frente_m = st.selectbox("Destino", ["2do Piso", "3er Piso", "General"])
-            btn_material = st.form_submit_button("Guardar Material")
-            if btn_material:
-                st.success(f"Compra de {material} guardada correctamente.")
-
-with pestana2:
-    st.subheader("Intensidad de Gastos y Avance por Día")
-    st.info("Los cuadros más oscuros indican los días con mayor inversión (S/) en la obra.")
-    
-    # Generamos datos de ejemplo para que puedas ver cómo funciona el calendario
+    # Generamos datos de ejemplo para el calendario
     fechas = pd.date_range(start='2026-09-01', end='2026-10-31')
     datos_calendario = pd.DataFrame({'Fecha': fechas})
-    # Simulamos gastos aleatorios para el ejemplo gráfico
     datos_calendario['Gasto_Diario'] = [random.choice([0, 150, 300, 450, 0, 80, 0]) for _ in range(len(fechas))]
-    
-    # Extraemos la semana y el día de la semana para armar la cuadrícula
     datos_calendario['Semana'] = datos_calendario['Fecha'].dt.isocalendar().week
     datos_calendario['Dia_Semana'] = datos_calendario['Fecha'].dt.day_name()
     
-    # Creamos el mapa de calor (Heatmap) con Plotly
+    # Gráfico interactivo estilo PowerBI
     fig = px.density_heatmap(
-        datos_calendario, 
-        x="Semana", 
-        y="Dia_Semana", 
-        z="Gasto_Diario",
-        color_continuous_scale="Greens", # Color verde para el avance
+        datos_calendario, x="Semana", y="Dia_Semana", z="Gasto_Diario",
+        color_continuous_scale="Blues", # Tonos azules empresariales
         labels={'Semana': 'Semana del Año', 'Dia_Semana': 'Día', 'Gasto_Diario': 'Gasto Total (S/)'}
     )
-    
-    # Ordenamos los días de lunes a domingo
     fig.update_yaxes(categoryorder='array', categoryarray=['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday'])
     
-    # Mostramos el gráfico en pantalla completa
+    # Hacemos que el fondo del gráfico sea transparente para que encaje con el gris claro del panel
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig, use_container_width=True)
+
+with col_formularios:
+    st.subheader("📝 Ingreso Rápido")
+    seleccion = st.radio("¿Qué vas a registrar?", ["Mano de Obra", "Materiales"])
+    
+    if seleccion == "Mano de Obra":
+        with st.form("form_personal"):
+            fecha_p = st.date_input("Fecha", date.today())
+            nombre = st.text_input("Trabajador")
+            frente = st.selectbox("Frente", ["2do Piso (Enchapado)", "3er Piso (Tarrajeo)"])
+            jornal = st.number_input("Monto (S/)", min_value=0.0)
+            if st.form_submit_button("Guardar"): st.success("Guardado.")
+            
+    else:
+        with st.form("form_materiales"):
+            fecha_m = st.date_input("Fecha", date.today())
+            material = st.selectbox("Insumo", ["Cemento", "Cerámicos", "Pegamento", "Sikaflex", "Otros"])
+            costo = st.number_input("Costo Total (S/)", min_value=0.0)
+            if st.form_submit_button("Guardar"): st.success("Guardado.")
