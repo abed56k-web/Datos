@@ -8,8 +8,26 @@ import sqlite3
 import hashlib
 import random
 
-# 1. CONFIGURACIÓN INICIAL
-st.set_page_config(page_title="Control de Obra", layout="wide", initial_sidebar_state="collapsed")
+# 1. CONFIGURACIÓN INICIAL CON ICONO PWA PARA CELULAR
+st.set_page_config(
+    page_title="Control de Obra", 
+    layout="wide", 
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': "# NEXUS OBRA - Sistema de Control de Proyectos"
+    }
+)
+
+# Inyectar metadatos para que el celular reconozca el ícono personalizado al instalar
+st.markdown("""
+    <head>
+        <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2954/2954848.png">
+        <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2954/2954848.png">
+        <meta name="theme-color" content="#0f172a">
+    </head>
+""", unsafe_allow_html=True)
 
 # 2. BASE DE DATOS Y ESTADOS GLOBALES
 conn = sqlite3.connect('usuarios.db', check_same_thread=False)
@@ -146,7 +164,7 @@ if st.session_state['partida_actual'] is None:
     st.stop()
 
 # ==========================================
-# 6. DASHBOARD DE LA PARTIDA Y PRESUPUESTO (CORREGIDO)
+# 6. DASHBOARD DE LA PARTIDA Y PRESUPUESTO
 # ==========================================
 col_top1, col_top2 = st.columns([4, 1])
 with col_top1:
@@ -157,7 +175,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# CONFIGURACIÓN DE PRESUPUESTO BASE (CON SELECTOR LIMPIO)
+# CONFIGURACIÓN DE PRESUPUESTO BASE
 with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
     modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
     
@@ -167,12 +185,9 @@ with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
             st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
         with col_b2:
             st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
-        
-        # El total se calcula solo
         st.session_state['presupuesto_total'] = st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo']
         st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {st.session_state['presupuesto_total']:,.2f}</span>", unsafe_allow_html=True)
     else:
-        # Solo aparece el cuadro de presupuesto total
         st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total Directo (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
 
 st.write("---")
