@@ -25,14 +25,20 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con actualización segura de columnas)
 conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
-c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT)')
-conn.commit()
+c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT)')
+
+# Actualización segura por si la tabla asistencia antigua tenía 4 columnas
+try:
+    c.execute('ALTER TABLE asistencia ADD COLUMN almuerzo TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass # La columna ya existe, no hay problema
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
 
@@ -246,7 +252,6 @@ with col_form:
             f_mat = st.date_input("Fecha", date.today(), key="f1")
             mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
             
-            # UNIDADES ESTÁNDAR PERUANAS + OPCIÓN PERSONALIZADA
             tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
             und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
             
@@ -269,12 +274,8 @@ with col_form:
             f_mo = st.date_input("Fecha", date.today(), key="f2")
             trabajador = st.text_input("Nombre del Trabajador (Ej. Grover)")
             
-            # Selector de Estado de Asistencia
             estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
-            
-            # Opción de Comida / Almuerzo
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
-            
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
             
             if st.form_submit_button("Guardar Actividad", use_container_width=True):
@@ -357,7 +358,6 @@ with col_cal:
     calendar.setfirstweekday(calendar.SUNDAY)
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
 
-    # Extraer asistencia real de la BD para este trabajador en este mes/año
     asistencia_trabajador = {}
     if not df_asist_db.empty:
         df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
