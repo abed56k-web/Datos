@@ -6,11 +6,11 @@ from datetime import date, timedelta
 import calendar
 import sqlite3
 import hashlib
-import random
+import os
 
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(
-    page_title="Control de Obra", 
+    page_title="Control de Obra - Nexus", 
     layout="wide", 
     initial_sidebar_state="collapsed",
     menu_items={'Get Help': None, 'Report a bug': None, 'About': "# NEXUS OBRA - Sistema de Control de Proyectos"}
@@ -24,16 +24,26 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS Y ESTADOS GLOBALES
-conn = sqlite3.connect('usuarios.db', check_same_thread=False)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
+conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT, password TEXT)')
+
+# Crear tablas si no existen
+c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, cantidad REAL, precio REAL)')
+c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT)')
 conn.commit()
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
+
 def agregar_usuario(email, clave): 
-    c.execute('INSERT INTO usuarios (email, password) VALUES (?, ?)', (email, encriptar_clave(clave)))
-    conn.commit()
+    try:
+        c.execute('INSERT INTO usuarios (email, password) VALUES (?, ?)', (email, encriptar_clave(clave)))
+        conn.commit()
+        return True
+    except:
+        return False
+
 def verificar_usuario(email, clave):
     c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
     return c.fetchone() is not None
@@ -46,13 +56,12 @@ if 'lista_partidas' not in st.session_state:
 if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 9 
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
 
-# Presupuestos dinámicos
 if 'presupuesto_total' not in st.session_state: st.session_state['presupuesto_total'] = 17000.00
 if 'presupuesto_mo' not in st.session_state: st.session_state['presupuesto_mo'] = 5000.00
 if 'presupuesto_mat' not in st.session_state: st.session_state['presupuesto_mat'] = 12000.00
 
 # ==========================================
-# 3. PANTALLA DE INICIO (LOGIN CON FORMULARIOS SEGUROS)
+# 3. PANTALLA DE INICIO (LOGIN)
 # ==========================================
 if not st.session_state['autenticado']:
     st.markdown("""
@@ -105,9 +114,6 @@ if not st.session_state['autenticado']:
             if st.button("¿No tienes cuenta? Regístrate aquí"):
                 st.session_state['mostrar_registro'] = True
                 st.rerun()
-                
-            with st.expander("Terms of Service | Privacy Policy"):
-                st.write("**Términos:** Uso exclusivo para gestión interna. **Privacidad:** Datos encriptados localmente (SHA-256).")
         else:
             with st.form("form_registro"):
                 st.markdown("<p style='text-align: center;'><b>Crea tu cuenta de obra</b></p>", unsafe_allow_html=True)
@@ -117,10 +123,12 @@ if not st.session_state['autenticado']:
                 
                 if btn_reg:
                     if email_reg and clave_reg:
-                        agregar_usuario(email_reg, clave_reg)
-                        st.success("¡Cuenta creada con éxito! Vuelve atrás para ingresar.")
-                        st.session_state['mostrar_registro'] = False
-                        st.rerun()
+                        if agregar_usuario(email_reg, clave_reg):
+                            st.success("¡Cuenta creada con éxito! Vuelve atrás para ingresar.")
+                            st.session_state['mostrar_registro'] = False
+                            st.rerun()
+                        else:
+                            st.error("El correo ya está registrado.")
                     else:
                         st.warning("Completa ambos campos.")
             
@@ -183,8 +191,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# CONFIGURACIÓN Y EDICIÓN DE PARTIDA / PRESUPUESTO
-with st.expander("⚙️ Configurar y Renombrar Partida / Presupuesto"):
+with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Datos"):
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'])
     if st.button("Actualizar Nombre"):
         if nuevo_nombre_partida:
@@ -193,6 +200,17 @@ with st.expander("⚙️ Configurar y Renombrar Partida / Presupuesto"):
             st.session_state['partida_actual'] = nuevo_nombre_partida
             st.success("¡Nombre actualizado con éxito!")
             st.rerun()
+
+    st.write("---")
+    # Botón para descargar el archivo de la base de datos completa (Seguridad para Liquidación)
+    if os.path.exists('obra_nexus.db'):
+        with open("obra_nexus.db", "rb") as file:
+            st.download_button(
+                label="📥 Descargar Respaldo de Base de Datos (Seguridad Obra)",
+                data=file,
+                file_name="obra_nexus_backup.db",
+                mime="application/octet-stream"
+            )
 
     st.write("---")
     modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
@@ -217,24 +235,41 @@ with col_form:
     tab_mat, tab_mo = st.tabs(["📦 Ingresar Materiales", "👷 Registrar Actividad"])
     with tab_mat:
         with st.form("form_materiales"):
-            st.date_input("Fecha", date.today(), key="f1")
-            st.text_input("Material / Insumo (Ej. Cemento)")
+            f_mat = st.date_input("Fecha", date.today(), key="f1")
+            mat_nom = st.text_input("Material / Insumo (Ej. Cemento)")
             col_m1, col_m2 = st.columns(2)
             with col_m1: cant = st.number_input("Cantidad", min_value=1.0, value=1.0)
             with col_m2: pre = st.number_input("P. Unit. (S/)", min_value=0.0)
             st.info(f"Total: S/ {cant * pre:.2f}")
-            if st.form_submit_button("Guardar Material", use_container_width=True): st.success("Guardado.")
+            if st.form_submit_button("Guardar Material", use_container_width=True):
+                if mat_nom:
+                    c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, cant, pre))
+                    conn.commit()
+                    st.success("Material guardado en la Base de Datos.")
+                else:
+                    st.warning("Escribe el nombre del material.")
     with tab_mo:
         with st.form("form_mano_obra"):
-            st.date_input("Fecha", date.today(), key="f2")
-            st.text_input("Nombre Trabajador")
-            st.text_area("Actividad realizada", placeholder="Ej. Tarrajeo de muro norte.")
-            if st.form_submit_button("Guardar Actividad", use_container_width=True): st.success("Registrada.")
+            f_mo = st.date_input("Fecha", date.today(), key="f2")
+            trabajador = st.text_input("Nombre Trabajador")
+            actividad = st.text_area("Actividad realizada", placeholder="Ej. Tarrajeo de muro norte.")
+            if st.form_submit_button("Guardar Actividad", use_container_width=True):
+                if trabajador:
+                    c.execute("INSERT INTO asistencia VALUES (?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), actividad))
+                    conn.commit()
+                    st.success("Actividad registrada en la BD.")
+                else:
+                    st.warning("Escribe el nombre del trabajador.")
+
+# Consultar datos reales de materiales de la BD para la partida actual
+df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
+gasto_mat_real = (df_mat_db['cantidad'] * df_mat_db['precio']).sum() if not df_mat_db.empty else 0.0
 
 with col_graf_circulo:
     st.subheader("💰 Distribución")
     labels = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    values = [6000, 2500, max(0, st.session_state['presupuesto_total'] - 8500)] 
+    gasto_mo_simulado = 2500.0 # Base simulada para planilla
+    values = [gasto_mat_real, gasto_mo_simulado, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real + gasto_mo_simulado))] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
@@ -249,7 +284,7 @@ with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
     semanas_graf = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
     pres_total_linea = [st.session_state['presupuesto_total']] * 4
-    gasto_acumulado = [2000, 4500, 6800, 8500] 
+    gasto_acumulado = [2000, 4500, 6800, gasto_mat_real + 2500] 
     
     fig_linea = go.Figure()
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
@@ -387,12 +422,18 @@ with tab_planilla:
 
 with tab_materiales:
     st.write("Ingresa las facturas/boletas de los materiales comprados durante esta semana.")
-    df_mats = pd.DataFrame({
-        "Insumo / Material": ["Cemento Portland (Bolsa)", "Arena Fina (m3)", "Pegamento (Bolsa)", ""],
-        "Cantidad": [20, 3, 10, 0],
-        "Precio Unit. (S/)": [28.50, 45.00, 25.00, 0.00]
-    })
-    df_edit_mat = st.data_editor(df_mats, num_rows="dynamic", use_container_width=True, hide_index=True)
+    
+    # Si hay materiales en la BD, los mostramos, sino cargamos por defecto
+    if not df_mat_db.empty:
+        df_mats_show = df_mat_db[['insumo', 'cantidad', 'precio']].rename(columns={'insumo': 'Insumo / Material', 'cantidad': 'Cantidad', 'precio': 'Precio Unit. (S/)'})
+    else:
+        df_mats_show = pd.DataFrame({
+            "Insumo / Material": ["Cemento Portland (Bolsa)", "Arena Fina (m3)", "Pegamento (Bolsa)", ""],
+            "Cantidad": [20, 3, 10, 0],
+            "Precio Unit. (S/)": [28.50, 45.00, 25.00, 0.00]
+        })
+        
+    df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", use_container_width=True, hide_index=True)
     
     gasto_semana_mat = 0
     for index, row in df_edit_mat.iterrows():
@@ -433,7 +474,7 @@ with col_res1:
 with col_res2:
     st.markdown(f"""
         <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #f59e0b;'>
-            <h4 style='margin:0; color:#94a3b8;'>Gaseo Acumulado a la fecha</h4>
+            <h4 style='margin:0; color:#94a3b8;'>Gasto Acumulado a la fecha</h4>
             <h2 style='margin:0; color:#f59e0b;'>S/ {gasto_total_acumulado:.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
