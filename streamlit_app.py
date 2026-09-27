@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con tabla de personal)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
 conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
@@ -237,7 +237,6 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
 
 st.write("---")
 
-# Consultar personal registrado en la BD para esta partida
 df_personal_db = pd.read_sql(f"SELECT * FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
 lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
 
@@ -291,7 +290,6 @@ with col_form:
         with st.form("form_mano_obra"):
             f_mo = st.date_input("Fecha", date.today(), key="f2")
             
-            # Selector desplegable de trabajadores registrados
             if lista_trabajadores_db:
                 trabajador = st.selectbox("Seleccione Trabajador", lista_trabajadores_db)
             else:
@@ -303,7 +301,6 @@ with col_form:
             
             if st.form_submit_button("Guardar Asistencia", use_container_width=True):
                 if trabajador:
-                    # Usamos REPLACE INTO para actualizar automáticamente si ya existe asistencia en esa fecha
                     c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
                     conn.commit()
                     st.success("¡Asistencia guardada o actualizada correctamente en la BD!")
@@ -441,7 +438,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON CÁLCULO ESTRICTO DE ASISTENCIA Y BOTÓN ARREGLADO
+# 8. MÓDULOS SEMANALES CON CONTROL DE SALDOS SIMPLIFICADO
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -482,20 +479,14 @@ with tab_planilla:
             jornal_dia = st.number_input(f"Jornal Diario por Día (S/) - {trabajador}", value=80.0, step=10.0, key=f"jornal_{trabajador}")
             costo_almuerzo = st.number_input(f"Costo por Almuerzo (S/) - {trabajador}", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
             
+        with col_w2:
             # Consultar saldo anterior en BD
             c.execute("SELECT saldo FROM saldos_trabajadores WHERE partida=? AND trabajador=?", (st.session_state['partida_actual'], trabajador))
             res_saldo = c.fetchone()
             saldo_anterior = res_saldo[0] if res_saldo else 0.0
-            
-            # BOTÓN ARREGLADO (Pone el saldo en 0 y recarga)
-            if st.button(f"🧹 Arreglado (Saldar Cuenta) - {trabajador}", key=f"btn_arreglado_{trabajador}"):
-                c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, 0.0))
-                conn.commit()
-                st.success(f"¡Cuenta saldada para {trabajador}!")
-                st.rerun()
 
-        with col_w2:
-            nuevo_saldo = st.number_input(f"Saldo Pendiente / Adelanto (S/) (+Debe / -Adelanto) - {trabajador}", value=saldo_anterior, step=10.0, key=f"saldo_{trabajador}")
+            # Cuadro único y directo: +debe, -adelanto, 0 si ya se arregló
+            nuevo_saldo = st.number_input(f"Saldo / Adelanto (S/) (+Debe / -Adelanto / 0=Arreglado) - {trabajador}", value=saldo_anterior, step=10.0, key=f"saldo_{trabajador}")
             if nuevo_saldo != saldo_anterior:
                 c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, nuevo_saldo))
                 conn.commit()
