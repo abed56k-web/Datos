@@ -25,13 +25,10 @@ def verificar_usuario(email, clave):
     c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
     return c.fetchone() is not None
 
-# Variables de estado
 if 'autenticado' not in st.session_state: st.session_state['autenticado'] = False
 if 'mostrar_registro' not in st.session_state: st.session_state['mostrar_registro'] = False
 if 'partida_actual' not in st.session_state: st.session_state['partida_actual'] = None
 if 'lista_partidas' not in st.session_state: st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
-
-# Variables para navegar en el calendario
 if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 9 
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
 
@@ -51,17 +48,9 @@ if not st.session_state['autenticado']:
             background-size: cover; background-position: center; background-attachment: fixed;
         }
         h1, h2, h3, p, label, .stCheckbox label { color: white !important; }
-        
-        .stTextInput input, .stPasswordInput input {
-            background-color: white !important; color: black !important; border-radius: 5px;
-        }
-        
-        div[data-testid="stButton"] button {
-            background-color: #d95b32 !important; color: white !important;
-            border: none !important; font-size: 1.1rem; width: 100%; transition: 0.3s;
-        }
+        .stTextInput input, .stPasswordInput input { background-color: white !important; color: black !important; border-radius: 5px; }
+        div[data-testid="stButton"] button { background-color: #d95b32 !important; color: white !important; border: none !important; font-size: 1.1rem; width: 100%; transition: 0.3s; }
         div[data-testid="stButton"] button:hover { background-color: #b54925 !important; }
-        
         .social-container img { width: 30px; height: 30px; margin-right: 15px; cursor: pointer; filter: brightness(0) invert(1); }
         .social-container img:hover { opacity: 0.8; }
         </style>
@@ -87,14 +76,12 @@ if not st.session_state['autenticado']:
             email_login = st.text_input("Email Address")
             clave_login = st.text_input("Password", type="password")
             st.checkbox("Remember Me")
-            
             if st.button("Sign in now"):
                 if verificar_usuario(email_login, clave_login):
                     st.session_state['autenticado'] = True
                     st.session_state['usuario_actual'] = email_login
                     st.rerun()
-                else:
-                    st.error("Error al iniciar sesión.")
+                else: st.error("Error al iniciar sesión.")
             st.write("---")
             if st.button("¿No tienes cuenta? Regístrate aquí"):
                 st.session_state['mostrar_registro'] = True
@@ -105,7 +92,6 @@ if not st.session_state['autenticado']:
             st.markdown("<p style='text-align: center;'><b>Crea tu cuenta de obra</b></p>", unsafe_allow_html=True)
             email_reg = st.text_input("Nuevo Correo")
             clave_reg = st.text_input("Crear Contraseña", type="password")
-            
             if st.button("Guardar Cuenta"):
                 if email_reg and clave_reg:
                     agregar_usuario(email_reg, clave_reg)
@@ -118,7 +104,7 @@ if not st.session_state['autenticado']:
     st.stop()
 
 # ==========================================
-# 4. DISEÑO INTERIOR FUTURISTA NEÓN
+# 4. DISEÑO INTERIOR (Fondo oscuro futurista)
 # ==========================================
 st.markdown("""
     <style>
@@ -139,7 +125,6 @@ if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
-    
     col_p1, col_p2 = st.columns(2)
     with col_p1:
         st.markdown("### 📂 Entrar a Partida Existente")
@@ -147,7 +132,6 @@ if st.session_state['partida_actual'] is None:
         if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
-            
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
@@ -156,8 +140,7 @@ if st.session_state['partida_actual'] is None:
                 st.session_state['lista_partidas'].append(nueva_partida)
                 st.session_state['partida_actual'] = nueva_partida
                 st.rerun()
-            else:
-                st.warning("Escribe un nombre primero.")
+            else: st.warning("Escribe un nombre primero.")
     st.stop()
 
 # ==========================================
@@ -172,17 +155,29 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# CONFIGURACIÓN DE PRESUPUESTO BASE
+# CONFIGURACIÓN DE PRESUPUESTO BASE CON SELECTOR INTELIGENTE
 with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
+    modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
+    
     col_b1, col_b2, col_b3 = st.columns(3)
-    with col_b1:
-        st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
-    with col_b2:
-        st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
-    with col_b3:
-        st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
-        if st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo'] != st.session_state['presupuesto_total']:
-            st.warning("⚠️ Nota: La suma de Materiales + Mano de Obra no es igual al Presupuesto Total.")
+    
+    if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
+        with col_b2:
+            st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
+        with col_b3:
+            st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
+        with col_b1:
+            st.session_state['presupuesto_total'] = st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo']
+            st.number_input("Presupuesto Total [Automático] (S/)", value=st.session_state['presupuesto_total'], disabled=True)
+    else:
+        with col_b1:
+            st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
+        with col_b2:
+            st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
+        with col_b3:
+            st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
+            if st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo'] != st.session_state['presupuesto_total']:
+                st.warning("⚠️ Nota: La suma de Materiales + Mano de Obra no cuadra con el Total ingresado directamente.")
 
 st.write("---")
 
@@ -191,7 +186,6 @@ col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
 with col_form:
     st.subheader("📝 Centro de Registro")
     tab_mat, tab_mo = st.tabs(["📦 Ingresar Materiales", "👷 Registrar Actividad"])
-    
     with tab_mat:
         with st.form("form_materiales"):
             st.date_input("Fecha", date.today(), key="f1")
@@ -201,7 +195,6 @@ with col_form:
             with col_m2: pre = st.number_input("P. Unit. (S/)", min_value=0.0)
             st.info(f"Total: S/ {cant * pre:.2f}")
             if st.form_submit_button("Guardar Material", use_container_width=True): st.success("Guardado.")
-            
     with tab_mo:
         with st.form("form_mano_obra"):
             st.date_input("Fecha", date.today(), key="f2")
@@ -216,10 +209,7 @@ with col_graf_circulo:
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
-    fig_dona.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white"))
-    )
+    fig_dona.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white")))
     fig_dona.update_traces(hoverinfo='label+value', textinfo='percent', textfont_color='white', marker=dict(line=dict(color='#0f172a', width=2)))
     st.plotly_chart(fig_dona, use_container_width=True)
 
@@ -232,12 +222,7 @@ with col_graf_linea:
     fig_linea = go.Figure()
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=gasto_acumulado, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
-    
-    fig_linea.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")),
-        font=dict(color="white")
-    )
+    fig_linea.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")), font=dict(color="white"))
     st.plotly_chart(fig_linea, use_container_width=True)
 
 st.write("---")
@@ -273,31 +258,19 @@ with col_cal:
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
     random.seed(hash(trabajador_seleccionado + str(st.session_state['cal_mes'])))
 
-    # CSS MODIFICADO: Responsividad total (Celulares y PC) usando table-layout: fixed y clamp()
     html_cal = """
     <style>
-    .cal-wrapper { 
-        background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); 
-        border: 1px solid #38bdf8; padding: clamp(10px, 3vw, 20px); width: 100%; box-sizing: border-box; overflow: hidden;
-    }
-    .cal-table { 
-        width: 100%; border-collapse: separate; border-spacing: clamp(2px, 1vw, 4px); 
-        text-align: center; font-family: sans-serif; table-layout: fixed;
-    }
+    .cal-wrapper { background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; padding: clamp(10px, 3vw, 20px); width: 100%; box-sizing: border-box; overflow: hidden;}
+    .cal-table { width: 100%; border-collapse: separate; border-spacing: clamp(2px, 1vw, 4px); text-align: center; font-family: sans-serif; table-layout: fixed;}
     .cal-table th { padding: clamp(5px, 1.5vw, 10px) 0; color: #94a3b8; font-weight: bold; font-size: clamp(0.8rem, 2.5vw, 1.1rem); }
-    .cal-table td { 
-        padding: clamp(8px, 2vw, 15px) 0; border-radius: 4px; font-size: clamp(0.9rem, 3vw, 1.2rem); 
-        font-weight: bold; border: 1px solid #334155; 
-    }
+    .cal-table td { padding: clamp(8px, 2vw, 15px) 0; border-radius: 4px; font-size: clamp(0.9rem, 3vw, 1.2rem); font-weight: bold; border: 1px solid #334155; }
     .cal-vacio { background-color: #1e293b; color: transparent !important; border: none !important; }
     .cal-futuro { background-color: #0f172a; color: #475569; }
     .cal-verde { background-color: #10b981; color: white !important; }
     .cal-amarillo { background-color: #f59e0b; color: white !important; }
     .cal-rojo { background-color: #ef4444; color: white !important; }
     </style>
-    <div class="cal-wrapper">
-    <table class="cal-table">
-        <tr><th>D</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th></tr>
+    <div class="cal-wrapper"><table class="cal-table"><tr><th>D</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th></tr>
     """
     for semana in mes_cal:
         html_cal += "<tr>"
