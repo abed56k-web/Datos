@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con timeout para evitar bloqueos)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -33,7 +33,6 @@ c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT
 c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, UNIQUE(partida, nombre))')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, UNIQUE(partida, trabajador, fecha))')
-c.execute('CREATE TABLE IF NOT EXISTS saldos_trabajadores (partida TEXT, trabajador TEXT, saldo REAL, UNIQUE(partida, trabajador))')
 conn.commit()
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
@@ -438,7 +437,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON CONTROL DE SALDOS SIMPLIFICADO
+# 8. MÓDULOS SEMANALES CON COMENTARIO Y MONTO INDEPENDIENTE
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -474,25 +473,21 @@ with tab_planilla:
             </div>
         """, unsafe_allow_html=True)
 
-        col_w1, col_w2 = st.columns(2)
+        col_w1, col_w2, col_w3 = st.columns(3)
         with col_w1:
-            jornal_dia = st.number_input(f"Jornal Diario por Día (S/) - {trabajador}", value=80.0, step=10.0, key=f"jornal_{trabajador}")
-            costo_almuerzo = st.number_input(f"Costo por Almuerzo (S/) - {trabajador}", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
-            
+            jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
+            costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
         with col_w2:
-            c.execute("SELECT saldo FROM saldos_trabajadores WHERE partida=? AND trabajador=?", (st.session_state['partida_actual'], trabajador))
-            res_saldo = c.fetchone()
-            saldo_anterior = res_saldo[0] if res_saldo else 0.0
-
-            nuevo_saldo = st.number_input(f"Saldo / Adelanto (S/) (+Debe / -Adelanto / 0=Arreglado) - {trabajador}", value=saldo_anterior, step=10.0, key=f"saldo_{trabajador}")
-            if nuevo_saldo != saldo_anterior:
-                c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, nuevo_saldo))
-                conn.commit()
+            comentario_nota = st.text_input(f"Cuadro Comentario (Ej. Debe / Adelanto / Arreglado)", value="", key=f"comentario_{trabajador}")
+        with col_w3:
+            monto_extra = st.number_input(f"Monto (+Debe / -Adelanto / 0)", value=0.0, step=10.0, key=f"monto_{trabajador}")
 
         pago_completos = cant_completos * jornal_dia
         pago_medios = cant_medios * (jornal_dia / 2.0)
         total_almuerzos = cant_almuerzos * costo_almuerzo
-        total_trabajador = pago_completos + pago_medios + total_almuerzos + nuevo_saldo
+        
+        # El total de la semana calcula estrictamente los días y almuerzos (independiente del cuadro de notas/monto extra)
+        total_trabajador = pago_completos + pago_medios + total_almuerzos
         gasto_semana_mo += total_trabajador
 
         st.markdown(f"""
@@ -503,7 +498,7 @@ with tab_planilla:
                     <tr><td>Medios Días</td><td><b>{cant_medios}</b></td><td>S/ {jornal_dia/2:.2f}</td><td>S/ {pago_medios:.2f}</td></tr>
                     <tr><td>Inasistencias</td><td><b>{cant_faltas}</b></td><td>S/ 0.00</td><td>S/ 0.00</td></tr>
                     <tr><td>Comida - Almuerzo</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
-                    <tr><td>Saldo Anterior (Debe / Adelanto)</td><td colspan="2">Ajuste de cuenta</td><td><b>S/ {nuevo_saldo:.2f}</b></td></tr>
+                    <tr><td><b>Nota / Comentario:</b></td><td colspan="3"><i>{comentario_nota if comentario_nota else 'Sin comentarios'} (Monto: S/ {monto_extra:.2f})</i></td></tr>
                 </table>
                 <hr style="border-color: #334155;">
                 <h3 style="color: #10b981; text-align: right; margin: 0;">TOTAL A PAGAR: S/ {total_trabajador:.2f}</h3>
