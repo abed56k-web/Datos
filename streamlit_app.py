@@ -25,20 +25,16 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con tabla de personal)
 conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
-c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, UNIQUE(partida, trabajador, fecha))')
 c.execute('CREATE TABLE IF NOT EXISTS saldos_trabajadores (partida TEXT, trabajador TEXT, saldo REAL)')
-
-try:
-    c.execute('ALTER TABLE asistencia ADD COLUMN almuerzo TEXT')
-    conn.commit()
-except sqlite3.OperationalError:
-    pass 
+conn.commit()
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
 
@@ -241,11 +237,15 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
 
 st.write("---")
 
+# Consultar personal registrado en la BD para esta partida
+df_personal_db = pd.read_sql(f"SELECT * FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
+
 col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
 
 with col_form:
     st.subheader("📝 Centro de Registro")
-    tab_mat, tab_mo = st.tabs(["📦 Ingresar Materiales", "👷 Registrar Actividad"])
+    tab_mat, tab_pers, tab_mo = st.tabs(["📦 Ingresar Materiales", "👤 Registrar Personal", "👷 Registrar Asistencia"])
     
     with tab_mat:
         with st.form("form_materiales"):
@@ -269,29 +269,54 @@ with col_form:
                 else:
                     st.warning("Completa el nombre y la unidad del material.")
                     
+    with tab_pers:
+        with st.form("form_nuevo_personal"):
+            st.write("Agrega nuevos obreros para que aparezcan en el menú desplegable.")
+            nuevo_nombre = st.text_input("Nombre y Apellido del Trabajador")
+            nueva_esp = st.selectbox("Especialidad", ["Operario", "Oficial", "Ayudante / Peón", "Pintor", "Enchapador", "Electricista", "Plomero"])
+            
+            if st.form_submit_button("Registrar Trabajador", use_container_width=True):
+                if nuevo_nombre:
+                    try:
+                        c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre, nueva_esp))
+                        conn.commit()
+                        st.success(f"¡Trabajador {nuevo_nombre} registrado con éxito!")
+                        st.rerun()
+                    except:
+                        st.warning("Este trabajador ya está registrado en esta partida.")
+                else:
+                    st.warning("Escribe el nombre del trabajador.")
+
     with tab_mo:
         with st.form("form_mano_obra"):
             f_mo = st.date_input("Fecha", date.today(), key="f2")
-            trabajador = st.text_input("Nombre del Trabajador (Ej. Grover)")
+            
+            # Selector desplegable de trabajadores registrados
+            if lista_trabajadores_db:
+                trabajador = st.selectbox("Seleccione Trabajador", lista_trabajadores_db)
+            else:
+                trabajador = st.text_input("Nombre del Trabajador (Registra arriba primero)")
+
             estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
             
-            if st.form_submit_button("Guardar Actividad", use_container_width=True):
+            if st.form_submit_button("Guardar Asistencia", use_container_width=True):
                 if trabajador:
-                    c.execute("INSERT INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
+                    # Usamos REPLACE INTO para actualizar automáticamente si ya existe asistencia en esa fecha
+                    c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
                     conn.commit()
-                    st.success("Actividad y asistencia registrada en la BD.")
+                    st.success("¡Asistencia guardada o actualizada correctamente en la BD!")
                     st.rerun()
                 else:
-                    st.warning("Escribe el nombre del trabajador.")
+                    st.warning("Selecciona o escribe un trabajador.")
 
 # Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 gasto_mat_real = (df_mat_db['cantidad'] * df_mat_db['precio']).sum() if not df_mat_db.empty else 0.0
 
 df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
-trabajadores_registrados = df_asist_db['trabajador'].unique().tolist() if not df_asist_db.empty else ["Juan Pérez", "Luis Gómez"]
+trabajadores_registrados = lista_trabajadores_db
 
 with col_graf_circulo:
     st.subheader("💰 Distribución")
@@ -349,7 +374,10 @@ with col_btn2:
         st.rerun()
 
 st.write("<br>", unsafe_allow_html=True)
-trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", trabajadores_registrados)
+if trabajadores_registrados:
+    trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", trabajadores_registrados)
+else:
+    trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", ["Sin registros"])
 
 col_cal, col_leyenda = st.columns([2.5, 1])
 
@@ -358,7 +386,7 @@ with col_cal:
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
 
     asistencia_trabajador = {}
-    if not df_asist_db.empty:
+    if not df_asist_db.empty and trabajador_seleccionado != "Sin registros":
         df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
         for _, row in df_t.iterrows():
             try:
