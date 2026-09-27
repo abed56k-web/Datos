@@ -125,6 +125,7 @@ if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
+    
     col_p1, col_p2 = st.columns(2)
     with col_p1:
         st.markdown("### 📂 Entrar a Partida Existente")
@@ -132,6 +133,7 @@ if st.session_state['partida_actual'] is None:
         if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
+            
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
@@ -144,7 +146,7 @@ if st.session_state['partida_actual'] is None:
     st.stop()
 
 # ==========================================
-# 6. DASHBOARD DE LA PARTIDA Y PRESUPUESTO
+# 6. DASHBOARD DE LA PARTIDA Y PRESUPUESTO (CORREGIDO)
 # ==========================================
 col_top1, col_top2 = st.columns([4, 1])
 with col_top1:
@@ -155,29 +157,23 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# CONFIGURACIÓN DE PRESUPUESTO BASE CON SELECTOR INTELIGENTE
+# CONFIGURACIÓN DE PRESUPUESTO BASE (CON SELECTOR LIMPIO)
 with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
     modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
     
-    col_b1, col_b2, col_b3 = st.columns(3)
-    
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
-        with col_b2:
-            st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
-        with col_b3:
-            st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
+        col_b1, col_b2 = st.columns(2)
         with col_b1:
-            st.session_state['presupuesto_total'] = st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo']
-            st.number_input("Presupuesto Total [Automático] (S/)", value=st.session_state['presupuesto_total'], disabled=True)
+            st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
+        with col_b2:
+            st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
+        
+        # El total se calcula solo
+        st.session_state['presupuesto_total'] = st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo']
+        st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {st.session_state['presupuesto_total']:,.2f}</span>", unsafe_allow_html=True)
     else:
-        with col_b1:
-            st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
-        with col_b2:
-            st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
-        with col_b3:
-            st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
-            if st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo'] != st.session_state['presupuesto_total']:
-                st.warning("⚠️ Nota: La suma de Materiales + Mano de Obra no cuadra con el Total ingresado directamente.")
+        # Solo aparece el cuadro de presupuesto total
+        st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total Directo (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
 
 st.write("---")
 
@@ -209,7 +205,10 @@ with col_graf_circulo:
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
-    fig_dona.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white")))
+    fig_dona.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white"))
+    )
     fig_dona.update_traces(hoverinfo='label+value', textinfo='percent', textfont_color='white', marker=dict(line=dict(color='#0f172a', width=2)))
     st.plotly_chart(fig_dona, use_container_width=True)
 
@@ -222,7 +221,12 @@ with col_graf_linea:
     fig_linea = go.Figure()
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=gasto_acumulado, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
-    fig_linea.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")), font=dict(color="white"))
+    
+    fig_linea.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")),
+        font=dict(color="white")
+    )
     st.plotly_chart(fig_linea, use_container_width=True)
 
 st.write("---")
