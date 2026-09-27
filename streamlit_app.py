@@ -236,7 +236,7 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
 
 st.write("---")
 
-df_personal_db = pd.read_sql(f"SELECT * FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+df_personal_db = pd.read_sql(f"SELECT nombre, especialidad FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
 lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
 
 col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
@@ -268,45 +268,46 @@ with col_form:
                     st.warning("Completa el nombre y la unidad del material.")
                     
     with tab_pers:
-        st.write("👤 **Registrar / Gestionar Personal**")
+        st.write("👤 **Gestión de Personal (Modifique o elimine directamente en la tabla)**")
+        
+        # Formulario rápido para añadir nuevo
         with st.form("form_nuevo_personal"):
-            nuevo_nombre = st.text_input("Nombre y Apellido del Trabajador")
-            nueva_esp = st.selectbox("Especialidad", ["Operario", "Oficial", "Ayudante / Peón", "Pintor", "Enchapador", "Electricista", "Plomero"])
-            if st.form_submit_button("Registrar Trabajador", use_container_width=True):
+            col_np1, col_np2 = st.columns(2)
+            with col_np1: nuevo_nombre = st.text_input("Nombre y Apellido")
+            with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Oficial", "Ayudante / Peón", "Pintor", "Enchapador", "Electricista", "Plomero"])
+            if st.form_submit_button("➕ Agregar Trabajador", use_container_width=True):
                 if nuevo_nombre:
                     try:
-                        c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre, nueva_esp))
+                        c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp))
                         conn.commit()
-                        st.success(f"¡Trabajador {nuevo_nombre} registrado con éxito!")
+                        st.success(f"¡{nuevo_nombre} agregado!")
                         st.rerun()
                     except:
-                        st.warning("Este trabajador ya está registrado.")
+                        st.warning("El trabajador ya existe.")
                 else:
-                    st.warning("Escribe el nombre.")
+                    st.warning("Escribe un nombre.")
 
-        # Opción para Renombrar o Borrar Personal existente
-        if lista_trabajadores_db:
-            st.write("---")
-            st.write("🛠️ **Modificar o Eliminar Obrero Existente**")
-            trab_a_gestionar = st.selectbox("Seleccione Obrero", lista_trabajadores_db, key="sel_trab_ges")
-            nuevo_nom_edit = st.text_input("Renombrar obrero:", value=trab_a_gestionar)
+        st.write("---")
+        st.write("📋 **Lista de Personal (Edite nombre/especialidad o borre filas con el botón de papelera):**")
+        
+        # Tabla interactiva para modificar y borrar personal de manera sencilla
+        df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+        if df_pers_actual.empty:
+            df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad"])
             
-            col_g1, col_g2 = st.columns(2)
-            with col_g1:
-                if st.button("Actualizar Nombre"):
-                    if nuevo_nom_edit:
-                        c.execute("UPDATE personal SET nombre=? WHERE partida=? AND nombre=?", (nuevo_nom_edit, st.session_state['partida_actual'], trab_a_gestionar))
-                        c.execute("UPDATE asistencia SET trabajador=? WHERE partida=? AND trabajador=?", (nuevo_nom_edit, st.session_state['partida_actual'], trab_a_gestionar))
-                        conn.commit()
-                        st.success("¡Nombre actualizado!")
-                        st.rerun()
-            with col_g2:
-                if st.button("🗑️ Eliminar Obrero"):
-                    c.execute("DELETE FROM personal WHERE partida=? AND nombre=?", (st.session_state['partida_actual'], trab_a_gestionar))
-                    c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=?", (st.session_state['partida_actual'], trab_a_gestionar))
-                    conn.commit()
-                    st.success(f"Obrero {trab_a_gestionar} eliminado.")
-                    st.rerun()
+        df_pers_editado = st.data_editor(df_pers_actual, num_rows="dynamic", use_container_width=True, key="editor_tabla_personal")
+        
+        if st.button("💾 Guardar Cambios en Personal", use_container_width=True):
+            c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
+            for _, row in df_pers_editado.iterrows():
+                if row["nombre"] and str(row["nombre"]).strip() != "":
+                    try:
+                        c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], row["nombre"].strip(), row["especialidad"]))
+                    except:
+                        pass
+            conn.commit()
+            st.success("¡Lista de personal actualizada con éxito!")
+            st.rerun()
 
     with tab_mo:
         with st.form("form_mano_obra"):
@@ -315,7 +316,7 @@ with col_form:
             if lista_trabajadores_db:
                 trabajador = st.selectbox("Seleccione Trabajador", lista_trabajadores_db)
             else:
-                trabajador = st.text_input("Nombre del Trabajador (Registra arriba primero)")
+                trabajador = st.text_input("Nombre del Trabajador (Registra en la pestaña Personal primero)")
 
             estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
@@ -328,7 +329,7 @@ with col_form:
                     st.success("¡Asistencia guardada o actualizada correctamente en la BD!")
                     st.rerun()
                 else:
-                    st.warning("Selecciona o escribe un trabajador.")
+                    st.warning("Selecciona un trabajador.")
 
 # Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
@@ -460,7 +461,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON TARJETAS DESPLEGABLES (EXPANDER) Y COMENTARIO INDEPENDIENTE
+# 8. MÓDULOS SEMANALES CON TARJETAS DESPLEGABLES (EXPANDER)
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -505,7 +506,6 @@ with tab_planilla:
             pago_medios = cant_medios * (jornal_dia / 2.0)
             total_almuerzos = cant_almuerzos * costo_almuerzo
             
-            # El total calcula estrictamente los días y almuerzos (independiente del cuadro de notas/monto)
             total_trabajador = pago_completos + pago_medios + total_almuerzos
             gasto_semana_mo += total_trabajador
 
