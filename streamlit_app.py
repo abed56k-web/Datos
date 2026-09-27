@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import date
+from datetime import date, timedelta
 import calendar
 import sqlite3
 import hashlib
@@ -11,7 +11,7 @@ import random
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(page_title="Control de Obra", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. BASE DE DATOS Y ESTADOS GLOBALES
+# 2. BASE DE DATOS Y ESTADOS
 conn = sqlite3.connect('usuarios.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT, password TEXT)')
@@ -25,14 +25,12 @@ def verificar_usuario(email, clave):
     c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
     return c.fetchone() is not None
 
-# Variables de estado
 if 'autenticado' not in st.session_state: st.session_state['autenticado'] = False
 if 'mostrar_registro' not in st.session_state: st.session_state['mostrar_registro'] = False
 if 'partida_actual' not in st.session_state: st.session_state['partida_actual'] = None
-if 'lista_partidas' not in st.session_state: st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
-
-# Variables para navegar en el calendario
-if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 9 # Septiembre por defecto
+if 'lista_partidas' not in st.session_state: 
+    st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
+if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 9 
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
 
 # ==========================================
@@ -47,7 +45,6 @@ if not st.session_state['autenticado']:
         }
         h1, h2, h3, p, label, .stCheckbox label { color: white !important; }
         
-        /* FORZAR INPUTS BLANCOS CON LETRA NEGRA */
         .stTextInput input, .stPasswordInput input {
             background-color: white !important;
             color: black !important;
@@ -60,7 +57,6 @@ if not st.session_state['autenticado']:
         }
         div[data-testid="stButton"] button:hover { background-color: #b54925 !important; }
         
-        /* Contenedor de iconos de redes reales */
         .social-container img { width: 30px; height: 30px; margin-right: 15px; cursor: pointer; filter: brightness(0) invert(1); }
         .social-container img:hover { opacity: 0.8; }
         </style>
@@ -72,7 +68,6 @@ if not st.session_state['autenticado']:
         st.markdown("<h1 style='font-size: 5rem; line-height: 1.1; margin-bottom: 0;'>Welcome<br>Back</h1>", unsafe_allow_html=True)
         st.markdown("<p style='font-size: 1.1rem; margin-top: 15px;'>Plataforma integral para el control de avance, materiales y personal de obra en Ayacucho.</p>", unsafe_allow_html=True)
         
-        # Iconos de redes sociales usando imágenes reales
         st.markdown("""
             <div class="social-container" style="margin-top: 25px;">
                 <a href="#"><img src="https://cdn-icons-png.flaticon.com/512/20/20673.png" alt="Facebook"></a>
@@ -125,21 +120,18 @@ if not st.session_state['autenticado']:
     st.stop()
 
 # ==========================================
-# 4. DISEÑO INTERIOR FUTURISTA NEÓN (Para ventanas 2 y 3)
+# 4. DISEÑO INTERIOR (Fondo oscuro futurista)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo oscuro futurista */
     .stApp { background-image: none !important; background-color: #0f172a !important; color: #e2e8f0 !important; }
     h1, h2, h3, p, label, span { color: #e2e8f0 !important; }
     
-    /* Cajas y tarjetas con bordes neón */
     div[data-testid="metric-container"] {
         background-color: #1e293b; border: 1px solid #38bdf8; padding: 15px; 
         border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
     }
     
-    /* Botones estilo Cyber */
     div[data-testid="stButton"] button {
         background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
         color: white !important; border: none !important; border-radius: 8px;
@@ -149,20 +141,14 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(6, 182, 212, 0.6); transform: scale(1.02);
     }
     
-    /* Inputs amigables y visibles */
-    .stTextInput input, .stNumberInput input, .stSelectbox div { 
+    .stTextInput input, .stNumberInput input, .stSelectbox div, .stTextArea textarea { 
         background-color: #1e293b !important; color: #38bdf8 !important; border: 1px solid #475569; 
-    }
-    
-    /* Formularios internos */
-    .stForm, .stDataFrame {
-        background-color: #1e293b !important; border: 1px solid #475569 !important; border-radius: 12px;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (VENTANA 2)
+# 5. GESTOR DE PARTIDAS
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
@@ -190,7 +176,7 @@ if st.session_state['partida_actual'] is None:
     st.stop()
 
 # ==========================================
-# 6. DASHBOARD DE LA PARTIDA (VENTANA 3)
+# 6. DASHBOARD DE LA PARTIDA (3 Columnas)
 # ==========================================
 col_top1, col_top2 = st.columns([4, 1])
 with col_top1:
@@ -203,21 +189,8 @@ with col_top2:
 
 st.write("---")
 
-col_graf, col_form = st.columns([1.2, 1])
-
-with col_graf:
-    st.subheader("💰 Distribución de Presupuesto")
-    labels = ['Materiales', 'Mano de Obra', 'Saldo/Utilidad']
-    values = [4250, 1800, 8950]
-    colores = ['#06b6d4', '#f59e0b', '#10b981'] # Cyan, Naranja, Verde Neón
-    
-    fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.6, marker_colors=colores)])
-    fig_dona.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white"))
-    )
-    fig_dona.update_traces(hoverinfo='label+value', textinfo='percent', textfont_color='white', marker=dict(line=dict(color='#0f172a', width=3)))
-    st.plotly_chart(fig_dona, use_container_width=True)
+# Layout de 3 Columnas
+col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
 
 with col_form:
     st.subheader("📝 Centro de Registro")
@@ -226,118 +199,181 @@ with col_form:
     with tab_mat:
         with st.form("form_materiales"):
             st.date_input("Fecha", date.today(), key="f1")
-            mat_nombre = st.text_input("Material / Insumo (Ej. Cemento)")
+            st.text_input("Material / Insumo (Ej. Cemento)")
             col_m1, col_m2 = st.columns(2)
             with col_m1: cant = st.number_input("Cantidad", min_value=1.0, value=1.0)
-            with col_m2: pre = st.number_input("Precio Unitario (S/)", min_value=0.0)
-            st.info(f"Total Calculado: S/ {cant * pre:.2f}")
+            with col_m2: pre = st.number_input("P. Unit. (S/)", min_value=0.0)
+            st.info(f"Total: S/ {cant * pre:.2f}")
             if st.form_submit_button("Guardar Material", use_container_width=True): st.success("Guardado.")
             
     with tab_mo:
         with st.form("form_mano_obra"):
             st.date_input("Fecha", date.today(), key="f2")
-            st.text_input("Nombre del Trabajador")
-            st.text_area("Actividad realizada / Comentarios", placeholder="Ej. Tarrajeo de muro norte. Llegó 1 hora tarde.")
-            if st.form_submit_button("Guardar Actividad", use_container_width=True): st.success("Actividad registrada.")
+            st.text_input("Nombre Trabajador")
+            st.text_area("Actividad realizada", placeholder="Ej. Tarrajeo de muro norte.")
+            if st.form_submit_button("Guardar Actividad", use_container_width=True): st.success("Registrada.")
+
+with col_graf_circulo:
+    st.subheader("💰 Distribución")
+    labels = ['Materiales', 'Mano de Obra', 'Saldo']
+    values = [4250, 1800, 8950]
+    colores = ['#06b6d4', '#f59e0b', '#10b981']
+    
+    fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
+    fig_dona.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(color="white"))
+    )
+    fig_dona.update_traces(hoverinfo='label+value', textinfo='percent', textfont_color='white', marker=dict(line=dict(color='#0f172a', width=2)))
+    st.plotly_chart(fig_dona, use_container_width=True)
+
+with col_graf_linea:
+    st.subheader("📈 Presupuesto vs Gasto")
+    dias = ['D1', 'D2', 'D3', 'D4', 'D5']
+    presupuesto = [15000, 15000, 15000, 15000, 15000]
+    gasto_acumulado = [1000, 2500, 3200, 4800, 6050]
+    
+    fig_linea = go.Figure()
+    fig_linea.add_trace(go.Scatter(x=dias, y=presupuesto, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
+    fig_linea.add_trace(go.Scatter(x=dias, y=gasto_acumulado, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
+    
+    fig_linea.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")),
+        font=dict(color="white")
+    )
+    st.plotly_chart(fig_linea, use_container_width=True)
 
 st.write("---")
 
 # ==========================================
 # 7. ALMANAQUE INTERACTIVO CON NAVEGACIÓN
 # ==========================================
-st.subheader("📅 Control Mensual de Asistencia")
+col_alm1, col_alm2 = st.columns([3, 1])
 
-# Controles de navegación del mes
-meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
-col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
+with col_alm1:
+    st.subheader("📅 Control Mensual de Asistencia")
+    
+    meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+    col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
 
-with col_btn1:
-    if st.button("◀ Mes Anterior", use_container_width=True):
-        if st.session_state['cal_mes'] == 1:
-            st.session_state['cal_mes'] = 12
-            st.session_state['cal_ano'] -= 1
-        else:
-            st.session_state['cal_mes'] -= 1
-        st.rerun()
+    with col_btn1:
+        if st.button("◀ Mes Anterior", use_container_width=True):
+            if st.session_state['cal_mes'] == 1:
+                st.session_state['cal_mes'] = 12
+                st.session_state['cal_ano'] -= 1
+            else:
+                st.session_state['cal_mes'] -= 1
+            st.rerun()
 
-with col_tit:
-    st.markdown(f"<h3 style='text-align: center; color: #38bdf8 !important; margin: 0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
+    with col_tit:
+        st.markdown(f"<h3 style='text-align: center; color: #38bdf8 !important; margin: 0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
 
-with col_btn2:
-    if st.button("Mes Siguiente ▶", use_container_width=True):
-        if st.session_state['cal_mes'] == 12:
-            st.session_state['cal_mes'] = 1
-            st.session_state['cal_ano'] += 1
-        else:
-            st.session_state['cal_mes'] += 1
-        st.rerun()
+    with col_btn2:
+        if st.button("Mes Siguiente ▶", use_container_width=True):
+            if st.session_state['cal_mes'] == 12:
+                st.session_state['cal_mes'] = 1
+                st.session_state['cal_ano'] += 1
+            else:
+                st.session_state['cal_mes'] += 1
+            st.rerun()
 
-st.markdown("<br>", unsafe_allow_html=True)
-trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", ["Juan Pérez", "Luis Gómez", "Carlos Ruiz"])
+    st.markdown("<br>", unsafe_allow_html=True)
+    trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", ["Juan Pérez", "Luis Gómez", "Carlos Ruiz"])
 
-# Generador de Calendario HTML interactivo (Adaptado al fondo oscuro)
-calendar.setfirstweekday(calendar.SUNDAY)
-mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
+    calendar.setfirstweekday(calendar.SUNDAY)
+    mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
+    random.seed(hash(trabajador_seleccionado + str(st.session_state['cal_mes'])))
 
-random.seed(hash(trabajador_seleccionado + str(st.session_state['cal_mes'])))
+    html_cal = """
+    <style>
+    .cal-wrapper { background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; padding: 20px; max-width: 700px; margin: 0 auto;}
+    .cal-table { width: 100%; border-collapse: separate; border-spacing: 4px; text-align: center; font-family: sans-serif; }
+    .cal-table th { padding: 10px; color: #94a3b8; font-weight: bold; font-size: 1.1rem; }
+    .cal-table td { padding: 15px; border-radius: 4px; font-size: 1.2rem; font-weight: bold; border: 1px solid #334155; }
+    .cal-vacio { background-color: #1e293b; color: transparent; border: none !important; }
+    .cal-futuro { background-color: #0f172a; color: #475569; }
+    .cal-verde { background-color: #10b981; color: white !important; }
+    .cal-amarillo { background-color: #f59e0b; color: white !important; }
+    .cal-rojo { background-color: #ef4444; color: white !important; }
+    </style>
+    <div class="cal-wrapper">
+    <table class="cal-table">
+        <tr><th>D</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th></tr>
+    """
+    for semana in mes_cal:
+        html_cal += "<tr>"
+        for dia in semana:
+            if dia == 0:
+                html_cal += "<td class='cal-vacio'>0</td>"
+            else:
+                clase = "cal-futuro"
+                if date(st.session_state['cal_ano'], st.session_state['cal_mes'], dia) <= date.today() + pd.Timedelta(days=30):
+                    estado = random.choices(["verde", "amarillo", "rojo"], weights=[75, 15, 10])[0]
+                    if estado == "verde": clase = "cal-verde"
+                    elif estado == "amarillo": clase = "cal-amarillo"
+                    elif estado == "rojo": clase = "cal-rojo"
+                html_cal += f"<td class='{clase}'>{dia}</td>"
+        html_cal += "</tr>"
+    html_cal += "</table></div>"
 
-html_cal = """
-<style>
-.cal-wrapper { background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; padding: 20px; max-width: 700px; margin: 0 auto;}
-.cal-table { width: 100%; border-collapse: separate; border-spacing: 4px; text-align: center; font-family: sans-serif; }
-.cal-table th { padding: 10px; color: #94a3b8; font-weight: bold; font-size: 1.1rem; }
-.cal-table td { padding: 15px; border-radius: 4px; font-size: 1.2rem; font-weight: bold; border: 1px solid #334155; }
-.cal-vacio { background-color: #1e293b; color: transparent; border: none !important; }
-.cal-futuro { background-color: #0f172a; color: #475569; }
-.cal-verde { background-color: #10b981; color: white !important; }
-.cal-amarillo { background-color: #f59e0b; color: white !important; }
-.cal-rojo { background-color: #ef4444; color: white !important; }
-</style>
-<div class="cal-wrapper">
-<table class="cal-table">
-    <tr><th>D</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th></tr>
-"""
-for semana in mes_cal:
-    html_cal += "<tr>"
-    for dia in semana:
-        if dia == 0:
-            html_cal += "<td class='cal-vacio'>0</td>"
-        else:
-            clase = "cal-futuro"
-            if date(st.session_state['cal_ano'], st.session_state['cal_mes'], dia) <= date.today() + pd.Timedelta(days=30):
-                estado = random.choices(["verde", "amarillo", "rojo"], weights=[75, 15, 10])[0]
-                if estado == "verde": clase = "cal-verde"
-                elif estado == "amarillo": clase = "cal-amarillo"
-                elif estado == "rojo": clase = "cal-rojo"
-            html_cal += f"<td class='{clase}'>{dia}</td>"
-    html_cal += "</tr>"
-html_cal += "</table></div>"
+    st.markdown(html_cal, unsafe_allow_html=True)
 
-st.markdown(html_cal, unsafe_allow_html=True)
+with col_alm2:
+    st.subheader("🎨 Leyenda")
+    st.markdown("""
+        <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #475569;">
+            <p><span style="display:inline-block; width:20px; height:20px; background-color:#10b981; border-radius:4px; margin-right:10px;"></span> <b>Día Completo</b><br><span style="color:#94a3b8; font-size:0.9rem;">Asistencia normal.</span></p>
+            <p><span style="display:inline-block; width:20px; height:20px; background-color:#f59e0b; border-radius:4px; margin-right:10px;"></span> <b>Medio Día / Tarde</b><br><span style="color:#94a3b8; font-size:0.9rem;">Asistencia parcial.</span></p>
+            <p><span style="display:inline-block; width:20px; height:20px; background-color:#ef4444; border-radius:4px; margin-right:10px;"></span> <b>Emergencia / Falta</b><br><span style="color:#94a3b8; font-size:0.9rem;">Inasistencia.</span></p>
+        </div>
+    """, unsafe_allow_html=True)
+
 st.write("---")
 
 # ==========================================
-# 8. PLANILLA DE NEGOCIACIÓN SEMANAL
+# 8. PLANILLA DE NEGOCIACIÓN SEMANAL CON SALDOS
 # ==========================================
 st.subheader("🤝 Planilla de Negociación Semanal")
-st.write("Ingresa los días trabajados y **evalúa/negocia el jornal final**. El sistema calculará automáticamente el pago.")
+st.write("Ingresa los días, jornal acordado y **saldos pendientes (a favor o en contra)** para el cálculo final.")
 
 df_planilla = pd.DataFrame({
     "Trabajador": ["Juan Pérez (Operario)", "Luis Gómez (Ayudante)", "Carlos Ruiz (Pintor)", ""],
     "Días Completos": [5, 4, 4, 0],
     "Medios Días": [1, 0, 2, 0],
-    "Jornal Negociado (S/)": [80.0, 50.0, 90.0, 0.0]
+    "Jornal Negociado (S/)": [80.0, 50.0, 90.0, 0.0],
+    "Saldo Anterior (S/)": [20.0, -10.0, 0.0, 0.0],
+    "Nota de Saldo": ["Se le quedó a deber S/20", "Se le adelantó S/10 (Descuento)", "", ""]
 })
+
+st.markdown("""
+    <style>
+    .stDataFrame { background-color: #1e293b !important; }
+    </style>
+""", unsafe_allow_html=True)
 
 df_editado = st.data_editor(df_planilla, num_rows="dynamic", use_container_width=True, hide_index=True)
 
-st.markdown("<div style='background-color: #1e293b; padding: 20px; border-radius: 10px; border-left: 5px solid #a855f7;'>", unsafe_allow_html=True)
+st.markdown("<div style='background-color: #1e293b; padding: 25px; border-radius: 12px; border-left: 5px solid #a855f7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);'>", unsafe_allow_html=True)
 st.markdown("#### 🧾 Resumen de Pagos a Realizar")
 total_obra = 0
 for index, row in df_editado.iterrows():
     if row["Trabajador"]:
-        pago_total = (row["Días Completos"] + (row["Medios Días"] * 0.5)) * row["Jornal Negociado (S/)"]
-        total_obra += pago_total
-        st.markdown(f"**{row['Trabajador']}**: {row['Días Completos']} días enteros + {row['Medios Días']} medios días a S/{row['Jornal Negociado (S/)']} = **<span style='color:#38bdf8;'>S/ {pago_total:.2f}</span>**", unsafe_allow_html=True)
-st.markdown(f"<h3 style='color: #10b981 !important;'>Total a desembolsar: S/ {total_obra:.2f}</h3>", unsafe_allow_html=True)
+        pago_base = (row["Días Completos"] + (row["Medios Días"] * 0.5)) * row["Jornal Negociado (S/)"]
+        pago_final = pago_base + row["Saldo Anterior (S/)"]
+        total_obra += pago_final
+        
+        color_saldo = "#10b981" if row["Saldo Anterior (S/)"] >= 0 else "#ef4444"
+        signo = "+" if row["Saldo Anterior (S/)"] >= 0 else ""
+        
+        st.markdown(f"""
+            <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #334155;">
+                <b style="color: #38bdf8; font-size: 1.1rem;">{row['Trabajador']}</b><br>
+                Pago Base: {row['Días Completos']} enteros + {row['Medios Días']} medios = S/ {pago_base:.2f}<br>
+                Ajuste de Saldo: <span style='color:{color_saldo};'> {signo}S/ {row['Saldo Anterior (S/)']:.2f}</span> <i>({row['Nota de Saldo']})</i><br>
+                <b>Total Final a Pagar: <span style='color:#a855f7; font-size: 1.2rem;'>S/ {pago_final:.2f}</span></b>
+            </div>
+        """, unsafe_allow_html=True)
+
+st.markdown(f"<h2 style='color: #10b981 !important; text-align: center; margin-top: 20px;'>💰 Total General a Desembolsar: S/ {total_obra:.2f}</h2>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
