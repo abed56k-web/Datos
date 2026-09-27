@@ -30,7 +30,7 @@ conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
-c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, cantidad REAL, precio REAL)')
+c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT)')
 conn.commit()
 
@@ -61,7 +61,7 @@ if 'presupuesto_mo' not in st.session_state: st.session_state['presupuesto_mo'] 
 if 'presupuesto_mat' not in st.session_state: st.session_state['presupuesto_mat'] = 12000.00
 
 # ==========================================
-# 3. PANTALLA DE INICIO (LOGIN CON RESTAURACIÓN DE EMERGENCIA)
+# 3. PANTALLA DE INICIO (LOGIN)
 # ==========================================
 if not st.session_state['autenticado']:
     st.markdown("""
@@ -115,7 +115,6 @@ if not st.session_state['autenticado']:
                 st.session_state['mostrar_registro'] = True
                 st.rerun()
                 
-            # ZONA DE RESTAURACIÓN DE EMERGENCIA EN EL LOGIN
             with st.expander("🛠️ ¿Se reinició el servidor? Restaura tu Base de Datos aquí"):
                 archivo_emergencia = st.file_uploader("Sube tu archivo de respaldo (.db)", type=["db"])
                 if archivo_emergencia is not None:
@@ -123,9 +122,6 @@ if not st.session_state['autenticado']:
                         f.write(archivo_emergencia.getbuffer())
                     st.success("¡Base de datos restaurada con éxito! Ya puedes iniciar sesión.")
                     st.rerun()
-
-            with st.expander("Terms of Service | Privacy Policy"):
-                st.write("**Términos:** Uso exclusivo para gestión interna. **Privacidad:** Datos encriptados localmente.")
         else:
             with st.form("form_registro"):
                 st.markdown("<p style='text-align: center;'><b>Crea tu cuenta de obra</b></p>", unsafe_allow_html=True)
@@ -248,32 +244,39 @@ with col_form:
         with st.form("form_materiales"):
             f_mat = st.date_input("Fecha", date.today(), key="f1")
             mat_nom = st.text_input("Material / Insumo (Ej. Cemento)")
+            und_mat = st.selectbox("Unidad", ["bolsa", "m3", "und", "kg", "gln", "global", "ml"])
             col_m1, col_m2 = st.columns(2)
             with col_m1: cant = st.number_input("Cantidad", min_value=1.0, value=1.0)
             with col_m2: pre = st.number_input("P. Unit. (S/)", min_value=0.0)
             st.info(f"Total: S/ {cant * pre:.2f}")
             if st.form_submit_button("Guardar Material", use_container_width=True):
                 if mat_nom:
-                    c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, cant, pre))
+                    c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_mat, cant, pre))
                     conn.commit()
                     st.success("Material guardado en la Base de Datos.")
+                    st.rerun()
                 else:
                     st.warning("Escribe el nombre del material.")
     with tab_mo:
         with st.form("form_mano_obra"):
             f_mo = st.date_input("Fecha", date.today(), key="f2")
-            trabajador = st.text_input("Nombre Trabajador")
+            trabajador = st.text_input("Nombre Trabajador (Ej. Grover)")
             actividad = st.text_area("Actividad realizada", placeholder="Ej. Tarrajeo de muro norte.")
             if st.form_submit_button("Guardar Actividad", use_container_width=True):
                 if trabajador:
                     c.execute("INSERT INTO asistencia VALUES (?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), actividad))
                     conn.commit()
                     st.success("Actividad registrada en la BD.")
+                    st.rerun()
                 else:
                     st.warning("Escribe el nombre del trabajador.")
 
+# Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 gasto_mat_real = (df_mat_db['cantidad'] * df_mat_db['precio']).sum() if not df_mat_db.empty else 0.0
+
+df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
+trabajadores_registrados = df_asist_db['trabajador'].unique().tolist() if not df_asist_db.empty else ["Juan Pérez", "Luis Gómez"]
 
 with col_graf_circulo:
     st.subheader("💰 Distribución")
@@ -331,7 +334,7 @@ with col_btn2:
         st.rerun()
 
 st.write("<br>", unsafe_allow_html=True)
-trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", ["Juan Pérez", "Luis Gómez", "Carlos Ruiz"])
+trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", trabajadores_registrados)
 
 col_cal, col_leyenda = st.columns([2.5, 1])
 
@@ -387,27 +390,30 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES (MANO DE OBRA Y MATERIALES)
+# 8. MÓDULOS SEMANALES CON FILTRO DE FECHAS REAL Y ELIMINAR TRABAJADOR
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
-with col_sem1: fecha_inicio = st.date_input("Inicio de la Semana", value=date(2026, 9, 21))
-with col_sem2: fecha_fin = st.date_input("Fin de la Semana", value=date(2026, 9, 26))
-st.markdown(f"**Calculando gastos de la semana: {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}**")
+with col_sem1: fecha_inicio = st.date_input("Inicio de la Semana", value=date(2026, 9, 14))
+with col_sem2: fecha_fin = st.date_input("Fin de la Semana", value=date(2026, 9, 20))
+st.markdown(f"**Filtrando transacciones del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}**")
 
 tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
 
 with tab_planilla:
-    st.write("Ingresa los días, jornal acordado y **saldos pendientes** para el cálculo final.")
-    df_planilla = pd.DataFrame({
-        "Trabajador": ["Juan Pérez (Operario)", "Luis Gómez (Ayudante)", "Carlos Ruiz (Pintor)", ""],
-        "Días Completos": [5, 4, 4, 0],
-        "Medios Días": [1, 0, 2, 0],
-        "Jornal Negociado (S/)": [80.0, 50.0, 90.0, 0.0],
-        "Saldo Anterior (S/)": [20.0, -10.0, 0.0, 0.0],
-        "Nota de Saldo": ["Favor: Se le quedó a deber S/20", "Contra: Se le adelantó S/10", "", ""]
+    st.write("Trabajadores registrados en esta partida. Puedes editar jornales, saldos o **eliminar filas por error**.")
+    
+    # Tabla dinámica con trabajadores de la BD
+    df_planilla_base = pd.DataFrame({
+        "Trabajador": trabajadores_registrados,
+        "Días Completos": [5] * len(trabajadores_registrados),
+        "Medios Días": [0] * len(trabajadores_registrados),
+        "Jornal Negociado (S/)": [80.0] * len(trabajadores_registrados),
+        "Saldo Anterior (S/)": [0.0] * len(trabajadores_registrados),
+        "Nota de Saldo": [""] * len(trabajadores_registrados)
     })
-    df_edit_mo = st.data_editor(df_planilla, num_rows="dynamic", use_container_width=True, hide_index=True)
+    
+    df_edit_mo = st.data_editor(df_planilla_base, num_rows="dynamic", use_container_width=True, hide_index=True)
 
     gasto_semana_mo = 0
     st.markdown("<div style='background-color: #1e293b; padding: 25px; border-radius: 12px; border-left: 5px solid #a855f7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);'>", unsafe_allow_html=True)
@@ -433,23 +439,28 @@ with tab_planilla:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with tab_materiales:
-    st.write("Ingresa las facturas/boletas de los materiales comprados durante esta semana.")
+    st.write("Materiales comprados **exactamente dentro del rango de fechas** seleccionado arriba.")
     
+    # Filtrar materiales por fecha real en la BD
     if not df_mat_db.empty:
-        df_mats_show = df_mat_db[['insumo', 'cantidad', 'precio']].rename(columns={'insumo': 'Insumo / Material', 'cantidad': 'Cantidad', 'precio': 'Precio Unit. (S/)'})
+        df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
+        mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin)
+        df_mat_filtrado = df_mat_db.loc[mask]
     else:
-        df_mats_show = pd.DataFrame({
-            "Insumo / Material": ["Cemento Portland (Bolsa)", "Arena Fina (m3)", "Pegamento (Bolsa)", ""],
-            "Cantidad": [20, 3, 10, 0],
-            "Precio Unit. (S/)": [28.50, 45.00, 25.00, 0.00]
-        })
+        df_mat_filtrado = pd.DataFrame(columns=['insumo', 'und', 'cantidad', 'precio'])
+
+    if not df_mat_filtrado.empty:
+        df_mats_show = df_mat_filtrado[['insumo', 'und', 'cantidad', 'precio']].rename(columns={'insumo': 'Insumo / Material', 'und': 'UND', 'cantidad': 'Cantidad', 'precio': 'Precio Unit. (S/)'})
+    else:
+        df_mats_show = pd.DataFrame(columns=['Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)'])
         
     df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", use_container_width=True, hide_index=True)
     
     gasto_semana_mat = 0
     for index, row in df_edit_mat.iterrows():
-        if row["Insumo / Material"]:
+        if row["Insumo / Material"] and row["Cantidad"] > 0:
             gasto_semana_mat += (row["Cantidad"] * row["Precio Unit. (S/)"])
+            
     st.markdown(f"<h3 style='color: #38bdf8; text-align: right;'>Total Materiales Semana: S/ {gasto_semana_mat:.2f}</h3>", unsafe_allow_html=True)
 
 st.write("---")
@@ -458,7 +469,6 @@ st.write("---")
 # 9. TABLA RESUMEN ACUMULATIVA SEMANAL
 # ==========================================
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Acumulativo)</h2>", unsafe_allow_html=True)
-st.write("Historial detallado de todas las semanas registradas en esta partida, contrastado con el presupuesto.")
 
 df_resumen = pd.DataFrame({
     "Semana": ["Semana 1 (Septiembre)", "Semana 2 (Septiembre)", "Semana 3 (Septiembre)", "Semana 4 (Actual)"],
