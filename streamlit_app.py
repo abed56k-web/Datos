@@ -161,7 +161,7 @@ if st.session_state['partida_actual'] is None:
     st.stop()
 
 # ==========================================
-# 6. DASHBOARD DE LA PARTIDA (3 COLUMNAS RESTAURADAS)
+# 6. DASHBOARD DE LA PARTIDA Y PRESUPUESTO
 # ==========================================
 col_top1, col_top2 = st.columns([4, 1])
 with col_top1:
@@ -172,7 +172,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# CONFIGURACIÓN DE PRESUPUESTO BASE (CON OPCIÓN TOTAL)
+# CONFIGURACIÓN DE PRESUPUESTO BASE
 with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
     col_b1, col_b2, col_b3 = st.columns(3)
     with col_b1:
@@ -181,7 +181,6 @@ with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
         st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
     with col_b3:
         st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
-        # Mostrar alerta si la suma no cuadra
         if st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo'] != st.session_state['presupuesto_total']:
             st.warning("⚠️ Nota: La suma de Materiales + Mano de Obra no es igual al Presupuesto Total.")
 
@@ -213,8 +212,7 @@ with col_form:
 with col_graf_circulo:
     st.subheader("💰 Distribución")
     labels = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    # Simulamos el gasto para el gráfico basado en el presupuesto
-    values = [6000, 2500, st.session_state['presupuesto_total'] - 8500] 
+    values = [6000, 2500, max(0, st.session_state['presupuesto_total'] - 8500)] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
@@ -229,7 +227,7 @@ with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
     semanas_graf = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
     pres_total_linea = [st.session_state['presupuesto_total']] * 4
-    gasto_acumulado = [2000, 4500, 6800, 8500] # Gasto simulado progresivo
+    gasto_acumulado = [2000, 4500, 6800, 8500] 
     
     fig_linea = go.Figure()
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
@@ -245,7 +243,7 @@ with col_graf_linea:
 st.write("---")
 
 # ==========================================
-# 7. ALMANAQUE INTERACTIVO (CON LEYENDA A LA DERECHA)
+# 7. ALMANAQUE INTERACTIVO RESPONSIVO
 # ==========================================
 st.subheader("📅 Control Mensual de Asistencia")
 
@@ -268,7 +266,6 @@ with col_btn2:
 st.write("<br>", unsafe_allow_html=True)
 trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", ["Juan Pérez", "Luis Gómez", "Carlos Ruiz"])
 
-# Layout del Calendario y Leyenda juntos
 col_cal, col_leyenda = st.columns([2.5, 1])
 
 with col_cal:
@@ -276,13 +273,23 @@ with col_cal:
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
     random.seed(hash(trabajador_seleccionado + str(st.session_state['cal_mes'])))
 
+    # CSS MODIFICADO: Responsividad total (Celulares y PC) usando table-layout: fixed y clamp()
     html_cal = """
     <style>
-    .cal-wrapper { background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; padding: 20px; max-width: 100%;}
-    .cal-table { width: 100%; border-collapse: separate; border-spacing: 4px; text-align: center; font-family: sans-serif; }
-    .cal-table th { padding: 10px; color: #94a3b8; font-weight: bold; font-size: 1.1rem; }
-    .cal-table td { padding: 12px; border-radius: 4px; font-size: 1.2rem; font-weight: bold; border: 1px solid #334155; }
-    .cal-vacio { background-color: #1e293b; color: transparent; border: none !important; }
+    .cal-wrapper { 
+        background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); 
+        border: 1px solid #38bdf8; padding: clamp(10px, 3vw, 20px); width: 100%; box-sizing: border-box; overflow: hidden;
+    }
+    .cal-table { 
+        width: 100%; border-collapse: separate; border-spacing: clamp(2px, 1vw, 4px); 
+        text-align: center; font-family: sans-serif; table-layout: fixed;
+    }
+    .cal-table th { padding: clamp(5px, 1.5vw, 10px) 0; color: #94a3b8; font-weight: bold; font-size: clamp(0.8rem, 2.5vw, 1.1rem); }
+    .cal-table td { 
+        padding: clamp(8px, 2vw, 15px) 0; border-radius: 4px; font-size: clamp(0.9rem, 3vw, 1.2rem); 
+        font-weight: bold; border: 1px solid #334155; 
+    }
+    .cal-vacio { background-color: #1e293b; color: transparent !important; border: none !important; }
     .cal-futuro { background-color: #0f172a; color: #475569; }
     .cal-verde { background-color: #10b981; color: white !important; }
     .cal-amarillo { background-color: #f59e0b; color: white !important; }
@@ -386,15 +393,14 @@ with tab_materiales:
 st.write("---")
 
 # ==========================================
-# 9. TABLA RESUMEN ACUMULATIVA SEMANAL (COMPLETA)
+# 9. TABLA RESUMEN ACUMULATIVA SEMANAL
 # ==========================================
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Acumulativo)</h2>", unsafe_allow_html=True)
 st.write("Historial detallado de todas las semanas registradas en esta partida, contrastado con el presupuesto.")
 
-# Simulación de datos de semanas anteriores + la semana actual calculada arriba
 df_resumen = pd.DataFrame({
     "Semana": ["Semana 1 (Septiembre)", "Semana 2 (Septiembre)", "Semana 3 (Septiembre)", "Semana 4 (Actual)"],
-    "Gasto Mano Obra (S/)": [1200.00, 1300.00, 0.00, gasto_semana_mo], # La semana 4 usa la variable calculada
+    "Gasto Mano Obra (S/)": [1200.00, 1300.00, 0.00, gasto_semana_mo],
     "Gasto Materiales (S/)": [3000.00, 1500.00, 1500.00, gasto_semana_mat]
 })
 df_resumen["Gasto Total Semanal (S/)"] = df_resumen["Gasto Mano Obra (S/)"] + df_resumen["Gasto Materiales (S/)"]
@@ -403,7 +409,6 @@ df_resumen["Saldo vs Presupuesto (S/)"] = st.session_state['presupuesto_total'] 
 
 st.dataframe(df_resumen, use_container_width=True, hide_index=True)
 
-# Cálculo final para tarjetas de saldo
 gasto_total_acumulado = df_resumen["Gasto Acumulado (S/)"].iloc[-1]
 saldo_final = st.session_state['presupuesto_total'] - gasto_total_acumulado
 
