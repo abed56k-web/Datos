@@ -8,26 +8,8 @@ import sqlite3
 import hashlib
 import random
 
-# 1. CONFIGURACIÓN INICIAL CON ICONO PWA PARA CELULAR
-st.set_page_config(
-    page_title="Control de Obra", 
-    layout="wide", 
-    initial_sidebar_state="collapsed",
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': "# NEXUS OBRA - Sistema de Control de Proyectos"
-    }
-)
-
-# Inyectar metadatos para que el celular reconozca el ícono personalizado al instalar
-st.markdown("""
-    <head>
-        <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2954/2954848.png">
-        <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2954/2954848.png">
-        <meta name="theme-color" content="#0f172a">
-    </head>
-""", unsafe_allow_html=True)
+# 1. CONFIGURACIÓN INICIAL
+st.set_page_config(page_title="Control de Obra", layout="wide", initial_sidebar_state="collapsed")
 
 # 2. BASE DE DATOS Y ESTADOS GLOBALES
 conn = sqlite3.connect('usuarios.db', check_same_thread=False)
@@ -46,7 +28,8 @@ def verificar_usuario(email, clave):
 if 'autenticado' not in st.session_state: st.session_state['autenticado'] = False
 if 'mostrar_registro' not in st.session_state: st.session_state['mostrar_registro'] = False
 if 'partida_actual' not in st.session_state: st.session_state['partida_actual'] = None
-if 'lista_partidas' not in st.session_state: st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
+if 'lista_partidas' not in st.session_state: 
+    st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
 if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 9 
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
 
@@ -175,9 +158,20 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# CONFIGURACIÓN DE PRESUPUESTO BASE
-with st.expander("⚙️ Configurar Presupuesto Base de la Partida"):
-    modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
+# CONFIGURACIÓN Y EDICIÓN DE PARTIDA / PRESUPUESTO
+with st.expander("⚙️ Configurar y Renombrar Partida / Presupuesto"):
+    # Opción para renombrar la partida actual
+    nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'])
+    if st.button("Actualizar Nombre"):
+        if nuevo_nombre_partida:
+            idx = st.session_state['lista_partidas'].index(st.session_state['partida_actual'])
+            st.session_state['lista_partidas'][idx] = nuevo_nombre_partida
+            st.session_state['partida_actual'] = nuevo_nombre_partida
+            st.success("¡Nombre actualizado con éxito!")
+            st.rerun()
+
+    st.write("---")
+    modo_ingreso = st.radio("Método de cálculo de presupuesto:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
     
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
         col_b1, col_b2 = st.columns(2)
