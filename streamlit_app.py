@@ -7,6 +7,7 @@ import calendar
 import sqlite3
 import hashlib
 import random
+import os
 
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(
@@ -326,7 +327,6 @@ with col_cal:
     calendar.setfirstweekday(calendar.SUNDAY)
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
     
-    # Solución segura sin error de hash
     safe_seed_val = sum(ord(char) for char in (trabajador_seleccionado + str(st.session_state['cal_mes'])))
     random.seed(safe_seed_val)
 
