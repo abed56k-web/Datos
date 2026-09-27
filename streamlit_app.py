@@ -33,7 +33,12 @@ c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS saldos_trabajadores (partida TEXT, trabajador TEXT, saldo REAL)')
-conn.commit()
+
+try:
+    c.execute('ALTER TABLE asistencia ADD COLUMN almuerzo TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass 
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
 
@@ -408,7 +413,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON CÁLCULO AUTOMÁTICO DE ASISTENCIA Y TARJETA POR TRABAJADOR
+# 8. MÓDULOS SEMANALES CON CÁLCULO ESTRICTO DE ASISTENCIA Y BOTÓN ARREGLADO
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -431,12 +436,11 @@ with tab_planilla:
         df_asist_semana = pd.DataFrame(columns=['trabajador', 'fecha', 'estado', 'almuerzo'])
 
     for trabajador in trabajadores_registrados:
-        # Filtrar asistencias del trabajador en esta semana
         df_t_sem = df_asist_semana[df_asist_semana['trabajador'] == trabajador] if not df_asist_semana.empty else pd.DataFrame()
         
         cant_completos = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
         cant_medios = len(df_t_sem[df_t_sem['estado'] == 'Medio Día']) if not df_t_sem.empty else 0
-        cant_faltas = len(df_t_sem[df_t_sem['estado'] == 'Falta / Emergencia']) if not df_t_sem.empty else 0
+        cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
         cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.contains('Sí', na=False)]) if not df_t_sem.empty else 0
 
         st.markdown(f"""
@@ -455,11 +459,11 @@ with tab_planilla:
             res_saldo = c.fetchone()
             saldo_anterior = res_saldo[0] if res_saldo else 0.0
             
-            # Botón Arreglado para limpiar saldo
-            if st.button(f"🧹 Arreglado (Borrar Deuda/Adelanto) - {trabajador}", key=f"btn_arreglado_{trabajador}"):
+            # BOTÓN ARREGLADO (Pone el saldo en 0 y recarga)
+            if st.button(f"🧹 Arreglado (Saldar Cuenta) - {trabajador}", key=f"btn_arreglado_{trabajador}"):
                 c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, 0.0))
                 conn.commit()
-                st.success(f"¡Deuda de {trabajador} saldada!")
+                st.success(f"¡Cuenta saldada para {trabajador}!")
                 st.rerun()
 
         with col_w2:
@@ -468,7 +472,6 @@ with tab_planilla:
                 c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, nuevo_saldo))
                 conn.commit()
 
-        # Cálculos de la tarjeta estilo tu esquema
         pago_completos = cant_completos * jornal_dia
         pago_medios = cant_medios * (jornal_dia / 2.0)
         total_almuerzos = cant_almuerzos * costo_almuerzo
