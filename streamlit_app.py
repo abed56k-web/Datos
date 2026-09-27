@@ -25,15 +25,15 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con restricción UNIQUE corregida)
 conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
-c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, UNIQUE(partida, nombre))')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, UNIQUE(partida, trabajador, fecha))')
-c.execute('CREATE TABLE IF NOT EXISTS saldos_trabajadores (partida TEXT, trabajador TEXT, saldo REAL)')
+c.execute('CREATE TABLE IF NOT EXISTS saldos_trabajadores (partida TEXT, trabajador TEXT, saldo REAL, UNIQUE(partida, trabajador))')
 conn.commit()
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
@@ -480,12 +480,10 @@ with tab_planilla:
             costo_almuerzo = st.number_input(f"Costo por Almuerzo (S/) - {trabajador}", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
             
         with col_w2:
-            # Consultar saldo anterior en BD
             c.execute("SELECT saldo FROM saldos_trabajadores WHERE partida=? AND trabajador=?", (st.session_state['partida_actual'], trabajador))
             res_saldo = c.fetchone()
             saldo_anterior = res_saldo[0] if res_saldo else 0.0
 
-            # Cuadro único y directo: +debe, -adelanto, 0 si ya se arregló
             nuevo_saldo = st.number_input(f"Saldo / Adelanto (S/) (+Debe / -Adelanto / 0=Arreglado) - {trabajador}", value=saldo_anterior, step=10.0, key=f"saldo_{trabajador}")
             if nuevo_saldo != saldo_anterior:
                 c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, nuevo_saldo))
@@ -497,7 +495,6 @@ with tab_planilla:
         total_trabajador = pago_completos + pago_medios + total_almuerzos + nuevo_saldo
         gasto_semana_mo += total_trabajador
 
-        # Mostrar desglose idéntico al esquema dibujado
         st.markdown(f"""
             <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 25px;">
                 <table style="width:100%; color: #e2e8f0; text-align: left; font-size: 1.05rem;">
