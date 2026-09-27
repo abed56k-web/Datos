@@ -25,20 +25,15 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con actualización segura de columnas)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
 conn = sqlite3.connect('obra_nexus.db', check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
-c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT)')
-
-# Actualización segura por si la tabla asistencia antigua tenía 4 columnas
-try:
-    c.execute('ALTER TABLE asistencia ADD COLUMN almuerzo TEXT')
-    conn.commit()
-except sqlite3.OperationalError:
-    pass # La columna ya existe, no hay problema
+c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS saldos_trabajadores (partida TEXT, trabajador TEXT, saldo REAL)')
+conn.commit()
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
 
@@ -273,7 +268,6 @@ with col_form:
         with st.form("form_mano_obra"):
             f_mo = st.date_input("Fecha", date.today(), key="f2")
             trabajador = st.text_input("Nombre del Trabajador (Ej. Grover)")
-            
             estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
             almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
@@ -414,7 +408,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON FILTRO DE FECHAS REAL
+# 8. MÓDULOS SEMANALES CON CÁLCULO AUTOMÁTICO DE ASISTENCIA Y TARJETA POR TRABAJADOR
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -425,41 +419,79 @@ st.markdown(f"**Filtrando transacciones del {fecha_inicio.strftime('%d/%m/%Y')} 
 tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
 
 with tab_planilla:
-    st.write("Trabajadores registrados en esta partida. Puedes editar jornales, saldos o **eliminar filas por error**.")
-    
-    df_planilla_base = pd.DataFrame({
-        "Trabajador": trabajadores_registrados,
-        "Días Completos": [5] * len(trabajadores_registrados),
-        "Medios Días": [0] * len(trabajadores_registrados),
-        "Jornal Negociado (S/)": [80.0] * len(trabajadores_registrados),
-        "Saldo Anterior (S/)": [0.0] * len(trabajadores_registrados),
-        "Nota de Saldo": [""] * len(trabajadores_registrados)
-    })
-    
-    df_edit_mo = st.data_editor(df_planilla_base, num_rows="dynamic", use_container_width=True, hide_index=True)
+    st.write("Cálculo automático de jornales basados estrictamente en el calendario registrado para cada trabajador.")
 
     gasto_semana_mo = 0
-    st.markdown("<div style='background-color: #1e293b; padding: 25px; border-radius: 12px; border-left: 5px solid #a855f7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);'>", unsafe_allow_html=True)
-    st.markdown("#### 🧾 Recibos a Pagar")
-    for index, row in df_edit_mo.iterrows():
-        if row["Trabajador"]:
-            pago_base = (row["Días Completos"] + (row["Medios Días"] * 0.5)) * row["Jornal Negociado (S/)"]
-            pago_final = pago_base + row["Saldo Anterior (S/)"]
-            gasto_semana_mo += pago_final
+
+    if not df_asist_db.empty:
+        df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
+        mask_asis = (df_asist_db['fecha_dt'] >= fecha_inicio) & (df_asist_db['fecha_dt'] <= fecha_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+        df_asist_semana = df_asist_db.loc[mask_asis]
+    else:
+        df_asist_semana = pd.DataFrame(columns=['trabajador', 'fecha', 'estado', 'almuerzo'])
+
+    for trabajador in trabajadores_registrados:
+        # Filtrar asistencias del trabajador en esta semana
+        df_t_sem = df_asist_semana[df_asist_semana['trabajador'] == trabajador] if not df_asist_semana.empty else pd.DataFrame()
+        
+        cant_completos = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
+        cant_medios = len(df_t_sem[df_t_sem['estado'] == 'Medio Día']) if not df_t_sem.empty else 0
+        cant_faltas = len(df_t_sem[df_t_sem['estado'] == 'Falta / Emergencia']) if not df_t_sem.empty else 0
+        cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.contains('Sí', na=False)]) if not df_t_sem.empty else 0
+
+        st.markdown(f"""
+            <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #38bdf8;">
+                <h3 style="color: #38bdf8; margin-top: 0;">👷 {trabajador}</h3>
+            </div>
+        """, unsafe_allow_html=True)
+
+        col_w1, col_w2 = st.columns(2)
+        with col_w1:
+            jornal_dia = st.number_input(f"Jornal Diario por Día (S/) - {trabajador}", value=80.0, step=10.0, key=f"jornal_{trabajador}")
+            costo_almuerzo = st.number_input(f"Costo por Almuerzo (S/) - {trabajador}", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
             
-            color_saldo = "#10b981" if row["Saldo Anterior (S/)"] >= 0 else "#ef4444"
-            signo = "+" if row["Saldo Anterior (S/)"] >= 0 else ""
+            # Consultar saldo anterior en BD
+            c.execute("SELECT saldo FROM saldos_trabajadores WHERE partida=? AND trabajador=?", (st.session_state['partida_actual'], trabajador))
+            res_saldo = c.fetchone()
+            saldo_anterior = res_saldo[0] if res_saldo else 0.0
             
-            st.markdown(f"""
-                <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #334155;">
-                    <b style="color: #38bdf8; font-size: 1.1rem;">{row['Trabajador']}</b><br>
-                    Pago Base: {row['Días Completos']} enteros + {row['Medios Días']} medios = S/ {pago_base:.2f}<br>
-                    Ajuste de Saldo: <span style='color:{color_saldo};'> {signo}S/ {row['Saldo Anterior (S/)']:.2f}</span> <i>({row['Nota de Saldo']})</i><br>
-                    <b>Total Final a Pagar: <span style='color:#a855f7; font-size: 1.2rem;'>S/ {pago_final:.2f}</span></b>
-                </div>
-            """, unsafe_allow_html=True)
-    st.markdown(f"<h3 style='color: #10b981 !important; text-align: center; margin-top: 15px;'>Total Planilla Semana: S/ {gasto_semana_mo:.2f}</h3>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+            # Botón Arreglado para limpiar saldo
+            if st.button(f"🧹 Arreglado (Borrar Deuda/Adelanto) - {trabajador}", key=f"btn_arreglado_{trabajador}"):
+                c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, 0.0))
+                conn.commit()
+                st.success(f"¡Deuda de {trabajador} saldada!")
+                st.rerun()
+
+        with col_w2:
+            nuevo_saldo = st.number_input(f"Saldo Pendiente / Adelanto (S/) (+Debe / -Adelanto) - {trabajador}", value=saldo_anterior, step=10.0, key=f"saldo_{trabajador}")
+            if nuevo_saldo != saldo_anterior:
+                c.execute("INSERT OR REPLACE INTO saldos_trabajadores VALUES (?, ?, ?)", (st.session_state['partida_actual'], trabajador, nuevo_saldo))
+                conn.commit()
+
+        # Cálculos de la tarjeta estilo tu esquema
+        pago_completos = cant_completos * jornal_dia
+        pago_medios = cant_medios * (jornal_dia / 2.0)
+        total_almuerzos = cant_almuerzos * costo_almuerzo
+        total_trabajador = pago_completos + pago_medios + total_almuerzos + nuevo_saldo
+        gasto_semana_mo += total_trabajador
+
+        # Mostrar desglose idéntico al esquema dibujado
+        st.markdown(f"""
+            <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 25px;">
+                <table style="width:100%; color: #e2e8f0; text-align: left; font-size: 1.05rem;">
+                    <tr><th>Concepto</th><th>Cantidad</th><th>Jornal / Costo</th><th>Parcial (S/)</th></tr>
+                    <tr><td>Días Completos</td><td><b>{cant_completos}</b></td><td>S/ {jornal_dia:.2f}</td><td>S/ {pago_completos:.2f}</td></tr>
+                    <tr><td>Medios Días</td><td><b>{cant_medios}</b></td><td>S/ {jornal_dia/2:.2f}</td><td>S/ {pago_medios:.2f}</td></tr>
+                    <tr><td>Inasistencias</td><td><b>{cant_faltas}</b></td><td>S/ 0.00</td><td>S/ 0.00</td></tr>
+                    <tr><td>Comida - Almuerzo</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
+                    <tr><td>Saldo Anterior (Debe / Adelanto)</td><td colspan="2">Ajuste de cuenta</td><td><b>S/ {nuevo_saldo:.2f}</b></td></tr>
+                </table>
+                <hr style="border-color: #334155;">
+                <h3 style="color: #10b981; text-align: right; margin: 0;">TOTAL A PAGAR: S/ {total_trabajador:.2f}</h3>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown(f"<h2 style='color: #38bdf8; text-align: center; background-color: #1e293b; padding: 15px; border-radius: 8px;'>Total Planilla General de la Semana: S/ {gasto_semana_mo:.2f}</h2>", unsafe_allow_html=True)
 
 with tab_materiales:
     st.write("Materiales comprados **exactamente dentro del rango de fechas** seleccionado arriba.")
