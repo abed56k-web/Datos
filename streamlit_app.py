@@ -31,7 +31,7 @@ c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
-c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT)')
 conn.commit()
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
@@ -240,33 +240,48 @@ col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
 with col_form:
     st.subheader("📝 Centro de Registro")
     tab_mat, tab_mo = st.tabs(["📦 Ingresar Materiales", "👷 Registrar Actividad"])
+    
     with tab_mat:
         with st.form("form_materiales"):
             f_mat = st.date_input("Fecha", date.today(), key="f1")
-            mat_nom = st.text_input("Material / Insumo (Ej. Cemento)")
-            und_mat = st.selectbox("Unidad", ["bolsa", "m3", "und", "kg", "gln", "global", "ml"])
+            mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
+            
+            # UNIDADES ESTÁNDAR PERUANAS + OPCIÓN PERSONALIZADA
+            tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
+            und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
+            
             col_m1, col_m2 = st.columns(2)
-            with col_m1: cant = st.number_input("Cantidad", min_value=1.0, value=1.0)
-            with col_m2: pre = st.number_input("P. Unit. (S/)", min_value=0.0)
+            with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
+            with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
             st.info(f"Total: S/ {cant * pre:.2f}")
+            
             if st.form_submit_button("Guardar Material", use_container_width=True):
-                if mat_nom:
-                    c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_mat, cant, pre))
+                if mat_nom and und_final:
+                    c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
                     conn.commit()
-                    st.success("Material guardado en la Base de Datos.")
+                    st.success("Material guardado correctamente en la BD.")
                     st.rerun()
                 else:
-                    st.warning("Escribe el nombre del material.")
+                    st.warning("Completa el nombre y la unidad del material.")
+                    
     with tab_mo:
         with st.form("form_mano_obra"):
             f_mo = st.date_input("Fecha", date.today(), key="f2")
-            trabajador = st.text_input("Nombre Trabajador (Ej. Grover)")
-            actividad = st.text_area("Actividad realizada", placeholder="Ej. Tarrajeo de muro norte.")
+            trabajador = st.text_input("Nombre del Trabajador (Ej. Grover)")
+            
+            # Selector de Estado de Asistencia
+            estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
+            
+            # Opción de Comida / Almuerzo
+            almuerzo_opc = st.radio("Almuerzo en Obra", ["No (Almuerza en casa)", "Sí (Se queda a almorzar)"], horizontal=True)
+            
+            actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
+            
             if st.form_submit_button("Guardar Actividad", use_container_width=True):
                 if trabajador:
-                    c.execute("INSERT INTO asistencia VALUES (?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), actividad))
+                    c.execute("INSERT INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
                     conn.commit()
-                    st.success("Actividad registrada en la BD.")
+                    st.success("Actividad y asistencia registrada en la BD.")
                     st.rerun()
                 else:
                     st.warning("Escribe el nombre del trabajador.")
@@ -313,7 +328,7 @@ with col_graf_linea:
 st.write("---")
 
 # ==========================================
-# 7. ALMANAQUE INTERACTIVO RESPONSIVO
+# 7. ALMANAQUE INTERACTIVO CONECTADO A LA BD
 # ==========================================
 st.subheader("📅 Control Mensual de Asistencia")
 
@@ -341,9 +356,18 @@ col_cal, col_leyenda = st.columns([2.5, 1])
 with col_cal:
     calendar.setfirstweekday(calendar.SUNDAY)
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
-    
-    safe_seed_val = sum(ord(char) for char in (trabajador_seleccionado + str(st.session_state['cal_mes'])))
-    random.seed(safe_seed_val)
+
+    # Extraer asistencia real de la BD para este trabajador en este mes/año
+    asistencia_trabajador = {}
+    if not df_asist_db.empty:
+        df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
+        for _, row in df_t.iterrows():
+            try:
+                f_reg = date.fromisoformat(row['fecha'])
+                if f_reg.year == st.session_state['cal_ano'] and f_reg.month == st.session_state['cal_mes']:
+                    asistencia_trabajador[f_reg.day] = row['estado']
+            except:
+                pass
 
     html_cal = """
     <style>
@@ -365,11 +389,11 @@ with col_cal:
             if dia == 0: html_cal += "<td class='cal-vacio'>0</td>"
             else:
                 clase = "cal-futuro"
-                if date(st.session_state['cal_ano'], st.session_state['cal_mes'], dia) <= date.today() + pd.Timedelta(days=30):
-                    estado = random.choices(["verde", "amarillo", "rojo"], weights=[75, 15, 10])[0]
-                    if estado == "verde": clase = "cal-verde"
-                    elif estado == "amarillo": clase = "cal-amarillo"
-                    elif estado == "rojo": clase = "cal-rojo"
+                if dia in asistencia_trabajador:
+                    est = asistencia_trabajador[dia]
+                    if "Completo" in est: clase = "cal-verde"
+                    elif "Medio" in est: clase = "cal-amarillo"
+                    else: clase = "cal-rojo"
                 html_cal += f"<td class='{clase}'>{dia}</td>"
         html_cal += "</tr>"
     html_cal += "</table></div>"
@@ -390,7 +414,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON FILTRO DE FECHAS REAL Y ELIMINAR TRABAJADOR
+# 8. MÓDULOS SEMANALES CON FILTRO DE FECHAS REAL
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -403,7 +427,6 @@ tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)
 with tab_planilla:
     st.write("Trabajadores registrados en esta partida. Puedes editar jornales, saldos o **eliminar filas por error**.")
     
-    # Tabla dinámica con trabajadores de la BD
     df_planilla_base = pd.DataFrame({
         "Trabajador": trabajadores_registrados,
         "Días Completos": [5] * len(trabajadores_registrados),
@@ -441,7 +464,6 @@ with tab_planilla:
 with tab_materiales:
     st.write("Materiales comprados **exactamente dentro del rango de fechas** seleccionado arriba.")
     
-    # Filtrar materiales por fecha real en la BD
     if not df_mat_db.empty:
         df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
         mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin)
