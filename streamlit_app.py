@@ -25,15 +25,22 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con restricciones únicas para evitar duplicados)
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, UNIQUE(partida, nombre))')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
-c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, UNIQUE(partida, trabajador, fecha))')
+c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 conn.commit()
+
+# Actualización segura por si la tabla asistencia antigua no tenía la columna actividad
+try:
+    c.execute('ALTER TABLE asistencia ADD COLUMN actividad TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
 
 def encriptar_clave(clave): return hashlib.sha256(str.encode(clave)).hexdigest()
 
@@ -268,9 +275,7 @@ with col_form:
                     st.warning("Completa el nombre y la unidad del material.")
                     
     with tab_pers:
-        st.write("👤 **Gestión de Personal (Modifique o elimine directamente en la tabla)**")
-        
-        # Formulario rápido para añadir nuevo
+        st.write("👤 **Gestión de Personal**")
         with st.form("form_nuevo_personal"):
             col_np1, col_np2 = st.columns(2)
             with col_np1: nuevo_nombre = st.text_input("Nombre y Apellido")
@@ -288,9 +293,6 @@ with col_form:
                     st.warning("Escribe un nombre.")
 
         st.write("---")
-        st.write("📋 **Lista de Personal (Edite nombre/especialidad o borre filas con el botón de papelera):**")
-        
-        # Tabla interactiva para modificar y borrar personal de manera sencilla
         df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
         if df_pers_actual.empty:
             df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad"])
@@ -324,9 +326,10 @@ with col_form:
             
             if st.form_submit_button("Guardar Asistencia", use_container_width=True):
                 if trabajador:
-                    c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc))
+                    # REPLACE INTO garantiza que si se registra la misma fecha, se reemplace limpiamente sin duplicados
+                    c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
                     conn.commit()
-                    st.success("¡Asistencia guardada o actualizada correctamente en la BD!")
+                    st.success("¡Asistencia guardada con éxito (actualizada para esta fecha)!")
                     st.rerun()
                 else:
                     st.warning("Selecciona un trabajador.")
@@ -373,7 +376,7 @@ with col_graf_linea:
 st.write("---")
 
 # ==========================================
-# 7. ALMANAQUE INTERACTIVO CONECTADO A LA BD
+# 7. ALMANAQUE INTERACTIVO CON TOOLTIP DE COMENTARIO
 # ==========================================
 st.subheader("📅 Control Mensual de Asistencia")
 
@@ -406,6 +409,7 @@ with col_cal:
     mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
 
     asistencia_trabajador = {}
+    comentarios_trabajador = {}
     if not df_asist_db.empty and trabajador_seleccionado != "Sin registros":
         df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
         for _, row in df_t.iterrows():
@@ -413,6 +417,7 @@ with col_cal:
                 f_reg = date.fromisoformat(row['fecha'])
                 if f_reg.year == st.session_state['cal_ano'] and f_reg.month == st.session_state['cal_mes']:
                     asistencia_trabajador[f_reg.day] = row['estado']
+                    comentarios_trabajador[f_reg.day] = row['actividad'] if row['actividad'] else "Sin observaciones"
             except:
                 pass
 
@@ -421,8 +426,8 @@ with col_cal:
     .cal-wrapper { background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; padding: clamp(10px, 3vw, 20px); width: 100%; box-sizing: border-box; overflow: hidden;}
     .cal-table { width: 100%; border-collapse: separate; border-spacing: clamp(2px, 1vw, 4px); text-align: center; font-family: sans-serif; table-layout: fixed;}
     .cal-table th { padding: clamp(5px, 1.5vw, 10px) 0; color: #94a3b8; font-weight: bold; font-size: clamp(0.8rem, 2.5vw, 1.1rem); }
-    .cal-table td { padding: clamp(8px, 2vw, 15px) 0; border-radius: 4px; font-size: clamp(0.9rem, 3vw, 1.2rem); font-weight: bold; border: 1px solid #334155; }
-    .cal-vacio { background-color: #1e293b; color: transparent !important; border: none !important; }
+    .cal-table td { padding: clamp(8px, 2vw, 15px) 0; border-radius: 4px; font-size: clamp(0.9rem, 3vw, 1.2rem); font-weight: bold; border: 1px solid #334155; position: relative; cursor: pointer; }
+    .cal-vacio { background-color: #1e293b; color: transparent !important; border: none !important; cursor: default !important; }
     .cal-futuro { background-color: #0f172a; color: #475569; }
     .cal-verde { background-color: #10b981; color: white !important; }
     .cal-amarillo { background-color: #f59e0b; color: white !important; }
@@ -436,12 +441,14 @@ with col_cal:
             if dia == 0: html_cal += "<td class='cal-vacio'>0</td>"
             else:
                 clase = "cal-futuro"
+                tooltip = "Sin registro"
                 if dia in asistencia_trabajador:
                     est = asistencia_trabajador[dia]
+                    tooltip = f"Actividad: {comentarios_trabajador.get(dia, '')}"
                     if "Completo" in est: clase = "cal-verde"
                     elif "Medio" in est: clase = "cal-amarillo"
                     else: clase = "cal-rojo"
-                html_cal += f"<td class='{clase}'>{dia}</td>"
+                html_cal += f"<td class='{clase}' title='{tooltip}'>{dia}</td>"
         html_cal += "</tr>"
     html_cal += "</table></div>"
     st.markdown(html_cal, unsafe_allow_html=True)
@@ -461,7 +468,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON TARJETAS DESPLEGABLES (EXPANDER)
+# 8. MÓDULOS SEMANALES CON TARJETAS LIMPIAS (FORMATO: Obrero: [Especialidad] [Nombre])
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
@@ -472,7 +479,7 @@ st.markdown(f"**Filtrando transacciones del {fecha_inicio.strftime('%d/%m/%Y')} 
 tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
 
 with tab_planilla:
-    st.write("Cálculo automático de jornales. Haz clic en el nombre de cada trabajador para **ocultar o mostrar** su información rápidamente.")
+    st.write("Cálculo automático de jornales basados estrictamente en el calendario registrado.")
 
     gasto_semana_mo = 0
 
@@ -484,6 +491,10 @@ with tab_planilla:
         df_asist_semana = pd.DataFrame(columns=['trabajador', 'fecha', 'estado', 'almuerzo'])
 
     for trabajador in trabajadores_registrados:
+        # Obtener especialidad del trabajador desde la BD de personal
+        df_esp = df_pers_actual[df_pers_actual['nombre'] == trabajador]
+        especialidad_trab = df_esp['especialidad'].values[0] if not df_esp.empty else "Obrero"
+
         df_t_sem = df_asist_semana[df_asist_semana['trabajador'] == trabajador] if not df_asist_semana.empty else pd.DataFrame()
         
         cant_completos = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
@@ -491,8 +502,8 @@ with tab_planilla:
         cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
         cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.contains('Sí', na=False)]) if not df_t_sem.empty else 0
 
-        # CADA TARJETA DE TRABAJADOR AHORA ES UN EXPANDER DESPLEGABLE PARA OCULTAR/MOSTRAR
-        with st.expander(f"👷 Obrero: {trabajador} (Días: {cant_completos} enteros, {cant_medios} medios) - Clic para ocultar/mostrar", expanded=True):
+        # FORMATO LIMPIO: Obrero: [Especialidad] [Nombre]
+        with st.expander(f"👷 Obrero: {especialidad_trab} {trabajador}", expanded=True):
             col_w1, col_w2, col_w3 = st.columns(3)
             with col_w1:
                 jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
