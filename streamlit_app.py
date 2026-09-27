@@ -9,7 +9,20 @@ import hashlib
 import random
 
 # 1. CONFIGURACIÓN INICIAL
-st.set_page_config(page_title="Control de Obra", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="Control de Obra", 
+    layout="wide", 
+    initial_sidebar_state="collapsed",
+    menu_items={'Get Help': None, 'Report a bug': None, 'About': "# NEXUS OBRA - Sistema de Control de Proyectos"}
+)
+
+st.markdown("""
+    <head>
+        <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2954/2954848.png">
+        <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2954/2954848.png">
+        <meta name="theme-color" content="#0f172a">
+    </head>
+""", unsafe_allow_html=True)
 
 # 2. BASE DE DATOS Y ESTADOS GLOBALES
 conn = sqlite3.connect('usuarios.db', check_same_thread=False)
@@ -39,7 +52,7 @@ if 'presupuesto_mo' not in st.session_state: st.session_state['presupuesto_mo'] 
 if 'presupuesto_mat' not in st.session_state: st.session_state['presupuesto_mat'] = 12000.00
 
 # ==========================================
-# 3. PANTALLA DE INICIO (MONTANA Y REDES ORIGINAL)
+# 3. PANTALLA DE INICIO (LOGIN CON FORMULARIOS SEGUROS)
 # ==========================================
 if not st.session_state['autenticado']:
     st.markdown("""
@@ -73,32 +86,44 @@ if not st.session_state['autenticado']:
 
     with col2:
         st.markdown("<h2 style='text-align: center; font-size: 3rem; margin-bottom: 30px;'>Sign in</h2>", unsafe_allow_html=True)
+        
         if not st.session_state['mostrar_registro']:
-            email_login = st.text_input("Email Address")
-            clave_login = st.text_input("Password", type="password")
-            st.checkbox("Remember Me")
-            if st.button("Sign in now"):
-                if verificar_usuario(email_login, clave_login):
-                    st.session_state['autenticado'] = True
-                    st.session_state['usuario_actual'] = email_login
-                    st.rerun()
-                else: st.error("Error al iniciar sesión.")
-            st.write("---")
+            with st.form("form_login"):
+                email_login = st.text_input("Email Address")
+                clave_login = st.text_input("Password", type="password")
+                st.checkbox("Remember Me")
+                btn_login = st.form_submit_button("Sign in now")
+                
+                if btn_login:
+                    if verificar_usuario(email_login, clave_login):
+                        st.session_state['autenticado'] = True
+                        st.session_state['usuario_actual'] = email_login
+                        st.rerun()
+                    else:
+                        st.error("Error al iniciar sesión. Verifica tus datos o regístrate.")
+            
             if st.button("¿No tienes cuenta? Regístrate aquí"):
                 st.session_state['mostrar_registro'] = True
                 st.rerun()
+                
             with st.expander("Terms of Service | Privacy Policy"):
                 st.write("**Términos:** Uso exclusivo para gestión interna. **Privacidad:** Datos encriptados localmente (SHA-256).")
         else:
-            st.markdown("<p style='text-align: center;'><b>Crea tu cuenta de obra</b></p>", unsafe_allow_html=True)
-            email_reg = st.text_input("Nuevo Correo")
-            clave_reg = st.text_input("Crear Contraseña", type="password")
-            if st.button("Guardar Cuenta"):
-                if email_reg and clave_reg:
-                    agregar_usuario(email_reg, clave_reg)
-                    st.success("¡Cuenta creada!")
-                    st.session_state['mostrar_registro'] = False
-                    st.rerun()
+            with st.form("form_registro"):
+                st.markdown("<p style='text-align: center;'><b>Crea tu cuenta de obra</b></p>", unsafe_allow_html=True)
+                email_reg = st.text_input("Nuevo Correo")
+                clave_reg = st.text_input("Crear Contraseña", type="password")
+                btn_reg = st.form_submit_button("Guardar Cuenta")
+                
+                if btn_reg:
+                    if email_reg and clave_reg:
+                        agregar_usuario(email_reg, clave_reg)
+                        st.success("¡Cuenta creada con éxito! Vuelve atrás para ingresar.")
+                        st.session_state['mostrar_registro'] = False
+                        st.rerun()
+                    else:
+                        st.warning("Completa ambos campos.")
+            
             if st.button("Volver al Login"):
                 st.session_state['mostrar_registro'] = False
                 st.rerun()
@@ -160,7 +185,6 @@ with col_top2:
 
 # CONFIGURACIÓN Y EDICIÓN DE PARTIDA / PRESUPUESTO
 with st.expander("⚙️ Configurar y Renombrar Partida / Presupuesto"):
-    # Opción para renombrar la partida actual
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'])
     if st.button("Actualizar Nombre"):
         if nuevo_nombre_partida:
@@ -171,7 +195,7 @@ with st.expander("⚙️ Configurar y Renombrar Partida / Presupuesto"):
             st.rerun()
 
     st.write("---")
-    modo_ingreso = st.radio("Método de cálculo de presupuesto:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
+    modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
     
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
         col_b1, col_b2 = st.columns(2)
@@ -409,7 +433,7 @@ with col_res1:
 with col_res2:
     st.markdown(f"""
         <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #f59e0b;'>
-            <h4 style='margin:0; color:#94a3b8;'>Gasto Acumulado a la fecha</h4>
+            <h4 style='margin:0; color:#94a3b8;'>Gaseo Acumulado a la fecha</h4>
             <h2 style='margin:0; color:#f59e0b;'>S/ {gasto_total_acumulado:.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
