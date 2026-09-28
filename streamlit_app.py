@@ -762,13 +762,13 @@ st.write("---")
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador (con sus 4 cuadros semanales detallados), gráficos de distribución, presupuesto vs. gasto y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador (con sus 4 cuadros semanales detallados), gráficos de distribución y presupuesto vs. gasto, y el resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
     fecha_impresion_str = date.today().strftime('%d/%m/%Y')
     
-    # Generar bloques de las 4 o 5 semanas del mes actual para mostrarlas por cada trabajador
+    # Generar bloques de las semanas del mes actual
     first_m = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
     if st.session_state['cal_mes'] == 12:
         last_m = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
@@ -783,6 +783,10 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         semanas_mes_lista.append((f"Semana {idx_s}", curr_w, end_w))
         idx_s += 1
         curr_w += timedelta(days=7)
+
+    # Convertir gráficos Plotly a HTML incrustado
+    html_dona_str = fig_dona.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
+    html_linea_str = fig_linea.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     html_reporte = f"""
     <!DOCTYPE html>
@@ -802,7 +806,8 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             th {{ background: #1e293b; color: white; }}
             .text-right {{ text-align: right; }}
             .text-center {{ text-align: center; }}
-            .grafico-box {{ text-align: center; margin: 15px 0; padding: 10px; border: 1px dashed #94a3b8; background: #f8fafc; }}
+            .graficos-container {{ display: flex; justify-content: space-around; align-items: center; margin: 15px 0; page-break-inside: avoid; }}
+            .grafico-item {{ width: 48%; text-align: center; }}
             @media print {{
                 button {{ display: none; }}
                 .page-break {{ page-break-before: always; }}
@@ -870,7 +875,6 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         <div class="section-title">3. Detalle de Planilla por Trabajador (Desglose de las 4 Semanas del Mes)</div>
     """
     
-    # Iterar por cada trabajador registrado y mostrar sus 4 cuadros semanales
     for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']
         t_esp = pers['especialidad']
@@ -882,7 +886,6 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         """
         
         for s_nombre, s_ini, s_fin in semanas_mes_lista:
-            # Filtrar asistencia para este trabajador en esta semana específica
             df_t_s = pd.DataFrame()
             if not df_asist_db.empty:
                 m_ts = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= s_ini) & (df_asist_db['fecha_dt'] <= s_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
@@ -940,8 +943,15 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <p class="text-right" style="font-size: 8.5pt; margin: 0 0 8px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
             """
 
+    # Sección de Gráficos Integrados
     html_reporte += f"""
-        <div class="section-title">4. Control de Materiales e Insumos (Mes Completo)</div>
+        <div class="section-title page-break">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
+        <div class="graficos-container">
+            <div class="grafico-item">{html_dona_str}</div>
+            <div class="grafico-item">{html_linea_str}</div>
+        </div>
+
+        <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
             <thead>
                 <tr>
@@ -997,7 +1007,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         </div>
         
         <script>
-            window.print();
+            setTimeout(function() {{
+                window.print();
+            }}, 1500);
         </script>
     </body>
     </html>
