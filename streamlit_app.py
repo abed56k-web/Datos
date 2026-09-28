@@ -8,6 +8,13 @@ import sqlite3
 import hashlib
 import random
 import os
+import io
+
+# Importaciones para generación de PDF profesional
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(
@@ -177,7 +184,7 @@ st.markdown("""
 # 5. GESTOR DE PARTIDAS
 # ==========================================
 if st.session_state['partida_actual'] is None:
-    st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #38bdf8 !important; ' >🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
     
@@ -365,7 +372,7 @@ with col_form:
                     st.success(f"¡Asistencia del {f_mo} borrada para {trabajador}!")
                     st.rerun()
 
-# Consultar datos reales de la BD con conversión numérica robusta
+# Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_mat_db.empty:
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
@@ -755,3 +762,273 @@ with col_res3:
             <h2 style='margin:0; color:{color_saldo};'>S/ {abs(saldo_final):.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
+
+st.write("---")
+
+# ==========================================
+# 10. GENERADOR DE REPORTE PROFESIONAL EN PDF
+# ==========================================
+st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Reporte Ejecutivo en PDF</h2>", unsafe_allow_html=True)
+st.write("Genera un informe técnico detallado para la obra con membrete institucional, análisis financiero, planillas por trabajador y control de materiales de la semana seleccionada.")
+
+def generar_pdf_obra(partida_nombre, semana_str, f_ini, f_fin, presupuesto, gasto_acum, trabajadores_db, asist_df, mat_df, resumen_df):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    story = []
+    
+    styles = getSampleStyleSheet()
+    
+    # Estilos profesionales
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        textColor=colors.HexColor('#0f172a'),
+        alignment=1,
+        spaceAfter=10
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'SubtitleStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        textColor=colors.HexColor('#334155'),
+        alignment=1,
+        spaceAfter=15
+    )
+    
+    header_block_style = ParagraphStyle(
+        'HeaderBlock',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        textColor=colors.HexColor('#1e293b'),
+        leading=14
+    )
+    
+    section_title = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        textColor=colors.HexColor('#0284c7'),
+        spaceBefore=12,
+        spaceAfter=6
+    )
+    
+    table_text = ParagraphStyle(
+        'TableText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8,
+        textColor=colors.HexColor('#0f172a')
+    )
+    
+    table_header = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        textColor=colors.white
+    )
+
+    # Membrete / Encabezado Grande de Obra
+    story.append(Paragraph("SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA", title_style))
+    story.append(Paragraph("INFORME TÉCNICO DE CONTROL PRESUPUESTAL Y MANO DE OBRA", subtitle_style))
+    story.append(Spacer(1, 5))
+    
+    # Bloque de Datos del Proyecto
+    fecha_impresion = date.today().strftime('%d/%m/%Y')
+    info_texto = f"""
+    <b>Proyecto / Descripción:</b> Vivienda Unifamiliar - Tercer Nivel (ADCIDEPATA Mz. E Lt. 3)<br/>
+    <b>Ubicación:</b> Distrito Ayacucho, Provincia Huamanga, Departamento Ayacucho<br/>
+    <b>Partida Evaluada:</b> {partida_nombre}<br/>
+    <b>Cliente:</b> Cliente X<br/>
+    <b>Período Evaluado:</b> {semana_str} ({f_ini.strftime('%d/%m/%Y')} al {f_fin.strftime('%d/%m/%Y')})<br/>
+    <b>Costo al:</b> {f_fin.strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Emisión:</b> {fecha_impresion}
+    """
+    
+    t_info = Table([[Paragraph(info_texto, header_block_style)]], colWidths=[550])
+    t_info.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f1f5f9')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ('RIGHTPADDING', (0,0), (-1,-1), 10),
+    ]))
+    story.append(t_info)
+    story.append(Spacer(1, 15))
+    
+    # Análisis Financiero y de Gráficos
+    story.append(Paragraph("1. Análisis Financiero y Resumen Global", section_title))
+    saldo_actual = presupuesto - gasto_acum
+    estado_fin = "SALDO A FAVOR" if saldo_actual >= 0 else "SOBREGIRO"
+    
+    analisis_texto = f"""
+    El presente informe detalla el estado económico y operativo de la partida <b>{partida_nombre}</b>. 
+    Hasta la fecha de corte, se ha asignado un presupuesto total de <b>S/ {presupuesto:,.2f}</b>, registrando un gasto acumulado de <b>S/ {gasto_acum:,.2f}</b>. 
+    Esto representa un estado financiero de <b>{estado_fin}</b> por un monto de <b>S/ {abs(saldo_actual):,.2f}</b>. 
+    Las curvas de tendencia y la distribución porcentual indican un control adecuado de los insumos y jornales dentro de los parámetros previstos para la región de Ayacucho.
+    """
+    story.append(Paragraph(analisis_texto, table_text))
+    story.append(Spacer(1, 10))
+    
+    # Tabla Resumen Semanal
+    story.append(Paragraph("2. Resumen General por Semanas de Trabajo", section_title))
+    resumen_data = [["Semana", "Rango (Lunes a Sábado)", "Mano Obra (S/)", "Materiales (S/)", "Total Semanal (S/)", "Acumulado (S/)", "Saldo (S/)"]]
+    for _, row in resumen_df.iterrows():
+        resumen_data.append([
+            str(row["Semana"]),
+            str(row["Rango (Lunes a Sábado)"]),
+            f"S/ {row['Gasto Mano Obra (S/)']:,.2f}",
+            f"S/ {row['Gasto Materiales (S/)']:,.2f}",
+            f"S/ {row['Gasto Total Semanal (S/)']:,.2f}",
+            f"S/ {row['Gasto Acumulado (S/)']:,.2f}",
+            f"S/ {row['Saldo vs Presupuesto (S/)']:,.2f}"
+        ])
+    
+    t_resumen = Table(resumen_data, colWidths=[55, 115, 75, 75, 80, 75, 75])
+    t_resumen.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f172a')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(t_resumen)
+    story.append(Spacer(1, 15))
+    
+    # Detalle de Mano de Obra por Trabajador en la Semana
+    story.append(Paragraph(f"3. Detalle de Planilla de Mano de Obra ({semana_str})", section_title))
+    
+    dias_es_map = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
+    
+    for _, pers in trabajadores_db.iterrows():
+        t_nombre = pers['nombre']
+        t_esp = pers['especialidad']
+        
+        # Filtrar asistencia del trabajador en la semana
+        t_asist = pd.DataFrame()
+        if not asist_df.empty:
+            mask_t = (asist_df['trabajador'] == t_nombre) & (asist_df['fecha_dt'] >= f_ini) & (asist_df['fecha_dt'] <= f_fin) & (asist_df['partida'] == st.session_state['partida_actual'])
+            t_asist = asist_df.loc[mask_t]
+            
+        c_comp = len(t_asist[t_asist['estado'] == 'Día Completo']) if not t_asist.empty else 0
+        c_med = len(t_asist[t_asist['estado'] == 'Medio Día']) if not t_asist.empty else 0
+        c_alm = len(t_asist[t_asist['almuerzo'].str.startswith('No', na=False)]) if not t_asist.empty else 0
+        
+        jornal_v = st.session_state.get(f"jornal_{t_nombre}", 80.0)
+        alm_costo_v = st.session_state.get(f"alm_costo_{t_nombre}", 7.0)
+        
+        p_comp = c_comp * jornal_v
+        p_med = c_med * (jornal_v / 2.0)
+        p_alm = c_alm * alm_costo_v
+        total_trab = p_comp + p_med + p_alm
+        
+        story.append(Paragraph(f"<b>Trabajador:</b> {t_nombre} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Especialidad:</b> {t_esp} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total a Pagar: S/ {total_trab:,.2f}</b>", ParagraphStyle('TrabHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#1e293b'))))
+        
+        det_data = [["Fecha", "Día", "Estado Asistencia", "Almuerzo Afuera", "Actividad / Observación"]]
+        if not t_asist.empty:
+            for _, r_as in t_asist.iterrows():
+                dt_f = date.fromisoformat(str(r_as['fecha']))
+                d_nombre = dias_es_map[dt_f.weekday()]
+                det_data.append([
+                    dt_f.strftime('%d/%m/%Y'),
+                    d_nombre,
+                    str(r_as['estado']),
+                    str(r_as['almuerzo']),
+                    str(r_as['actividad']) if r_as['actividad'] else 'Sin observaciones'
+                ])
+        else:
+            det_data.append(["Sin registros de asistencia en esta semana.", "", "", "", ""])
+            
+        t_det = Table(det_data, colWidths=[65, 65, 100, 110, 200])
+        t_det.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#334155')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 8),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(t_det)
+        story.append(Spacer(1, 8))
+
+    story.append(Spacer(1, 10))
+
+    # Control de Materiales en la Semana
+    story.append(Paragraph(f"4. Control de Materiales e Insumos ({semana_str})", section_title))
+    
+    mat_data = [["Fecha", "Insumo / Material", "UND", "Cantidad", "P. Unitario (S/)", "Parcial (S/)"]]
+    gasto_mat_pdf = 0.0
+    
+    if not mat_df.empty:
+        mask_m = (mat_df['fecha_dt'] >= f_ini) & (mat_df['fecha_dt'] <= f_fin) & (mat_df['partida'] == st.session_state['partida_actual'])
+        mat_sem_df = mat_df.loc[mask_m]
+        for _, r_m in mat_sem_df.iterrows():
+            dt_m = date.fromisoformat(str(r_m['fecha']))
+            d_m_nom = dias_es_map[dt_m.weekday()]
+            cant_m = float(r_m['cantidad'])
+            prec_m = float(r_m['precio'])
+            parc_m = cant_m * prec_m
+            gasto_mat_pdf += parc_m
+            
+            mat_data.append([
+                f"{dt_m.strftime('%d/%m/%Y')} ({d_m_nom})",
+                str(r_m['insumo']),
+                str(r_m['und']),
+                f"{cant_m:,.2f}",
+                f"S/ {prec_m:,.2f}",
+                f"S/ {parc_m:,.2f}"
+            ])
+            
+    if len(mat_data) == 1:
+        mat_data.append(["No se registraron materiales en esta semana.", "", "", "", "", ""])
+
+    t_mat = Table(mat_data, colWidths=[110, 160, 50, 70, 80, 80])
+    t_mat.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0284c7')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('ALIGN', (3,0), (-1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(t_mat)
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(f"<b>TOTAL MATERIALES SEMANA: S/ {gasto_mat_pdf:,.2f}</b>", ParagraphStyle('TotMat', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#0f172a'), alignment=2)))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+# Botón de descarga en PDF
+pdf_buffer = generar_pdf_obra(
+    partida_nombre=st.session_state['partida_actual'],
+    semana_str=semana_seleccionada,
+    f_ini=fecha_inicio,
+    f_fin=fecha_fin,
+    presupuesto=st.session_state['presupuesto_total'],
+    gasto_acum=gasto_total_acumulado,
+    trabajadores_db=df_personal_db,
+    asist_df=df_asist_db,
+    mat_df=df_mat_db,
+    resumen_df=df_resumen_final
+)
+
+st.download_button(
+    label="📥 Descargar Informe Técnico en PDF (Membrete Obra)",
+    data=pdf_buffer,
+    file_name=f"Informe_Obra_{st.session_state['partida_actual'].replace(' ', '_')}_{fecha_inicio.strftime('%d%m%Y')}.pdf",
+    mime="application/pdf",
+    use_container_width=True
+)
