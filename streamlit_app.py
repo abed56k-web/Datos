@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con autocorrección de tablas faltantes)
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -216,9 +216,15 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD (Default total: 10000.00)
-c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
-row_presupuesto = c.fetchone()
+# Recuperación segura con autoprotección si la tabla acabara de crearse
+try:
+    c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
+    row_presupuesto = c.fetchone()
+except sqlite3.OperationalError:
+    c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
+    conn.commit()
+    row_presupuesto = None
+
 if row_presupuesto:
     modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db = row_presupuesto
 else:
@@ -808,7 +814,7 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA SOLICITUD: 1 - 4 - 2 - 3 - 5 (SIN SALTO EN BLANCO)
+# SECUENCIA ESTRICTA SOLICITUD: 1 - 4 - 2 - 3 - 5
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
 st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos con porcentajes e importes exactos en Soles, eje Y visible y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
@@ -1100,5 +1106,4 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     </html>
     """
     
-    st.components.v1.html(html_reporte, height=800, scrolling=True)
     st.components.v1.html(html_reporte, height=800, scrolling=True)
