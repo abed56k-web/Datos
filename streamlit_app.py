@@ -36,6 +36,14 @@ c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT,
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
 
+# Actualizar jornales antiguos para Oficial, Operario y Enchapador a 120, y Peón a 100
+try:
+    c.execute("UPDATE personal SET jornal = 120.0 WHERE especialidad IN ('Operario', 'Enchapador', 'Oficial') AND jornal = 80.0")
+    c.execute("UPDATE personal SET jornal = 100.0 WHERE especialidad LIKE '%Peón%' AND jornal = 80.0")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+
 try:
     c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
     c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0')
@@ -327,10 +335,10 @@ with col_form:
         with st.form("form_nuevo_personal"):
             col_np1, col_np2 = st.columns(2)
             with col_np1: nuevo_nombre = st.text_input("Nombre y Apellido")
-            with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Enchapador", "Ayudante / Peón", "Oficial", "Pintor", "Electricista", "Plomero"])
+            with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Enchapador", "Oficial", "Ayudante / Peón", "Pintor", "Electricista", "Plomero"])
             
             col_np3, col_np4 = st.columns(2)
-            default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in nueva_esp else 120.0)
+            default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in nueva_esp else 120.0)
             with col_np3: def_jornal = st.number_input("Jornal Base (S/)", value=default_jornal_init, step=10.0)
             with col_np4: def_alm = st.number_input("Costo Almuerzo (S/)", value=7.0, step=1.0)
 
@@ -360,7 +368,7 @@ with col_form:
                 if row["nombre"] and str(row["nombre"]).strip() != "":
                     try:
                         esp_w = row["especialidad"]
-                        j_default = 120.0 if esp_w in ["Operario", "Enchapador"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
+                        j_default = 120.0 if esp_w in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
                         j_val = float(row["jornal"]) if "jornal" in row and pd.notna(row["jornal"]) else j_default
                         a_val = float(row["almuerzo_costo"]) if "almuerzo_costo" in row and pd.notna(row["almuerzo_costo"]) else 7.0
                         c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
@@ -453,12 +461,15 @@ while start_current_week_res <= last_day_month:
             c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
             c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
             
-            df_p_info = df_pers_actual[df_pers_actual['nombre'] == trab]
-            esp_t = df_p_info['especialidad'].values[0] if not df_p_info.empty else ""
-            default_j = 120.0 if esp_t in ["Operario", "Enchapador"] else (100.0 if "Peón" in esp_t or "Ayudante" in esp_t else 120.0)
-            
-            jornal_val = float(df_p_info['jornal'].values[0]) if not df_p_info.empty and pd.notna(df_p_info['jornal'].values[0]) else default_j
-            alm_val = float(df_p_info['almuerzo_costo'].values[0]) if not df_p_info.empty and pd.notna(df_p_info['almuerzo_costo'].values[0]) else 7.0
+            # Consultar jornal específico de la BD para este trabajador
+            c.execute("SELECT especialidad, jornal, almuerzo_costo FROM personal WHERE partida=? AND nombre=?", (st.session_state['partida_actual'], trab))
+            p_row = c.fetchone()
+            if p_row:
+                esp_t, jornal_val, alm_val = p_row
+                jornal_val = float(jornal_val) if pd.notna(jornal_val) else (120.0 if esp_t in ["Operario", "Enchapador", "Oficial"] else 100.0)
+                alm_val = float(alm_val) if pd.notna(alm_val) else 7.0
+            else:
+                jornal_val, alm_val = 120.0, 7.0
             
             mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
 
@@ -666,7 +677,7 @@ with tab_planilla:
         especialidad_trab = df_esp['especialidad'].values[0] if not df_esp.empty else "Obrero"
         
         esp_w = especialidad_trab
-        jornal_default_reg = 120.0 if esp_w in ["Operario", "Enchapador"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
+        jornal_default_reg = 120.0 if esp_w in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
         jornal_bd_val = float(df_esp['jornal'].values[0]) if not df_esp.empty and pd.notna(df_esp['jornal'].values[0]) else jornal_default_reg
         alm_bd_val = float(df_esp['almuerzo_costo'].values[0]) if not df_esp.empty and pd.notna(df_esp['almuerzo_costo'].values[0]) else 7.0
 
