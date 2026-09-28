@@ -590,25 +590,32 @@ with tab_materiales:
 st.write("---")
 
 # ==========================================
-# 9. TABLA RESUMEN SEMANAL DIVIDIDA POR LAS 4 SEMANAS DEL MES
+# 9. TABLA RESUMEN SEMANAL (BLOQUES DE LUNES A SÁBADO)
 # ==========================================
-st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Desglose por Semanas del Mes)</h2>", unsafe_allow_html=True)
-st.write(f"Mostrando el desglose automático en semanas para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
+st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
+st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
 
-mes_cal_resumen = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
+# Generar semanas estrictamente de Lunes a Sábado que cruzan o pertenecen al mes actual
+first_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
+if st.session_state['cal_mes'] == 12:
+    last_day_month = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
+else:
+    last_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
+
+# Encontrar el Lunes de la semana que contiene el primer día del mes
+start_current_week = first_day_month - timedelta(days=first_day_month.weekday())
+
 datos_resumen_semanas = []
 gasto_acum_temp = 0.0
+semana_contador = 1
 
-for i, semana_dias in enumerate(mes_cal_resumen):
-    valid_days = [d for d in semana_dias if d != 0]
-    if not valid_days: continue
-    inicio_sem = date(st.session_state['cal_ano'], st.session_state['cal_mes'], min(valid_days))
-    fin_sem = date(st.session_state['cal_ano'], st.session_state['cal_mes'], max(valid_days))
-
-    # Calcular Mano de Obra para esta semana específica
+while start_current_week <= last_day_month:
+    end_current_week = start_current_week + timedelta(days=5) # Lunes a Sábado
+    
+    # Calcular Mano de Obra para esta semana Lunes a Sábado
     mo_sem = 0.0
     if not df_asist_db.empty:
-        mask_w = (df_asist_db['fecha_dt'] >= inicio_sem) & (df_asist_db['fecha_dt'] <= fin_sem) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+        mask_w = (df_asist_db['fecha_dt'] >= start_current_week) & (df_asist_db['fecha_dt'] <= end_current_week) & (df_asist_db['partida'] == st.session_state['partida_actual'])
         df_w_asist = df_asist_db.loc[mask_w]
         for trab in trabajadores_registrados:
             df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
@@ -619,10 +626,10 @@ for i, semana_dias in enumerate(mes_cal_resumen):
             alm_def = 7.0
             mo_sem += (c_comp * jornal_def) + (c_med * (jornal_def / 2.0)) + (c_alm * alm_def)
 
-    # Calcular Materiales para esta semana específica
+    # Calcular Materiales para esta semana Lunes a Sábado
     mat_sem = 0.0
     if not df_mat_db.empty:
-        mask_m = (df_mat_db['fecha_dt'] >= inicio_sem) & (df_mat_db['fecha_dt'] <= fin_sem) & (df_mat_db['partida'] == st.session_state['partida_actual'])
+        mask_m = (df_mat_db['fecha_dt'] >= start_current_week) & (df_mat_db['fecha_dt'] <= end_current_week) & (df_mat_db['partida'] == st.session_state['partida_actual'])
         df_w_mat = df_mat_db.loc[mask_m]
         mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
 
@@ -631,14 +638,17 @@ for i, semana_dias in enumerate(mes_cal_resumen):
     saldo_s = st.session_state['presupuesto_total'] - gasto_acum_temp
 
     datos_resumen_semanas.append({
-        "Semana": f"Semana {i+1}",
-        "Rango de Fechas": f"{inicio_sem.strftime('%d/%m')} al {fin_sem.strftime('%d/%m/%Y')}",
+        "Semana": f"Semana {semana_contador}",
+        "Rango (Lunes a Sábado)": f"{start_current_week.strftime('%d/%m/%Y')} al {end_current_week.strftime('%d/%m/%Y')}",
         "Gasto Mano Obra (S/)": mo_sem,
         "Gasto Materiales (S/)": mat_sem,
         "Gasto Total Semanal (S/)": total_sem,
         "Gasto Acumulado (S/)": gasto_acum_temp,
         "Saldo vs Presupuesto (S/)": saldo_s
     })
+
+    semana_contador += 1
+    start_current_week += timedelta(days=7)
 
 df_resumen_final = pd.DataFrame(datos_resumen_semanas)
 st.dataframe(df_resumen_final, use_container_width=True, hide_index=True)
