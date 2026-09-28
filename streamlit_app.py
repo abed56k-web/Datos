@@ -36,14 +36,6 @@ c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT,
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
 
-# Actualizar jornales antiguos para Oficial, Operario y Enchapador a 120, y Peón a 100
-try:
-    c.execute("UPDATE personal SET jornal = 120.0 WHERE especialidad IN ('Operario', 'Enchapador', 'Oficial') AND jornal = 80.0")
-    c.execute("UPDATE personal SET jornal = 100.0 WHERE especialidad LIKE '%Peón%' AND jornal = 80.0")
-    conn.commit()
-except sqlite3.OperationalError:
-    pass
-
 try:
     c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
     c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0')
@@ -822,10 +814,10 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS EN COLUMNA VERTICAL, CENTRADOS Y COMPLETOS)
+# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS EN COLUMNA VERTICAL CENTRADA)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, con el **gráfico circular centrado arriba** y el **gráfico de líneas abajo** con leyendas y ejes completos. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, con el **gráfico circular centrado arriba** y el **gráfico de líneas abajo** completamente visibles. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -856,7 +848,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=13)),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
         legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
-        width=480, height=300
+        width=480, height=280
     )
     fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont=dict(size=9.5, color='white'), insidetextorientation='horizontal')
 
@@ -875,7 +867,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         font=dict(color="#0f172a"),
         xaxis=dict(tickangle=0, gridcolor="#e2e8f0"),
         yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0", dtick=2000),
-        width=480, height=300
+        width=480, height=280
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
@@ -903,7 +895,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             th {{ background: #1e293b; color: white; }}
             .text-right {{ text-align: right; }}
             .text-center {{ text-align: center; }}
-            .grafico-center {{ text-align: center; margin: 6px 0; page-break-inside: avoid; }}
+            .grafico-center {{ text-align: center; margin: 6px auto; page-break-inside: avoid; display: flex; justify-content: center; }}
             .worker-section {{ page-break-inside: avoid; }}
             @media print {{
                 button {{ display: none; }}
