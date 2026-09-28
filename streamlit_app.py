@@ -445,7 +445,7 @@ gasto_mat_real_total = df_resumen_final["Gasto Materiales (S/)"].sum() if not df
 gasto_total_acumulado = df_resumen_final["Gasto Acumulado (S/)"].iloc[-1] if not df_resumen_final.empty else 0.0
 
 # ==========================================
-# GRÁFICOS DINÁMICOS SUPERIORES
+# GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD)
 # ==========================================
 with col_graf_circulo:
     st.subheader("💰 Distribución")
@@ -762,13 +762,12 @@ st.write("---")
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador (con sus 4 cuadros semanales detallados), gráficos de distribución y presupuesto vs. gasto, y el resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador (con sus 4 cuadros semanales detallados), gráficos en alta legibilidad y el resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
     fecha_impresion_str = date.today().strftime('%d/%m/%Y')
     
-    # Generar bloques de las semanas del mes actual
     first_m = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
     if st.session_state['cal_mes'] == 12:
         last_m = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
@@ -784,9 +783,35 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Convertir gráficos Plotly a HTML incrustado
-    html_dona_str = fig_dona.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
-    html_linea_str = fig_linea.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
+    # Crear figuras Plotly optimizadas EXCLUSIVAMENTE para impresión con fondo blanco y letras oscuras legibles
+    labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
+    values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real_total + gasto_mo_real_total))]
+    colores_print = ['#06b6d4', '#f59e0b', '#10b981']
+
+    fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
+    fig_dona_print.update_layout(
+        title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=14)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10))
+    )
+    fig_dona_print.update_traces(textinfo='percent+label', textfont_color='#0f172a')
+
+    semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
+    pres_total_linea_p = [st.session_state['presupuesto_total']] * len(semanas_graf_p)
+    gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
+
+    fig_linea_print = go.Figure()
+    fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=pres_total_linea_p, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash', width=2)))
+    fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
+    fig_linea_print.update_layout(
+        title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=14)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10)),
+        font=dict(color="#0f172a")
+    )
+
+    html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
+    html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     html_reporte = f"""
     <!DOCTYPE html>
@@ -806,8 +831,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             th {{ background: #1e293b; color: white; }}
             .text-right {{ text-align: right; }}
             .text-center {{ text-align: center; }}
-            .graficos-container {{ display: flex; justify-content: space-around; align-items: center; margin: 15px 0; page-break-inside: avoid; }}
-            .grafico-item {{ width: 48%; text-align: center; }}
+            .grafico-wrapper {{ width: 100%; max-width: 500px; margin: 15px auto; text-align: center; page-break-inside: avoid; }}
             @media print {{
                 button {{ display: none; }}
                 .page-break {{ page-break-before: always; }}
@@ -943,13 +967,11 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <p class="text-right" style="font-size: 8.5pt; margin: 0 0 8px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
             """
 
-    # Sección de Gráficos Integrados
+    # Sección de Gráficos Integrados en Vertical con alta legibilidad
     html_reporte += f"""
         <div class="section-title page-break">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
-        <div class="graficos-container">
-            <div class="grafico-item">{html_dona_str}</div>
-            <div class="grafico-item">{html_linea_str}</div>
-        </div>
+        <div class="grafico-wrapper">{html_dona_str}</div>
+        <div class="grafico-wrapper">{html_linea_str}</div>
 
         <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
