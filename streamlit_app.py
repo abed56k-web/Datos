@@ -812,10 +812,10 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS EN FILA HORIZONTAL Y DISEÑO FLUIDO SIN HUECOS)
+# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (CON LEYENDA ORDENADA, TAMAÑO DE TEXTO AJUSTADO Y LÍNEAS HORIZONTALES ADICIONALES)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos lado a lado optimizados, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos optimizados (con texto reducido dentro de la torta, leyenda ordenada y más líneas horizontales en la curva), planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -836,7 +836,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Gráfico circular compacto para colocarse lado a lado en horizontal
+    # Gráfico circular optimizado con letras más pequeñas dentro de la torta y leyenda ordenada
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
     colores_print = ['#06b6d4', '#f59e0b', '#10b981']
@@ -845,12 +845,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_dona_print.update_layout(
         title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=11)),
         paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=5, r=5),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8)),
-        width=340, height=210
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8)),
+        width=340, height=220
     )
-    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont_color='white', insidetextorientation='horizontal')
+    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont=dict(size=8.5, color='white'), insidetextorientation='horizontal')
 
-    # Gráfico de líneas compacto para colocarse lado a lado en horizontal
+    # Gráfico de líneas con más líneas horizontales (dtick optimizado) y leyenda ordenada
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
@@ -860,18 +860,18 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
         title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=11)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=50, r=5),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=55, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8)),
         font=dict(color="#0f172a"),
-        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0"),
-        width=340, height=210
+        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#cbd5e1", dtick=2000),
+        width=340, height=220
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     # ==========================================
-    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA 1-4-2-3-5 (DISEÑO FLUIDO Y COMPACTO)
+    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA 1-4-2-3-5 (FLUIDO Y SIN ESPACIOS BLANCOS)
     # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
@@ -926,7 +926,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
         </p>
 
-        <!-- 2. ANÁLISIS GRÁFICO DE EJECUCIÓN (Lado a lado en horizontal) -->
+        <!-- 2. ANÁLISIS GRÁFICO DE EJECUCIÓN -->
         <div class="section-title">2. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
         <div class="graficos-row">
             <div class="grafico-wrapper">{html_dona_str}</div>
