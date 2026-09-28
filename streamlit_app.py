@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con migración y actualización segura de columnas)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con actualización automática de jornales profesionales)
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -36,7 +36,14 @@ c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT,
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
 
-# Migraciones de seguridad por si la BD ya existía con esquemas anteriores
+# Actualizar jornales antiguos por defecto (Operario/Enchapador = 120, Peón = 100)
+try:
+    c.execute("UPDATE personal SET jornal = 120.0 WHERE especialidad IN ('Operario', 'Enchapador') AND jornal = 80.0")
+    c.execute("UPDATE personal SET jornal = 100.0 WHERE especialidad LIKE '%Peón%' AND jornal = 80.0")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+
 try:
     c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
     c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0')
@@ -52,14 +59,6 @@ except sqlite3.OperationalError:
 
 try:
     c.execute('ALTER TABLE asistencia ADD COLUMN actividad TEXT')
-    conn.commit()
-except sqlite3.OperationalError:
-    pass
-
-try:
-    c.execute('ALTER TABLE presupuestos ADD COLUMN modo TEXT')
-    c.execute('ALTER TABLE presupuestos ADD COLUMN materiales REAL DEFAULT 6000.0')
-    c.execute('ALTER TABLE presupuestos ADD COLUMN mano_obra REAL DEFAULT 4000.0')
     conn.commit()
 except sqlite3.OperationalError:
     pass
@@ -226,8 +225,12 @@ with col_top2:
         st.rerun()
 
 # Recuperar o inicializar presupuesto en la BD (Default total: 10000.00)
-c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
-row_presupuesto = c.fetchone()
+try:
+    c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
+    row_presupuesto = c.fetchone()
+except sqlite3.OperationalError:
+    row_presupuesto = None
+
 if row_presupuesto:
     modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db = row_presupuesto
 else:
@@ -820,7 +823,7 @@ st.write("---")
 # SECUENCIA ESTRICTA SOLICITUD: 1 - 4 - 2 - 3 - 5
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos con porcentajes e importes exactos en Soles, eje Y visible y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos optimizados (sin espacios en blanco), planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -848,10 +851,10 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
 
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
     fig_dona_print.update_layout(
-        title=dict(text="Distribución de Costos (Porcentajes e Importes)", font=dict(color="#0f172a", size=14)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=35, b=10, l=10, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10)),
-        width=450, height=320
+        title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=13)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
+        width=380, height=260
     )
     fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont_color='white')
 
@@ -864,19 +867,19 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=pres_total_linea_p, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash', width=2)))
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
-        title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=14)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=35, b=10, l=70, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10)),
+        title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=13)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=60, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
         font=dict(color="#0f172a"),
         yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0"),
-        width=450, height=300
+        width=380, height=260
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     # ==========================================
-    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5
+    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (SIN ESPACIOS BLANCOS NI CORTES)
     # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
@@ -885,22 +888,22 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         <meta charset="utf-8">
         <title>Informe Técnico - Nexus Obra</title>
         <style>
-            body {{ font-family: Arial, sans-serif; color: #000; margin: 15px; font-size: 9.5pt; line-height: 1.25; }}
-            .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }}
-            .header h1 {{ font-size: 14pt; margin: 0 0 3px 0; color: #0f172a; text-transform: uppercase; }}
-            .header h2 {{ font-size: 9.5pt; margin: 0; color: #334155; font-weight: normal; }}
-            .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; margin-bottom: 12px; font-size: 9pt; }}
-            .section-title {{ font-size: 10.5pt; font-weight: bold; color: #0284c7; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px solid #0284c7; padding-bottom: 2px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 4px; margin-bottom: 8px; font-size: 8pt; }}
-            th, td {{ border: 1px solid #94a3b8; padding: 3px 5px; text-align: left; }}
+            body {{ font-family: Arial, sans-serif; color: #000; margin: 15px; font-size: 9pt; line-height: 1.2; }}
+            .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; }}
+            .header h1 {{ font-size: 13pt; margin: 0 0 2px 0; color: #0f172a; text-transform: uppercase; }}
+            .header h2 {{ font-size: 9pt; margin: 0; color: #334155; font-weight: normal; }}
+            .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 8px; margin-bottom: 10px; font-size: 8.5pt; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: #0284c7; margin-top: 10px; margin-bottom: 3px; border-bottom: 1px solid #0284c7; padding-bottom: 2px; page-break-after: avoid; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 3px; margin-bottom: 6px; font-size: 7.5pt; page-break-inside: avoid; }}
+            th, td {{ border: 1px solid #94a3b8; padding: 2px 4px; text-align: left; }}
             th {{ background: #1e293b; color: white; }}
             .text-right {{ text-align: right; }}
             .text-center {{ text-align: center; }}
-            .graficos-row {{ display: flex; justify-content: space-between; align-items: center; margin: 10px 0; page-break-inside: avoid; }}
+            .graficos-row {{ display: flex; justify-content: space-around; align-items: center; margin: 5px 0; page-break-inside: avoid; }}
             .grafico-wrapper {{ width: 48%; text-align: center; }}
+            .worker-section {{ page-break-inside: avoid; }}
             @media print {{
                 button {{ display: none; }}
-                .page-break {{ page-break-before: always; }}
             }}
         </style>
     </head>
@@ -921,7 +924,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
 
         <!-- 1. ANÁLISIS FINANCIERO Y RESUMEN GLOBAL -->
         <div class="section-title">1. Análisis Financiero y Resumen Global</div>
-        <p>
+        <p style="margin: 3px 0 6px 0;">
             El presente informe detalla el estado económico y operativo de la partida <b>{st.session_state['partida_actual']}</b>. 
             Hasta la fecha de corte, se ha asignado un presupuesto total de <b>S/ {presupuesto_actual_total:,.2f}</b>, 
             registrando un gasto acumulado de <b>S/ {gasto_total_acumulado:,.2f}</b>. 
@@ -930,7 +933,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
         </p>
 
-        <!-- 4. ANÁLISIS GRÁFICO DE EJECUCIÓN (Junto al análisis financiero sin espacio en blanco) -->
+        <!-- 4. ANÁLISIS GRÁFICO DE EJECUCIÓN (Ubicado inmediatamente debajo del análisis financiero para evitar huecos en blanco) -->
         <div class="section-title">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
         <div class="graficos-row">
             <div class="grafico-wrapper">{html_dona_str}</div>
@@ -980,16 +983,17 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         t_esp = pers['especialidad']
         
         html_reporte += f"""
-        <div style="background: #e2e8f0; padding: 5px 8px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; font-size: 9.5pt;">
-            👷 Obrero: <i>{t_esp}</i> — <b>{t_nombre}</b>
-        </div>
+        <div class="worker-section">
+            <div style="background: #e2e8f0; padding: 4px 6px; font-weight: bold; margin-top: 6px; margin-bottom: 3px; font-size: 9pt;">
+                👷 Obrero: <i>{t_esp}</i> — <b>{t_nombre}</b>
+            </div>
         """
         
         for s_nombre, s_ini, s_fin in semanas_mes_lista:
             df_t_s = pd.DataFrame()
             if not df_asist_db.empty:
                 m_ts = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= s_ini) & (df_asist_db['fecha_dt'] <= s_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-                df_t_s = df_asist_db.loc[m_ts]
+                df_t_s = df_asist_db.loc[m_ts].sort_values('fecha') # Orden cronológico estricto de Lunes a Sábado
                 
             c_comp = len(df_t_s[df_t_s['estado'] == 'Día Completo']) if not df_t_s.empty else 0
             c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día']) if not df_t_s.empty else 0
@@ -1004,7 +1008,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             tot_s_trab = p_comp + p_med + p_alm
             
             html_reporte += f"""
-            <p style="margin: 3px 0 2px 5px; font-size: 8.5pt;"><b>{s_nombre}</b> ({s_ini.strftime('%d/%m/%Y')} al {s_fin.strftime('%d/%m/%Y')}):</p>
+            <p style="margin: 2px 0 1px 4px; font-size: 8pt;"><b>{s_nombre}</b> ({s_ini.strftime('%d/%m/%Y')} al {s_fin.strftime('%d/%m/%Y')}):</p>
             <table>
                 <thead>
                     <tr>
@@ -1040,8 +1044,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             html_reporte += f"""
                 </tbody>
             </table>
-            <p class="text-right" style="font-size: 8pt; margin: 0 0 6px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
+            <p class="text-right" style="font-size: 7.5pt; margin: 0 0 4px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
             """
+        html_reporte += "</div>"
 
     # 5. Control de Materiales e Insumos
     html_reporte += f"""
@@ -1063,7 +1068,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     gasto_mat_rep = 0.0
     if not df_mat_db.empty:
         mask_m_rep = (df_mat_db['fecha_dt'] >= first_m) & (df_mat_db['fecha_dt'] <= last_m) & (df_mat_db['partida'] == st.session_state['partida_actual'])
-        df_mat_rep = df_mat_db.loc[mask_m_rep]
+        df_mat_rep = df_mat_db.loc[mask_m_rep].sort_values('fecha')
         for _, r_m in df_mat_rep.iterrows():
             dt_m = date.fromisoformat(str(r_m['fecha']))
             d_m_nom = dias_es_map_rep[dt_m.weekday()]
@@ -1093,10 +1098,10 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     html_reporte += f"""
             </tbody>
         </table>
-        <p class="text-right" style="font-size: 9.5pt; font-weight: bold; margin-top: 4px;">TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</p>
+        <p class="text-right" style="font-size: 9pt; font-weight: bold; margin-top: 3px;">TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</p>
         
         <br><br>
-        <div style="text-align: center; font-size: 8.5pt; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 8px;">
+        <div style="text-align: center; font-size: 8pt; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 6px;">
             Reporte Ejecutivo Oficial &bull; Plataforma Nexus Obra &bull; Ayacucho, Perú
         </div>
         
