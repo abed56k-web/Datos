@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con actualizaciones seguras)
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -34,6 +34,13 @@ c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, espec
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 conn.commit()
+
+# Actualizaciones de seguridad por si tablas previas no tienen las columnas
+try:
+    c.execute('ALTER TABLE materiales ADD COLUMN und TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
 
 try:
     c.execute('ALTER TABLE asistencia ADD COLUMN actividad TEXT')
@@ -321,8 +328,8 @@ with col_form:
 
             estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
             
-            # Opción invertida: Almuerza en obra (no se paga extra) vs Sale a comer afuera (se paga S/7 extra)
-            almuerzo_opc = st.radio("Almuerzo", ["Sí (Almuerza en obra / con comida de obra)", "No (Sale a comer afuera - S/7 extra)"], horizontal=True)
+            # Opción correcta: Almuerzo en obra (no se paga) vs Sale a comer afuera (se paga S/7 extra)
+            almuerzo_opc = st.radio("Almuerzo", ["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], horizontal=True)
             
             actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
             
@@ -482,12 +489,12 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON TARJETAS LIMPIAS (ESPECIALIDAD CURSIVA, NOMBRE GRANDE NEGRITA)
+# 8. MÓDULOS SEMANALES (FORMATO LIMPIO: Obrero: Especialidad — Nombre)
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 col_sem1, col_sem2 = st.columns(2)
 with col_sem1: fecha_inicio = st.date_input("Inicio de la Semana", value=date(2026, 9, 14))
-with col_sem2: fecha_fin = st.date_input("Fin de la Semana", value=date(2026, 9, 20))
+with col_sem2: fecha_fin = st.date_input("Fin de la Semana", value=date(2026, 9, 27))
 st.markdown(f"**Filtrando transacciones del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}**")
 
 tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
@@ -517,9 +524,9 @@ with tab_planilla:
         # Conteo exacto: cuenta como gasto extra de almuerzo SOLO cuando marca "No (Sale a comer afuera)"
         cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.startswith('No', na=False)]) if not df_t_sem.empty else 0
 
-        # TÍTULO LIMPIO DEL EXPANDER
-        with st.expander(f"👷 Obrero: {especialidad_trab} — {trabajador}", expanded=True):
-            # FORMATO VISUAL SOLICITADO: Especialidad en cursiva, Nombre grande en negrita
+        # TÍTULO LIMPIO DEL EXPANDER (Sin HTML roto)
+        with st.expander(f"Obrero: {especialidad_trab} — {trabajador}", expanded=True):
+            # FORMATO VISUAL INTERNO: Especialidad en cursiva, Nombre grande en negrita
             st.markdown(f"### *{especialidad_trab}* — **{trabajador}**", unsafe_allow_html=True)
             
             col_w1, col_w2, col_w3 = st.columns(3)
