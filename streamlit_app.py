@@ -30,18 +30,10 @@ conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
-c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, jornal REAL DEFAULT 120.0, almuerzo_costo REAL DEFAULT 7.0, UNIQUE(partida, nombre))')
+c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, UNIQUE(partida, nombre))')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
-c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
-
-try:
-    c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
-    c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0')
-    conn.commit()
-except sqlite3.OperationalError:
-    pass
 
 try:
     c.execute('ALTER TABLE materiales ADD COLUMN und TEXT')
@@ -76,6 +68,10 @@ if 'lista_partidas' not in st.session_state:
     st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
 if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 9 
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
+
+if 'presupuesto_total' not in st.session_state: st.session_state['presupuesto_total'] = 17000.00
+if 'presupuesto_mo' not in st.session_state: st.session_state['presupuesto_mo'] = 5000.00
+if 'presupuesto_mat' not in st.session_state: st.session_state['presupuesto_mat'] = 12000.00
 
 # ==========================================
 # 3. PANTALLA DE INICIO (LOGIN)
@@ -216,18 +212,6 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD (Default total: 10000.00)
-c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
-row_presupuesto = c.fetchone()
-if row_presupuesto:
-    modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db = row_presupuesto
-else:
-    modo_guardado = "Suma Automática (Materiales + Mano de Obra)"
-    presupuesto_mat_db, presupuesto_mo_db = 6000.0, 4000.0
-    presupuesto_total_db = 10000.0
-    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db))
-    conn.commit()
-
 with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Datos"):
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'])
     if st.button("Actualizar Nombre"):
@@ -249,32 +233,22 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
             )
 
     st.write("---")
-    modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True, index=0 if modo_guardado=="Suma Automática (Materiales + Mano de Obra)" else 1)
+    modo_ingreso = st.radio("Método de cálculo:", ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], horizontal=True)
     
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
         col_b1, col_b2 = st.columns(2)
         with col_b1:
-            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=float(presupuesto_mat_db), step=500.0)
+            st.session_state['presupuesto_mat'] = st.number_input("Presupuesto Materiales (S/)", value=st.session_state['presupuesto_mat'], step=500.0)
         with col_b2:
-            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=float(presupuesto_mo_db), step=500.0)
-        nuevo_total = nuevo_mat + nuevo_mo
-        st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
+            st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
+        st.session_state['presupuesto_total'] = st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo']
+        st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {st.session_state['presupuesto_total']:,.2f}</span>", unsafe_allow_html=True)
     else:
-        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=float(presupuesto_total_db), step=1000.0)
-        nuevo_mat = presupuesto_mat_db
-        nuevo_mo = presupuesto_mo_db
-
-    if st.button("💾 Guardar Configuración de Presupuesto"):
-        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, nuevo_total, nuevo_mat, nuevo_mo))
-        conn.commit()
-        st.success("¡Presupuesto actualizado correctamente!")
-        st.rerun()
-
-presupuesto_actual_total = nuevo_total
+        st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total Directo (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
 
 st.write("---")
 
-df_personal_db = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+df_personal_db = pd.read_sql(f"SELECT nombre, especialidad FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
 lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
 
 col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
@@ -323,19 +297,11 @@ with col_form:
         with st.form("form_nuevo_personal"):
             col_np1, col_np2 = st.columns(2)
             with col_np1: nuevo_nombre = st.text_input("Nombre y Apellido")
-            with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Enchapador", "Ayudante / Peón", "Oficial", "Pintor", "Electricista", "Plomero"])
-            
-            col_np3, col_np4 = st.columns(2)
-            # Defaults solicitados: Operario/Enchapador 120, Peón 100
-            default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in nueva_esp else 120.0)
-            with col_np3: def_jornal = st.number_input("Jornal Base (S/)", value=default_jornal_init, step=10.0)
-            with col_np4: def_alm = st.number_input("Costo Almuerzo (S/)", value=7.0, step=1.0)
-
+            with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Oficial", "Ayudante / Peón", "Pintor", "Enchapador", "Electricista", "Plomero"])
             if st.form_submit_button("➕ Agregar Trabajador", use_container_width=True):
                 if nuevo_nombre:
                     try:
-                        c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
-                                  (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm))
+                        c.execute("INSERT INTO personal (partida, nombre, especialidad) VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp))
                         conn.commit()
                         st.success(f"¡{nuevo_nombre} agregado!")
                         st.rerun()
@@ -345,9 +311,9 @@ with col_form:
                     st.warning("Escribe un nombre.")
 
         st.write("---")
-        df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+        df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
         if df_pers_actual.empty:
-            df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad", "jornal", "almuerzo_costo"])
+            df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad"])
             
         df_pers_editado = st.data_editor(df_pers_actual, num_rows="dynamic", use_container_width=True, key="editor_tabla_personal")
         
@@ -356,12 +322,7 @@ with col_form:
             for _, row in df_pers_editado.iterrows():
                 if row["nombre"] and str(row["nombre"]).strip() != "":
                     try:
-                        esp_w = row["especialidad"]
-                        j_default = 120.0 if esp_w in ["Operario", "Enchapador"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
-                        j_val = float(row["jornal"]) if "jornal" in row and pd.notna(row["jornal"]) else j_default
-                        a_val = float(row["almuerzo_costo"]) if "almuerzo_costo" in row and pd.notna(row["almuerzo_costo"]) else 7.0
-                        c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
-                                  (st.session_state['partida_actual'], row["nombre"].strip(), esp_w, j_val, a_val))
+                        c.execute("INSERT INTO personal (partida, nombre, especialidad) VALUES (?, ?, ?)", (st.session_state['partida_actual'], row["nombre"].strip(), row["especialidad"]))
                     except:
                         pass
             conn.commit()
@@ -450,12 +411,8 @@ while start_current_week_res <= last_day_month:
             c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
             c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
             
-            df_p_info = df_pers_actual[df_pers_actual['nombre'] == trab]
-            esp_t = df_p_info['especialidad'].values[0] if not df_p_info.empty else ""
-            default_j = 120.0 if esp_t in ["Operario", "Enchapador"] else (100.0 if "Peón" in esp_t or "Ayudante" in esp_t else 120.0)
-            
-            jornal_val = float(df_p_info['jornal'].values[0]) if not df_p_info.empty and pd.notna(df_p_info['jornal'].values[0]) else default_j
-            alm_val = float(df_p_info['almuerzo_costo'].values[0]) if not df_p_info.empty and pd.notna(df_p_info['almuerzo_costo'].values[0]) else 7.0
+            jornal_val = st.session_state.get(f"jornal_{trab}", 120.0)
+            alm_val = st.session_state.get(f"alm_costo_{trab}", 7.0)
             
             mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
 
@@ -467,7 +424,7 @@ while start_current_week_res <= last_day_month:
 
     total_sem = mo_sem + mat_sem
     gasto_acum_temp += total_sem
-    saldo_s = presupuesto_actual_total - gasto_acum_temp
+    saldo_s = st.session_state['presupuesto_total'] - gasto_acum_temp
 
     datos_resumen_semanas.append({
         "Semana": f"Semana {semana_contador}",
@@ -493,7 +450,7 @@ gasto_total_acumulado = df_resumen_final["Gasto Acumulado (S/)"].iloc[-1] if not
 with col_graf_circulo:
     st.subheader("💰 Distribución")
     labels = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
+    values = [gasto_mat_real_total, gasto_mo_real_total, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real_total + gasto_mo_real_total))] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
@@ -507,7 +464,7 @@ with col_graf_circulo:
 with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
     semanas_graf = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
-    pres_total_linea = [presupuesto_actual_total] * len(semanas_graf)
+    pres_total_linea = [st.session_state['presupuesto_total']] * len(semanas_graf)
     gasto_acumulado_graf = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
     
     fig_linea = go.Figure()
@@ -515,10 +472,9 @@ with col_graf_linea:
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=gasto_acumulado_graf, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     
     fig_linea.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=50, r=0),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="white")),
-        font=dict(color="white"),
-        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#334155")
+        font=dict(color="white")
     )
     st.plotly_chart(fig_linea, use_container_width=True)
 
@@ -661,12 +617,6 @@ with tab_planilla:
     for trabajador in trabajadores_registrados:
         df_esp = df_pers_actual[df_pers_actual['nombre'] == trabajador]
         especialidad_trab = df_esp['especialidad'].values[0] if not df_esp.empty else "Obrero"
-        
-        # Obtener jornal predeterminado según especialidad o BD
-        esp_w = especialidad_trab
-        jornal_default_reg = 120.0 if esp_w in ["Operario", "Enchapador"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
-        jornal_bd_val = float(df_esp['jornal'].values[0]) if not df_esp.empty and pd.notna(df_esp['jornal'].values[0]) else jornal_default_reg
-        alm_bd_val = float(df_esp['almuerzo_costo'].values[0]) if not df_esp.empty and pd.notna(df_esp['almuerzo_costo'].values[0]) else 7.0
 
         df_t_sem = df_asist_semana[df_asist_semana['trabajador'] == trabajador] if not df_asist_semana.empty else pd.DataFrame()
         
@@ -680,8 +630,8 @@ with tab_planilla:
             
             col_w1, col_w2, col_w3 = st.columns(3)
             with col_w1:
-                jornal_dia = st.number_input(f"Jornal Diario (S/)", value=jornal_bd_val, step=10.0, key=f"jornal_{trabajador}")
-                costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=alm_bd_val, step=1.0, key=f"alm_costo_{trabajador}")
+                jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
+                costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
             with col_w2:
                 comentario_nota = st.text_input(f"Cuadro Comentario (Ej. Adelanto / Arreglado)", value="", key=f"comentario_{trabajador}")
             with col_w3:
@@ -779,14 +729,14 @@ st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{m
 
 st.dataframe(df_resumen_final, use_container_width=True, hide_index=True)
 
-saldo_final = presupuesto_actual_total - gasto_total_acumulado
+saldo_final = st.session_state['presupuesto_total'] - gasto_total_acumulado
 
 col_res1, col_res2, col_res3 = st.columns(3)
 with col_res1:
     st.markdown(f"""
         <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6;'>
             <h4 style='margin:0; color:#94a3b8;'>Presupuesto Asignado</h4>
-            <h2 style='margin:0; color:#38bdf8;'>S/ {presupuesto_actual_total:.2f}</h2>
+            <h2 style='margin:0; color:#38bdf8;'>S/ {st.session_state['presupuesto_total']:.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
 with col_res2:
@@ -810,10 +760,9 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA SOLICITUD: 1 - 4 - 2 - 3 - 5
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos con porcentajes e importes exactos en Soles, eje Y visible y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en secuencia (1-4-2-3-5), gráficos con importes y ejes visibles, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -834,9 +783,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Gráfico circular con Porcentajes y Montos exactos en Soles
+    # Gráfico circular optimizado para impresión con montos y porcentajes
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
+    values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real_total + gasto_mo_real_total))]
     colores_print = ['#06b6d4', '#f59e0b', '#10b981']
 
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
@@ -847,9 +796,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     )
     fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont_color='white')
 
-    # Gráfico de líneas con Eje Y visible y formato claro
+    # Gráfico de líneas optimizado con eje Y visible (S/ en formato claro)
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
-    pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
+    pres_total_linea_p = [st.session_state['presupuesto_total']] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
 
     fig_linea_print = go.Figure()
@@ -857,10 +806,10 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
         title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=14)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=40, b=20, l=80, r=20),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=40, b=20, l=70, r=20),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10)),
         font=dict(color="#0f172a"),
-        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0", dtick=2000)
+        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0")
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
@@ -909,23 +858,23 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <b>Costo al:</b> {date.today().strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Impresión:</b> {fecha_impresion_str}
         </div>
 
-        <!-- 1. ANÁLISIS FINANCIERO Y RESUMEN GLOBAL -->
+        <!-- 1. Análisis Financiero y Resumen Global -->
         <div class="section-title">1. Análisis Financiero y Resumen Global</div>
         <p>
             El presente informe detalla el estado económico y operativo de la partida <b>{st.session_state['partida_actual']}</b>. 
-            Hasta la fecha de corte, se ha asignado un presupuesto total de <b>S/ {presupuesto_actual_total:,.2f}</b>, 
+            Hasta la fecha de corte, se ha asignado un presupuesto total de <b>S/ {st.session_state['presupuesto_total']:,.2f}</b>, 
             registrando un gasto acumulado de <b>S/ {gasto_total_acumulado:,.2f}</b>. 
-            Esto representa un estado financiero de <b>{"SALDO A FAVOR" if (presupuesto_actual_total - gasto_total_acumulado) >= 0 else "SOBREGIRO"}</b> 
-            por un monto de <b>S/ {abs(presupuesto_actual_total - gasto_total_acumulado):,.2f}</b>. 
+            Esto representa un estado financiero de <b>{"SALDO A FAVOR" if (st.session_state['presupuesto_total'] - gasto_total_acumulado) >= 0 else "SOBREGIRO"}</b> 
+            por un monto de <b>S/ {abs(st.session_state['presupuesto_total'] - gasto_total_acumulado):,.2f}</b>. 
             El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
         </p>
 
-        <!-- 4. ANÁLISIS GRÁFICO DE EJECUCIÓN -->
+        <!-- 4. Análisis Gráfico de Ejecución -->
         <div class="section-title page-break">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
         <div class="grafico-wrapper">{html_dona_str}</div>
         <div class="grafico-wrapper">{html_linea_str}</div>
 
-        <!-- 2. RESUMEN GENERAL POR SEMANAS DE TRABAJO -->
+        <!-- 2. Resumen General por Semanas de Trabajo -->
         <div class="section-title">2. Resumen General por Semanas de Trabajo (Lunes a Sábado)</div>
         <table>
             <thead>
@@ -959,7 +908,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             </tbody>
         </table>
 
-        <!-- 3. DETALLE DE PLANILLA POR TRABAJADOR -->
+        <!-- 3. Detalle de Planilla por Trabajador -->
         <div class="section-title">3. Detalle de Planilla por Trabajador (Desglose de las 4 Semanas del Mes)</div>
     """
     
@@ -983,8 +932,8 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día']) if not df_t_s.empty else 0
             c_alm = len(df_t_s[df_t_s['almuerzo'].str.startswith('No', na=False)]) if not df_t_s.empty else 0
             
-            jornal_v = float(pers['jornal']) if pd.notna(pers['jornal']) else 120.0
-            alm_v = float(pers['almuerzo_costo']) if pd.notna(pers['almuerzo_costo']) else 7.0
+            jornal_v = st.session_state.get(f"jornal_{t_nombre}", 80.0)
+            alm_v = st.session_state.get(f"alm_costo_{t_nombre}", 7.0)
             
             p_comp = c_comp * jornal_v
             p_med = c_med * (jornal_v / 2.0)
