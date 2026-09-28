@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con nombres de columnas explícitos)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -35,7 +35,6 @@ c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insu
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 conn.commit()
 
-# Actualizaciones de seguridad por si tablas previas no tienen las columnas
 try:
     c.execute('ALTER TABLE materiales ADD COLUMN und TEXT')
     conn.commit()
@@ -366,8 +365,8 @@ with col_form:
                     st.success(f"¡Asistencia del {f_mo} borrada para {trabajador}!")
                     st.rerun()
 
-# Consultar datos reales de la BD con columnas explícitas
-df_mat_db = pd.read_sql(f"SELECT partida, fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
+# Consultar datos reales de la BD con conversión numérica robusta
+df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_mat_db.empty:
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
     df_mat_db['cantidad'] = pd.to_numeric(df_mat_db['cantidad'], errors='coerce').fillna(0.0)
@@ -377,7 +376,7 @@ else:
     df_mat_db['cantidad'] = pd.Series(dtype='float64')
     df_mat_db['precio'] = pd.Series(dtype='float64')
 
-df_asist_db = pd.read_sql(f"SELECT partida, trabajador, fecha, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
+df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_asist_db.empty:
     df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
 else:
@@ -667,19 +666,57 @@ with tab_materiales:
     
     if not df_mat_db.empty:
         mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
-        df_mat_filtrado = df_mat_db.loc[mask]
+        df_mat_filtrado = df_mat_db.loc[mask].copy()
     else:
-        df_mat_filtrado = pd.DataFrame(columns=['insumo', 'und', 'cantidad', 'precio'])
-
-    gasto_semana_mat = (df_mat_filtrado['cantidad'] * df_mat_filtrado['precio']).sum() if not df_mat_filtrado.empty else 0.0
+        df_mat_filtrado = pd.DataFrame(columns=['partida', 'fecha', 'insumo', 'und', 'cantidad', 'precio', 'fecha_dt'])
 
     if not df_mat_filtrado.empty:
-        df_mats_show = df_mat_filtrado[['insumo', 'und', 'cantidad', 'precio']].rename(columns={'insumo': 'Insumo / Material', 'und': 'UND', 'cantidad': 'Cantidad', 'precio': 'Precio Unit. (S/)'})
-    else:
-        df_mats_show = pd.DataFrame(columns=['Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)'])
+        dias_es_map = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
+        def formatear_fecha_mat(f_str):
+            try:
+                dt = date.fromisoformat(str(f_str))
+                return f"{dt.strftime('%d/%m/%Y')} ({dias_es_map[dt.weekday()]})"
+            except:
+                return str(f_str)
+
+        df_mat_filtrado['Fecha_Formateada'] = df_mat_filtrado['fecha'].apply(formatear_fecha_mat)
+        df_mat_filtrado['Parcial'] = df_mat_filtrado['cantidad'] * df_mat_filtrado['precio']
         
-    df_edit_mat = st.data_editor(df_mats_show, num_rows="dynamic", use_container_width=True, hide_index=True)
-    
+        df_mats_show = df_mat_filtrado[['Fecha_Formateada', 'insumo', 'und', 'cantidad', 'precio', 'Parcial']].rename(columns={
+            'Fecha_Formateada': 'Fecha',
+            'insumo': 'Insumo / Material',
+            'und': 'UND',
+            'cantidad': 'Cantidad',
+            'precio': 'Precio Unit. (S/)',
+            'Parcial': 'Parcial (S/)'
+        })
+    else:
+        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)', 'Parcial (S/)'])
+        
+    df_edit_mat = st.data_editor(
+        df_mats_show,
+        num_rows="dynamic",
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Fecha": st.column_config.TextColumn("Fecha", width="medium"),
+            "Insumo / Material": st.column_config.TextColumn("Insumo / Material", width="large"),
+            "UND": st.column_config.TextColumn("UND", width="small"),
+            "Cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f", width="small"),
+            "Precio Unit. (S/)": st.column_config.NumberColumn("Precio Unit. (S/)", format="S/ %.2f", width="small"),
+            "Parcial (S/)": st.column_config.NumberColumn("Parcial (S/)", format="S/ %.2f", width="small", disabled=True)
+        }
+    )
+
+    gasto_semana_mat = 0.0
+    for _, row in df_edit_mat.iterrows():
+        try:
+            cant_v = float(row["Cantidad"]) if row["Cantidad"] is not None else 0.0
+            prec_v = float(row["Precio Unit. (S/)"]) if row["Precio Unit. (S/)"] is not None else 0.0
+            gasto_semana_mat += cant_v * prec_v
+        except:
+            pass
+            
     st.markdown(f"<h3 style='color: #38bdf8; text-align: right;'>Total Materiales Semana: S/ {gasto_semana_mat:.2f}</h3>", unsafe_allow_html=True)
 
 st.write("---")
