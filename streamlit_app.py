@@ -365,16 +365,86 @@ with col_form:
 
 # Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
-gasto_mat_real = (df_mat_db['cantidad'] * df_mat_db['precio']).sum() if not df_mat_db.empty else 0.0
+if not df_mat_db.empty:
+    df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
+else:
+    df_mat_db['fecha_dt'] = pd.Series(dtype='object')
 
 df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
+if not df_asist_db.empty:
+    df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
+else:
+    df_asist_db['fecha_dt'] = pd.Series(dtype='object')
+
 trabajadores_registrados = lista_trabajadores_db
 
+# ==========================================
+# CÁLCULO PREVIO DE SEMANAS (LUNES A SÁBADO) PARA GRÁFICOS Y TABLA
+# ==========================================
+first_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
+if st.session_state['cal_mes'] == 12:
+    last_day_month = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
+else:
+    last_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
+
+start_current_week_res = first_day_month - timedelta(days=first_day_month.weekday())
+datos_resumen_semanas = []
+gasto_acum_temp = 0.0
+semana_contador = 1
+
+while start_current_week_res <= last_day_month:
+    end_current_week_res = start_current_week_res + timedelta(days=5) # Lunes a Sábado
+    
+    mo_sem = 0.0
+    if not df_asist_db.empty:
+        mask_w = (df_asist_db['fecha_dt'] >= start_current_week_res) & (df_asist_db['fecha_dt'] <= end_current_week_res) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+        df_w_asist = df_asist_db.loc[mask_w]
+        for trab in trabajadores_registrados:
+            df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
+            c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
+            c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
+            c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
+            
+            jornal_val = st.session_state.get(f"jornal_{trab}", 80.0)
+            alm_val = st.session_state.get(f"alm_costo_{trab}", 7.0)
+            
+            mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
+
+    mat_sem = 0.0
+    if not df_mat_db.empty:
+        mask_m = (df_mat_db['fecha_dt'] >= start_current_week_res) & (df_mat_db['fecha_dt'] <= end_current_week_res) & (df_mat_db['partida'] == st.session_state['partida_actual'])
+        df_w_mat = df_mat_db.loc[mask_m]
+        mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
+
+    total_sem = mo_sem + mat_sem
+    gasto_acum_temp += total_sem
+    saldo_s = st.session_state['presupuesto_total'] - gasto_acum_temp
+
+    datos_resumen_semanas.append({
+        "Semana": f"Semana {semana_contador}",
+        "Rango (Lunes a Sábado)": f"{start_current_week_res.strftime('%d/%m/%Y')} al {end_current_week_res.strftime('%d/%m/%Y')}",
+        "Gasto Mano Obra (S/)": mo_sem,
+        "Gasto Materiales (S/)": mat_sem,
+        "Gasto Total Semanal (S/)": total_sem,
+        "Gasto Acumulado (S/)": gasto_acum_temp,
+        "Saldo vs Presupuesto (S/)": saldo_s
+    })
+
+    semana_contador += 1
+    start_current_week_res += timedelta(days=7)
+
+df_resumen_final = pd.DataFrame(datos_resumen_semanas)
+gasto_mo_real_total = df_resumen_final["Gasto Mano Obra (S/)"].sum()
+gasto_mat_real_total = df_resumen_final["Gasto Materiales (S/)"].sum()
+gasto_total_acumulado = df_resumen_final["Gasto Acumulado (S/)"].iloc[-1] if not df_resumen_final.empty else 0.0
+
+# ==========================================
+# GRÁFICOS DINÁMICOS SUPERIORES
+# ==========================================
 with col_graf_circulo:
     st.subheader("💰 Distribución")
     labels = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    gasto_mo_simulado = 2500.0 
-    values = [gasto_mat_real, gasto_mo_simulado, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real + gasto_mo_simulado))] 
+    values = [gasto_mat_real_total, gasto_mo_real_total, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real_total + gasto_mo_real_total))] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
@@ -387,13 +457,13 @@ with col_graf_circulo:
 
 with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
-    semanas_graf = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
-    pres_total_linea = [st.session_state['presupuesto_total']] * 4
-    gasto_acumulado = [2000, 4500, 6800, gasto_mat_real + 2500] 
+    semanas_graf = df_resumen_final['Semana'].tolist()
+    pres_total_linea = [st.session_state['presupuesto_total']] * len(semanas_graf)
+    gasto_acumulado_graf = df_resumen_final['Gasto Acumulado (S/)'].tolist()
     
     fig_linea = go.Figure()
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
-    fig_linea.add_trace(go.Scatter(x=semanas_graf, y=gasto_acumulado, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
+    fig_linea.add_trace(go.Scatter(x=semanas_graf, y=gasto_acumulado_graf, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     
     fig_linea.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
@@ -502,24 +572,24 @@ st.write("---")
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 
 # Generar automáticamente las semanas de Lunes a Sábado del mes seleccionado
-first_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
+first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
 if st.session_state['cal_mes'] == 12:
-    last_day_month = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
+    last_day_month_sel = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
 else:
-    last_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
+    last_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
 
-start_current_week = first_day_month - timedelta(days=first_day_month.weekday())
+start_current_week_sel = first_day_month_sel - timedelta(days=first_day_month_sel.weekday())
 semanas_opciones = []
 semana_map = {}
 idx = 1
 
-while start_current_week <= last_day_month:
-    end_current_week = start_current_week + timedelta(days=5) # Lunes a Sábado
-    label = f"Semana {idx}: {start_current_week.strftime('%d/%m/%Y')} al {end_current_week.strftime('%d/%m/%Y')}"
+while start_current_week_sel <= last_day_month_sel:
+    end_current_week_sel = start_current_week_sel + timedelta(days=5) # Lunes a Sábado
+    label = f"Semana {idx}: {start_current_week_sel.strftime('%d/%m/%Y')} al {end_current_week_sel.strftime('%d/%m/%Y')}"
     semanas_opciones.append(label)
-    semana_map[label] = (start_current_week, end_current_week)
+    semana_map[label] = (start_current_week_sel, end_current_week_sel)
     idx += 1
-    start_current_week += timedelta(days=7)
+    start_current_week_sel += timedelta(days=7)
 
 semana_seleccionada = st.selectbox("Seleccione la Semana de Trabajo (Lunes a Sábado):", semanas_opciones)
 fecha_inicio, fecha_fin = semana_map[semana_seleccionada]
@@ -534,7 +604,6 @@ with tab_planilla:
     gasto_semana_mo = 0
 
     if not df_asist_db.empty:
-        df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
         mask_asis = (df_asist_db['fecha_dt'] >= fecha_inicio) & (df_asist_db['fecha_dt'] <= fecha_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
         df_asist_semana = df_asist_db.loc[mask_asis]
     else:
@@ -591,7 +660,6 @@ with tab_materiales:
     st.write("Materiales comprados **exactamente dentro del rango de fechas** de la semana seleccionada.")
     
     if not df_mat_db.empty:
-        df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
         mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
         df_mat_filtrado = df_mat_db.loc[mask]
     else:
@@ -616,57 +684,8 @@ st.write("---")
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
 st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
 
-start_current_week_res = first_day_month - timedelta(days=first_day_month.weekday())
-datos_resumen_semanas = []
-gasto_acum_temp = 0.0
-semana_contador = 1
-
-while start_current_week_res <= last_day_month:
-    end_current_week_res = start_current_week_res + timedelta(days=5) # Lunes a Sábado
-    
-    mo_sem = 0.0
-    if not df_asist_db.empty:
-        mask_w = (df_asist_db['fecha_dt'] >= start_current_week_res) & (df_asist_db['fecha_dt'] <= end_current_week_res) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-        df_w_asist = df_asist_db.loc[mask_w]
-        for trab in trabajadores_registrados:
-            df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
-            c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
-            c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
-            c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
-            
-            # Toma el jornal y costo de almuerzo personalizado del trabajador si existe en sesión
-            jornal_val = st.session_state.get(f"jornal_{trab}", 80.0)
-            alm_val = st.session_state.get(f"alm_costo_{trab}", 7.0)
-            
-            mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
-
-    mat_sem = 0.0
-    if not df_mat_db.empty:
-        mask_m = (df_mat_db['fecha_dt'] >= start_current_week_res) & (df_mat_db['fecha_dt'] <= end_current_week_res) & (df_mat_db['partida'] == st.session_state['partida_actual'])
-        df_w_mat = df_mat_db.loc[mask_m]
-        mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
-
-    total_sem = mo_sem + mat_sem
-    gasto_acum_temp += total_sem
-    saldo_s = st.session_state['presupuesto_total'] - gasto_acum_temp
-
-    datos_resumen_semanas.append({
-        "Semana": f"Semana {semana_contador}",
-        "Rango (Lunes a Sábado)": f"{start_current_week_res.strftime('%d/%m/%Y')} al {end_current_week_res.strftime('%d/%m/%Y')}",
-        "Gasto Mano Obra (S/)": mo_sem,
-        "Gasto Materiales (S/)": mat_sem,
-        "Gasto Total Semanal (S/)": total_sem,
-        "Gasto Acumulado (S/)": gasto_acum_temp,
-        "Saldo vs Presupuesto (S/)": saldo_s
-    })
-
-    semana_contador += 1
-    start_current_week_res += timedelta(days=7)
-
-df_resumen_final = pd.DataFrame(datos_resumen_semanas)
 st.dataframe(df_resumen_final, use_container_width=True, hide_index=True)
 
-gasto_total_acumulado = gasto_acum_temp
 saldo_final = st.session_state['presupuesto_total'] - gasto_total_acumulado
 
 col_res1, col_res2, col_res3 = st.columns(3)
