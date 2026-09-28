@@ -497,13 +497,34 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES
+# 8. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
-col_sem1, col_sem2 = st.columns(2)
-with col_sem1: fecha_inicio = st.date_input("Inicio de la Semana", value=date(2026, 9, 14))
-with col_sem2: fecha_fin = st.date_input("Fin de la Semana", value=date(2026, 9, 27))
-st.markdown(f"**Filtrando transacciones del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}**")
+
+# Generar automáticamente las semanas de Lunes a Sábado del mes seleccionado
+first_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
+if st.session_state['cal_mes'] == 12:
+    last_day_month = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
+else:
+    last_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
+
+start_current_week = first_day_month - timedelta(days=first_day_month.weekday())
+semanas_opciones = []
+semana_map = {}
+idx = 1
+
+while start_current_week <= last_day_month:
+    end_current_week = start_current_week + timedelta(days=5) # Lunes a Sábado
+    label = f"Semana {idx}: {start_current_week.strftime('%d/%m/%Y')} al {end_current_week.strftime('%d/%m/%Y')}"
+    semanas_opciones.append(label)
+    semana_map[label] = (start_current_week, end_current_week)
+    idx += 1
+    start_current_week += timedelta(days=7)
+
+semana_seleccionada = st.selectbox("Seleccione la Semana de Trabajo (Lunes a Sábado):", semanas_opciones)
+fecha_inicio, fecha_fin = semana_map[semana_seleccionada]
+
+st.markdown(f"**Calculando gastos para la {semana_seleccionada}**")
 
 tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
 
@@ -567,7 +588,7 @@ with tab_planilla:
     st.markdown(f"<h2 style='color: #38bdf8; text-align: center; background-color: #1e293b; padding: 15px; border-radius: 8px;'>Total Planilla General de la Semana: S/ {gasto_semana_mo:.2f}</h2>", unsafe_allow_html=True)
 
 with tab_materiales:
-    st.write("Materiales comprados **exactamente dentro del rango de fechas** seleccionado arriba.")
+    st.write("Materiales comprados **exactamente dentro del rango de fechas** de la semana seleccionada.")
     
     if not df_mat_db.empty:
         df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
@@ -595,41 +616,33 @@ st.write("---")
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
 st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
 
-# Generar semanas estrictamente de Lunes a Sábado que cruzan o pertenecen al mes actual
-first_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
-if st.session_state['cal_mes'] == 12:
-    last_day_month = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
-else:
-    last_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
-
-# Encontrar el Lunes de la semana que contiene el primer día del mes
-start_current_week = first_day_month - timedelta(days=first_day_month.weekday())
-
+start_current_week_res = first_day_month - timedelta(days=first_day_month.weekday())
 datos_resumen_semanas = []
 gasto_acum_temp = 0.0
 semana_contador = 1
 
-while start_current_week <= last_day_month:
-    end_current_week = start_current_week + timedelta(days=5) # Lunes a Sábado
+while start_current_week_res <= last_day_month:
+    end_current_week_res = start_current_week_res + timedelta(days=5) # Lunes a Sábado
     
-    # Calcular Mano de Obra para esta semana Lunes a Sábado
     mo_sem = 0.0
     if not df_asist_db.empty:
-        mask_w = (df_asist_db['fecha_dt'] >= start_current_week) & (df_asist_db['fecha_dt'] <= end_current_week) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+        mask_w = (df_asist_db['fecha_dt'] >= start_current_week_res) & (df_asist_db['fecha_dt'] <= end_current_week_res) & (df_asist_db['partida'] == st.session_state['partida_actual'])
         df_w_asist = df_asist_db.loc[mask_w]
         for trab in trabajadores_registrados:
             df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
             c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
             c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
             c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
-            jornal_def = 80.0
-            alm_def = 7.0
-            mo_sem += (c_comp * jornal_def) + (c_med * (jornal_def / 2.0)) + (c_alm * alm_def)
+            
+            # Toma el jornal y costo de almuerzo personalizado del trabajador si existe en sesión
+            jornal_val = st.session_state.get(f"jornal_{trab}", 80.0)
+            alm_val = st.session_state.get(f"alm_costo_{trab}", 7.0)
+            
+            mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
 
-    # Calcular Materiales para esta semana Lunes a Sábado
     mat_sem = 0.0
     if not df_mat_db.empty:
-        mask_m = (df_mat_db['fecha_dt'] >= start_current_week) & (df_mat_db['fecha_dt'] <= end_current_week) & (df_mat_db['partida'] == st.session_state['partida_actual'])
+        mask_m = (df_mat_db['fecha_dt'] >= start_current_week_res) & (df_mat_db['fecha_dt'] <= end_current_week_res) & (df_mat_db['partida'] == st.session_state['partida_actual'])
         df_w_mat = df_mat_db.loc[mask_m]
         mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
 
@@ -639,7 +652,7 @@ while start_current_week <= last_day_month:
 
     datos_resumen_semanas.append({
         "Semana": f"Semana {semana_contador}",
-        "Rango (Lunes a Sábado)": f"{start_current_week.strftime('%d/%m/%Y')} al {end_current_week.strftime('%d/%m/%Y')}",
+        "Rango (Lunes a Sábado)": f"{start_current_week_res.strftime('%d/%m/%Y')} al {end_current_week_res.strftime('%d/%m/%Y')}",
         "Gasto Mano Obra (S/)": mo_sem,
         "Gasto Materiales (S/)": mat_sem,
         "Gasto Total Semanal (S/)": total_sem,
@@ -648,7 +661,7 @@ while start_current_week <= last_day_month:
     })
 
     semana_contador += 1
-    start_current_week += timedelta(days=7)
+    start_current_week_res += timedelta(days=7)
 
 df_resumen_final = pd.DataFrame(datos_resumen_semanas)
 st.dataframe(df_resumen_final, use_container_width=True, hide_index=True)
