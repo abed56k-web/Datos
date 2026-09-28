@@ -812,10 +812,10 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# ORDEN ESTRICTO: 1 - 4 - 2 - 3 - 5 (CON TEXTO DENTRO DEL CÍRCULO Y SIN HUECOS EN BLANCO)
+# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS VERTICALES EN FILA, TEXTO DENTRO DE DONA, CERO ESPACIOS BLANCOS)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos optimizados con etiquetas y montos perfectamente legibles dentro del círculo, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos con textos perfectamente centrados dentro del círculo, planillas detalladas y resumen general optimizado sin espacios en blanco. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -836,21 +836,21 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Gráfico circular con porcentajes y montos limpios DENTRO del círculo
+    # Gráfico circular con porcentajes y montos DENTRO del círculo
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
     colores_print = ['#06b6d4', '#f59e0b', '#10b981']
 
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
     fig_dona_print.update_layout(
-        title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=13)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
-        width=380, height=260
+        title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=12)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=5, r=5),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8.5)),
+        width=350, height=230
     )
     fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont_color='white', insidetextorientation='horizontal')
 
-    # Gráfico de líneas con Eje Y visible
+    # Gráfico de líneas compacto y limpio
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
@@ -859,19 +859,19 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=pres_total_linea_p, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash', width=2)))
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
-        title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=13)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=65, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
+        title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=12)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=55, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8.5)),
         font=dict(color="#0f172a"),
         yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0"),
-        width=380, height=260
+        width=350, height=230
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     # ==========================================
-    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA 1-4-2-3-5 CON NUMERACIÓN 1, 2, 3, 4, 5
+    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA 1-4-2-3-5 (COMPACTO SIN HUECOS)
     # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
@@ -880,8 +880,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         <meta charset="utf-8">
         <title>Informe Técnico - Nexus Obra</title>
         <style>
-            body {{ font-family: Arial, sans-serif; color: #000; margin: 10px; font-size: 8.5pt; line-height: 1.15; }}
-            .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 5px; margin-bottom: 8px; }}
+            @page {{ size: A4; margin: 10mm; }}
+            body {{ font-family: Arial, sans-serif; color: #000; margin: 0; padding: 0; font-size: 8.5pt; line-height: 1.15; background: #fff; }}
+            .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 8px; }}
             .header h1 {{ font-size: 12pt; margin: 0 0 2px 0; color: #0f172a; text-transform: uppercase; }}
             .header h2 {{ font-size: 8.5pt; margin: 0; color: #334155; font-weight: normal; }}
             .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 5px 7px; margin-bottom: 8px; font-size: 8pt; }}
@@ -891,7 +892,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             th {{ background: #1e293b; color: white; }}
             .text-right {{ text-align: right; }}
             .text-center {{ text-align: center; }}
-            .graficos-row {{ display: flex; justify-content: space-around; align-items: center; margin: 4px 0; page-break-inside: avoid; }}
+            .graficos-row {{ display: flex; justify-content: space-around; align-items: center; margin: 3px 0; page-break-inside: avoid; }}
             .grafico-wrapper {{ width: 48%; text-align: center; }}
             .worker-section {{ page-break-inside: avoid; }}
             @media print {{
@@ -1090,10 +1091,10 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     html_reporte += f"""
             </tbody>
         </table>
-        <p class="text-right" style="font-size: 8.5pt; font-weight: bold; margin-top: 3px;">TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</p>
+        <p class="text-right" style="font-size: 8.5pt; font-weight: bold; margin-top: 2px;">TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</p>
         
         <br>
-        <div style="text-align: center; font-size: 8pt; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 4px;">
+        <div style="text-align: center; font-size: 7.5pt; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 4px;">
             Reporte Ejecutivo Oficial &bull; Plataforma Nexus Obra &bull; Ayacucho, Perú
         </div>
         
