@@ -762,14 +762,28 @@ st.write("---")
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador y control de materiales. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador (con sus 4 cuadros semanales detallados), gráficos de distribución, presupuesto vs. gasto y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
-    # Recopilar datos detallados de la semana seleccionada para el reporte HTML
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
     fecha_impresion_str = date.today().strftime('%d/%m/%Y')
     
-    # HTML profesional para impresión
+    # Generar bloques de las 4 o 5 semanas del mes actual para mostrarlas por cada trabajador
+    first_m = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
+    if st.session_state['cal_mes'] == 12:
+        last_m = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_m = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
+    
+    curr_w = first_m - timedelta(days=first_m.weekday())
+    semanas_mes_lista = []
+    idx_s = 1
+    while curr_w <= last_m:
+        end_w = curr_w + timedelta(days=5)
+        semanas_mes_lista.append((f"Semana {idx_s}", curr_w, end_w))
+        idx_s += 1
+        curr_w += timedelta(days=7)
+
     html_reporte = f"""
     <!DOCTYPE html>
     <html>
@@ -777,19 +791,21 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         <meta charset="utf-8">
         <title>Informe Técnico - Nexus Obra</title>
         <style>
-            body {{ font-family: Arial, sans-serif; color: #000; margin: 20px; font-size: 11pt; line-height: 1.3; }}
+            body {{ font-family: Arial, sans-serif; color: #000; margin: 20px; font-size: 10pt; line-height: 1.3; }}
             .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px; }}
-            .header h1 {{ font-size: 16pt; margin: 0 0 5px 0; color: #0f172a; text-transform: uppercase; }}
-            .header h2 {{ font-size: 11pt; margin: 0; color: #334155; font-weight: normal; }}
-            .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 15px; font-size: 10pt; }}
-            .section-title {{ font-size: 12pt; font-weight: bold; color: #0284c7; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #0284c7; padding-bottom: 3px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 10px; font-size: 9pt; }}
-            th, td {{ border: 1px solid #94a3b8; padding: 5px 7px; text-align: left; }}
+            .header h1 {{ font-size: 15pt; margin: 0 0 5px 0; color: #0f172a; text-transform: uppercase; }}
+            .header h2 {{ font-size: 10pt; margin: 0; color: #334155; font-weight: normal; }}
+            .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 15px; font-size: 9.5pt; }}
+            .section-title {{ font-size: 11pt; font-weight: bold; color: #0284c7; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #0284c7; padding-bottom: 3px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 10px; font-size: 8.5pt; }}
+            th, td {{ border: 1px solid #94a3b8; padding: 4px 6px; text-align: left; }}
             th {{ background: #1e293b; color: white; }}
             .text-right {{ text-align: right; }}
             .text-center {{ text-align: center; }}
+            .grafico-box {{ text-align: center; margin: 15px 0; padding: 10px; border: 1px dashed #94a3b8; background: #f8fafc; }}
             @media print {{
                 button {{ display: none; }}
+                .page-break {{ page-break-before: always; }}
             }}
         </style>
     </head>
@@ -800,12 +816,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         </div>
         
         <div class="info-box">
-            <b>Proyecto / Descripción:</b> Vivienda Unifamiliar - Tercer Nivel (ADCIDEPATA Mz. E Lt. 3)<br>
+            <b>Proyecto / Descripción:</b> Se hizo el trabajo en el tercer nivel vivienda unifamiliar en ADCIDEPATA Mz. E Lt. 3<br>
             <b>Ubicación:</b> Distrito Ayacucho, Provincia Huamanga, Departamento Ayacucho<br>
             <b>Partida Evaluada:</b> {st.session_state['partida_actual']}<br>
             <b>Cliente:</b> Cliente X<br>
-            <b>Período Evaluado:</b> {semana_seleccionada} ({fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')})<br>
-            <b>Costo al:</b> {fecha_fin.strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Impresión:</b> {fecha_impresion_str}
+            <b>Mes Evaluado:</b> {meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}<br>
+            <b>Costo al:</b> {date.today().strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Impresión:</b> {fecha_impresion_str}
         </div>
 
         <div class="section-title">1. Análisis Financiero y Resumen Global</div>
@@ -851,67 +867,81 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             </tbody>
         </table>
 
-        <div class="section-title">3. Detalle de Planilla de Mano de Obra por Trabajador</div>
+        <div class="section-title">3. Detalle de Planilla por Trabajador (Desglose de las 4 Semanas del Mes)</div>
     """
     
-    # Asistencia de la semana seleccionada
-    mask_asis_rep = (df_asist_db['fecha_dt'] >= fecha_inicio) & (df_asist_db['fecha_dt'] <= fecha_fin) & (df_asist_db['partida'] == st.session_state['partida_actual']) if not df_asist_db.empty else pd.Series(dtype='bool')
-    df_asist_rep = df_asist_db.loc[mask_asis_rep] if not df_asist_db.empty else pd.DataFrame()
-
-    for _, pers in df_personal_db.iterrows():
+    # Iterar por cada trabajador registrado y mostrar sus 4 cuadros semanales
+    for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']
         t_esp = pers['especialidad']
         
-        df_tr_sem = df_asist_rep[df_asist_rep['trabajador'] == t_nombre] if not df_asist_rep.empty else pd.DataFrame()
-        c_comp = len(df_tr_sem[df_tr_sem['estado'] == 'Día Completo']) if not df_tr_sem.empty else 0
-        c_med = len(df_tr_sem[df_tr_sem['estado'] == 'Medio Día']) if not df_tr_sem.empty else 0
-        c_alm = len(df_tr_sem[df_tr_sem['almuerzo'].str.startswith('No', na=False)]) if not df_tr_sem.empty else 0
-        
-        jornal_v = st.session_state.get(f"jornal_{t_nombre}", 80.0)
-        alm_costo_v = st.session_state.get(f"alm_costo_{t_nombre}", 7.0)
-        total_trab = (c_comp * jornal_v) + (c_med * (jornal_v / 2.0)) + (c_alm * alm_costo_v)
-        
         html_reporte += f"""
-        <p style="margin: 8px 0 3px 0; font-size: 10pt;"><b>Trabajador:</b> {t_nombre} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Especialidad:</b> {t_esp} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total a Pagar: S/ {total_trab:,.2f}</b></p>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Día</th>
-                    <th>Estado Asistencia</th>
-                    <th>Almuerzo Afuera</th>
-                    <th>Actividad / Observación</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div style="background: #e2e8f0; padding: 6px 10px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; font-size: 10pt;">
+            👷 Obrero: <i>{t_esp}</i> — <b>{t_nombre}</b>
+        </div>
         """
         
-        if not df_tr_sem.empty:
-            for _, r_as in df_tr_sem.iterrows():
-                dt_f = date.fromisoformat(str(r_as['fecha']))
-                d_nombre = dias_es_map_rep[dt_f.weekday()]
-                html_reporte += f"""
-                <tr>
-                    <td>{dt_f.strftime('%d/%m/%Y')}</td>
-                    <td>{d_nombre}</td>
-                    <td>{r_as['estado']}</td>
-                    <td>{r_as['almuerzo']}</td>
-                    <td>{r_as['actividad'] if r_as['actividad'] else 'Sin observaciones'}</td>
-                </tr>
-                """
-        else:
-            html_reporte += """
-                <tr>
-                    <td colspan="5" class="text-center"><i>No registra asistencia en esta semana.</i></td>
-                </tr>
+        for s_nombre, s_ini, s_fin in semanas_mes_lista:
+            # Filtrar asistencia para este trabajador en esta semana específica
+            df_t_s = pd.DataFrame()
+            if not df_asist_db.empty:
+                m_ts = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= s_ini) & (df_asist_db['fecha_dt'] <= s_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+                df_t_s = df_asist_db.loc[m_ts]
+                
+            c_comp = len(df_t_s[df_t_s['estado'] == 'Día Completo']) if not df_t_s.empty else 0
+            c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día']) if not df_t_s.empty else 0
+            c_alm = len(df_t_s[df_t_s['almuerzo'].str.startswith('No', na=False)]) if not df_t_s.empty else 0
+            
+            jornal_v = st.session_state.get(f"jornal_{t_nombre}", 80.0)
+            alm_v = st.session_state.get(f"alm_costo_{t_nombre}", 7.0)
+            
+            p_comp = c_comp * jornal_v
+            p_med = c_med * (jornal_v / 2.0)
+            p_alm = c_alm * alm_v
+            tot_s_trab = p_comp + p_med + p_alm
+            
+            html_reporte += f"""
+            <p style="margin: 4px 0 2px 5px; font-size: 9pt;"><b>{s_nombre}</b> ({s_ini.strftime('%d/%m/%Y')} al {s_fin.strftime('%d/%m/%Y')}):</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Día</th>
+                        <th>Estado Asistencia</th>
+                        <th>Almuerzo Afuera</th>
+                        <th>Actividad / Observación</th>
+                    </tr>
+                </thead>
+                <tbody>
             """
-        html_reporte += """
-            </tbody>
-        </table>
-        """
+            
+            if not df_t_s.empty:
+                for _, r_as in df_t_s.iterrows():
+                    dt_f = date.fromisoformat(str(r_as['fecha']))
+                    d_nombre = dias_es_map_rep[dt_f.weekday()]
+                    html_reporte += f"""
+                    <tr>
+                        <td>{dt_f.strftime('%d/%m/%Y')}</td>
+                        <td>{d_nombre}</td>
+                        <td>{r_as['estado']}</td>
+                        <td>{r_as['almuerzo']}</td>
+                        <td>{r_as['actividad'] if r_as['actividad'] else 'Sin observaciones'}</td>
+                    </tr>
+                    """
+            else:
+                html_reporte += """
+                    <tr>
+                        <td colspan="5" class="text-center"><i>Sin registros en esta semana.</i></td>
+                    </tr>
+                """
+            html_reporte += f"""
+                </tbody>
+            </table>
+            <p class="text-right" style="font-size: 8.5pt; margin: 0 0 8px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
+            """
 
     html_reporte += f"""
-        <div class="section-title">4. Control de Materiales e Insumos ({semana_seleccionada})</div>
+        <div class="section-title">4. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
             <thead>
                 <tr>
@@ -928,7 +958,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     
     gasto_mat_rep = 0.0
     if not df_mat_db.empty:
-        mask_m_rep = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
+        mask_m_rep = (df_mat_db['fecha_dt'] >= first_m) & (df_mat_db['fecha_dt'] <= last_m) & (df_mat_db['partida'] == st.session_state['partida_actual'])
         df_mat_rep = df_mat_db.loc[mask_m_rep]
         for _, r_m in df_mat_rep.iterrows():
             dt_m = date.fromisoformat(str(r_m['fecha']))
@@ -952,18 +982,18 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     if gasto_mat_rep == 0.0:
         html_reporte += """
                 <tr>
-                    <td colspan="6" class="text-center"><i>No se registraron materiales en esta semana.</i></td>
+                    <td colspan="6" class="text-center"><i>No se registraron materiales en este mes.</i></td>
                 </tr>
         """
         
     html_reporte += f"""
             </tbody>
         </table>
-        <p class="text-right" style="font-size: 11pt; font-weight: bold; margin-top: 5px;">TOTAL MATERIALES SEMANA: S/ {gasto_mat_rep:,.2f}</p>
+        <p class="text-right" style="font-size: 10pt; font-weight: bold; margin-top: 5px;">TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</p>
         
         <br><br>
         <div style="text-align: center; font-size: 9pt; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 10px;">
-            Reporte generado automáticamente por la plataforma Nexus Obra &bull; Ayacucho, Perú
+            Reporte Ejecutivo Oficial &bull; Plataforma Nexus Obra &bull; Ayacucho, Perú
         </div>
         
         <script>
@@ -973,5 +1003,4 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     </html>
     """
     
-    # Mostrar el reporte en una ventana emergente / iframe interactivo para impresión directa
     st.components.v1.html(html_reporte, height=800, scrolling=True)
