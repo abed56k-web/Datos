@@ -812,7 +812,7 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA SOLICITUD (1 - 4 - 2 - 3 - 5) CON NUMERACIÓN CORRELATIVA (1, 2, 3, 4, 5)
+# SECUENCIA ESTRICTA SOLICITUD: 1 - 4 - 2 - 3 - 5 (CON NUMERACIÓN 1, 2, 3, 4, 5)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
 st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, numeración correlativa (1 a 5), gráficos optimizados sin superposición ni espacios en blanco, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
@@ -1041,7 +1041,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             """
         html_reporte += "</div>"
 
-    # 5. CONTROL DE MATERIALES E INSUMOS (Corresponde a la sección 5)
+    # 5. Control de Materiales e Insumos (Corresponde a la sección 5)
     html_reporte += f"""
         <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
