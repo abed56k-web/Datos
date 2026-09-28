@@ -363,12 +363,16 @@ with col_form:
                     st.success(f"¡Asistencia del {f_mo} borrada para {trabajador}!")
                     st.rerun()
 
-# Consultar datos reales de la BD
+# Consultar datos reales de la BD con conversión numérica robusta
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_mat_db.empty:
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
+    df_mat_db['cantidad'] = pd.to_numeric(df_mat_db['cantidad'], errors='coerce').fillna(0.0)
+    df_mat_db['precio'] = pd.to_numeric(df_mat_db['precio'], errors='coerce').fillna(0.0)
 else:
     df_mat_db['fecha_dt'] = pd.Series(dtype='object')
+    df_mat_db['cantidad'] = pd.Series(dtype='float64')
+    df_mat_db['precio'] = pd.Series(dtype='float64')
 
 df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_asist_db.empty:
@@ -434,8 +438,8 @@ while start_current_week_res <= last_day_month:
     start_current_week_res += timedelta(days=7)
 
 df_resumen_final = pd.DataFrame(datos_resumen_semanas)
-gasto_mo_real_total = df_resumen_final["Gasto Mano Obra (S/)"].sum()
-gasto_mat_real_total = df_resumen_final["Gasto Materiales (S/)"].sum()
+gasto_mo_real_total = df_resumen_final["Gasto Mano Obra (S/)"].sum() if not df_resumen_final.empty else 0.0
+gasto_mat_real_total = df_resumen_final["Gasto Materiales (S/)"].sum() if not df_resumen_final.empty else 0.0
 gasto_total_acumulado = df_resumen_final["Gasto Acumulado (S/)"].iloc[-1] if not df_resumen_final.empty else 0.0
 
 # ==========================================
@@ -457,9 +461,9 @@ with col_graf_circulo:
 
 with col_graf_linea:
     st.subheader("📈 Presupuesto vs Gasto")
-    semanas_graf = df_resumen_final['Semana'].tolist()
+    semanas_graf = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea = [st.session_state['presupuesto_total']] * len(semanas_graf)
-    gasto_acumulado_graf = df_resumen_final['Gasto Acumulado (S/)'].tolist()
+    gasto_acumulado_graf = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
     
     fig_linea = go.Figure()
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash')))
@@ -571,7 +575,6 @@ st.write("---")
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 
-# Generar automáticamente las semanas de Lunes a Sábado del mes seleccionado
 first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
 if st.session_state['cal_mes'] == 12:
     last_day_month_sel = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
