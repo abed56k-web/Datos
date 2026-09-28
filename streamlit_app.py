@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con actualización automática de jornales profesionales)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -35,14 +35,6 @@ c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insu
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
-
-# Actualizar jornales antiguos por defecto (Operario/Enchapador = 120, Peón = 100)
-try:
-    c.execute("UPDATE personal SET jornal = 120.0 WHERE especialidad IN ('Operario', 'Enchapador') AND jornal = 80.0")
-    c.execute("UPDATE personal SET jornal = 100.0 WHERE especialidad LIKE '%Peón%' AND jornal = 80.0")
-    conn.commit()
-except sqlite3.OperationalError:
-    pass
 
 try:
     c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
@@ -820,10 +812,10 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA SOLICITUD: 1 - 4 - 2 - 3 - 5
+# SECUENCIA ESTRICTA SOLICITUD (1 - 4 - 2 - 3 - 5) CON NUMERACIÓN CORRELATIVA (1, 2, 3, 4, 5)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos optimizados (sin espacios en blanco), planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, numeración correlativa (1 a 5), gráficos optimizados sin superposición ni espacios en blanco, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -844,7 +836,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Gráfico circular optimizado con Porcentajes e Importes en Soles
+    # Gráfico circular optimizado con etiquetas externas horizontales (sin superposición) y montos en Soles
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
     colores_print = ['#06b6d4', '#f59e0b', '#10b981']
@@ -852,13 +844,13 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
     fig_dona_print.update_layout(
         title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=13)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
-        width=380, height=260
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=30, l=10, r=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
+        width=380, height=270
     )
-    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont_color='white')
+    fig_dona_print.update_traces(textposition='outside', textinfo='label+percent+value', textfont_color='#0f172a', insidetextorientation='horizontal')
 
-    # Gráfico de líneas con Eje Y visible (S/ en formato claro)
+    # Gráfico de líneas con Eje Y visible y eje X sin recortes
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
@@ -868,18 +860,19 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
         title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=13)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=60, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=40, l=65, r=15),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
         font=dict(color="#0f172a"),
+        xaxis=dict(tickangle=0),
         yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0"),
-        width=380, height=260
+        width=380, height=270
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     # ==========================================
-    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (SIN ESPACIOS BLANCOS NI CORTES)
+    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (NUMERACIÓN 1, 2, 3, 4, 5)
     # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
@@ -888,7 +881,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         <meta charset="utf-8">
         <title>Informe Técnico - Nexus Obra</title>
         <style>
-            body {{ font-family: Arial, sans-serif; color: #000; margin: 15px; font-size: 9pt; line-height: 1.2; }}
+            body {{ font-family: Arial, sans-serif; color: #000; margin: 12px; font-size: 9pt; line-height: 1.2; }}
             .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; }}
             .header h1 {{ font-size: 13pt; margin: 0 0 2px 0; color: #0f172a; text-transform: uppercase; }}
             .header h2 {{ font-size: 9pt; margin: 0; color: #334155; font-weight: normal; }}
@@ -933,15 +926,15 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
         </p>
 
-        <!-- 4. ANÁLISIS GRÁFICO DE EJECUCIÓN (Ubicado inmediatamente debajo del análisis financiero para evitar huecos en blanco) -->
-        <div class="section-title">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
+        <!-- 2. ANÁLISIS GRÁFICO DE EJECUCIÓN (Corresponde a la sección 4 de contenido, numerada como 2) -->
+        <div class="section-title">2. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
         <div class="graficos-row">
             <div class="grafico-wrapper">{html_dona_str}</div>
             <div class="grafico-wrapper">{html_linea_str}</div>
         </div>
 
-        <!-- 2. RESUMEN GENERAL POR SEMANAS DE TRABAJO -->
-        <div class="section-title">2. Resumen General por Semanas de Trabajo (Lunes a Sábado)</div>
+        <!-- 3. RESUMEN GENERAL POR SEMANAS DE TRABAJO (Corresponde a la sección 2 de contenido, numerada como 3) -->
+        <div class="section-title">3. Resumen General por Semanas de Trabajo (Lunes a Sábado)</div>
         <table>
             <thead>
                 <tr>
@@ -974,8 +967,8 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             </tbody>
         </table>
 
-        <!-- 3. DETALLE DE PLANILLA POR TRABAJADOR -->
-        <div class="section-title">3. Detalle de Planilla por Trabajador (Desglose de las 4 Semanas del Mes)</div>
+        <!-- 4. DETALLE DE PLANILLA POR TRABAJADOR (Corresponde a la sección 3 de contenido, numerada como 4) -->
+        <div class="section-title">4. Detalle de Planilla por Trabajador (Desglose de las 4 Semanas del Mes)</div>
     """
     
     for _, pers in df_pers_actual.iterrows():
@@ -993,7 +986,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             df_t_s = pd.DataFrame()
             if not df_asist_db.empty:
                 m_ts = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= s_ini) & (df_asist_db['fecha_dt'] <= s_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-                df_t_s = df_asist_db.loc[m_ts].sort_values('fecha') # Orden cronológico estricto de Lunes a Sábado
+                df_t_s = df_asist_db.loc[m_ts].sort_values('fecha')
                 
             c_comp = len(df_t_s[df_t_s['estado'] == 'Día Completo']) if not df_t_s.empty else 0
             c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día']) if not df_t_s.empty else 0
@@ -1044,11 +1037,11 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             html_reporte += f"""
                 </tbody>
             </table>
-            <p class="text-right" style="font-size: 7.5pt; margin: 0 0 4px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
+            <p class="text-right" style="font-size: 8pt; margin: 0 0 4px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
             """
         html_reporte += "</div>"
 
-    # 5. Control de Materiales e Insumos
+    # 5. CONTROL DE MATERIALES E INSUMOS (Corresponde a la sección 5)
     html_reporte += f"""
         <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
