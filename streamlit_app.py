@@ -762,7 +762,7 @@ st.write("---")
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador (con sus 4 cuadros semanales detallados), gráficos en alta legibilidad y el resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en secuencia (1-4-2-3-5), gráficos con importes y ejes visibles, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -783,19 +783,20 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Crear figuras Plotly optimizadas EXCLUSIVAMENTE para impresión con fondo blanco y letras oscuras legibles
+    # Gráfico circular optimizado para impresión con montos y porcentajes
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, st.session_state['presupuesto_total'] - (gasto_mat_real_total + gasto_mo_real_total))]
     colores_print = ['#06b6d4', '#f59e0b', '#10b981']
 
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
     fig_dona_print.update_layout(
-        title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=14)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
+        title=dict(text="Distribución de Costos (Porcentajes e Importes)", font=dict(color="#0f172a", size=14)),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=40, b=20, l=20, r=20),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10))
     )
-    fig_dona_print.update_traces(textinfo='percent+label', textfont_color='#0f172a')
+    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont_color='white')
 
+    # Gráfico de líneas optimizado con eje Y visible (S/ en formato claro)
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea_p = [st.session_state['presupuesto_total']] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
@@ -805,14 +806,18 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
         title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=14)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=40, b=20, l=70, r=20),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=10)),
-        font=dict(color="#0f172a")
+        font=dict(color="#0f172a"),
+        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0")
     )
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
+    # ==========================================
+    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5
+    # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
     <html>
@@ -853,6 +858,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <b>Costo al:</b> {date.today().strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Impresión:</b> {fecha_impresion_str}
         </div>
 
+        <!-- 1. Análisis Financiero y Resumen Global -->
         <div class="section-title">1. Análisis Financiero y Resumen Global</div>
         <p>
             El presente informe detalla el estado económico y operativo de la partida <b>{st.session_state['partida_actual']}</b>. 
@@ -863,6 +869,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
         </p>
 
+        <!-- 4. Análisis Gráfico de Ejecución -->
+        <div class="section-title page-break">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
+        <div class="grafico-wrapper">{html_dona_str}</div>
+        <div class="grafico-wrapper">{html_linea_str}</div>
+
+        <!-- 2. Resumen General por Semanas de Trabajo -->
         <div class="section-title">2. Resumen General por Semanas de Trabajo (Lunes a Sábado)</div>
         <table>
             <thead>
@@ -896,6 +908,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             </tbody>
         </table>
 
+        <!-- 3. Detalle de Planilla por Trabajador -->
         <div class="section-title">3. Detalle de Planilla por Trabajador (Desglose de las 4 Semanas del Mes)</div>
     """
     
@@ -967,12 +980,8 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <p class="text-right" style="font-size: 8.5pt; margin: 0 0 8px 0; font-weight: bold;">Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</p>
             """
 
-    # Sección de Gráficos Integrados en Vertical con alta legibilidad
+    # 5. Control de Materiales e Insumos
     html_reporte += f"""
-        <div class="section-title page-break">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
-        <div class="grafico-wrapper">{html_dona_str}</div>
-        <div class="grafico-wrapper">{html_linea_str}</div>
-
         <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
             <thead>
