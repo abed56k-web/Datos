@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con autocorrección de tablas faltantes)
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con migración y actualización segura de columnas)
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -36,6 +36,7 @@ c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT,
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
 
+# Migraciones de seguridad por si la BD ya existía con esquemas anteriores
 try:
     c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
     c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0')
@@ -51,6 +52,14 @@ except sqlite3.OperationalError:
 
 try:
     c.execute('ALTER TABLE asistencia ADD COLUMN actividad TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+
+try:
+    c.execute('ALTER TABLE presupuestos ADD COLUMN modo TEXT')
+    c.execute('ALTER TABLE presupuestos ADD COLUMN materiales REAL DEFAULT 6000.0')
+    c.execute('ALTER TABLE presupuestos ADD COLUMN mano_obra REAL DEFAULT 4000.0')
     conn.commit()
 except sqlite3.OperationalError:
     pass
@@ -216,15 +225,9 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperación segura con autoprotección si la tabla acabara de crearse
-try:
-    c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
-    row_presupuesto = c.fetchone()
-except sqlite3.OperationalError:
-    c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
-    conn.commit()
-    row_presupuesto = None
-
+# Recuperar o inicializar presupuesto en la BD (Default total: 10000.00)
+c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
+row_presupuesto = c.fetchone()
 if row_presupuesto:
     modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db = row_presupuesto
 else:
@@ -873,7 +876,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     # ==========================================
-    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (SIN SALTO BLANCO)
+    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5
     # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
@@ -927,7 +930,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
         </p>
 
-        <!-- 4. ANÁLISIS GRÁFICO DE EJECUCIÓN (Junto al análisis financiero sin salto en blanco) -->
+        <!-- 4. ANÁLISIS GRÁFICO DE EJECUCIÓN (Junto al análisis financiero sin espacio en blanco) -->
         <div class="section-title">4. Análisis Gráfico de Ejecución (Distribución y Tendencia)</div>
         <div class="graficos-row">
             <div class="grafico-wrapper">{html_dona_str}</div>
