@@ -25,7 +25,7 @@ st.markdown("""
     </head>
 """, unsafe_allow_html=True)
 
-# 2. BASE DE DATOS PERMANENTE Y TABLAS
+# 2. BASE DE DATOS PERMANENTE Y TABLAS (Con nombres de columnas explícitos)
 conn = sqlite3.connect('obra_nexus.db', timeout=10.0, check_same_thread=False)
 c = conn.cursor()
 
@@ -35,6 +35,7 @@ c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insu
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 conn.commit()
 
+# Actualizaciones de seguridad por si tablas previas no tienen las columnas
 try:
     c.execute('ALTER TABLE materiales ADD COLUMN und TEXT')
     conn.commit()
@@ -278,7 +279,8 @@ with col_form:
 
             if btn_guardar_mat:
                 if mat_nom and und_final:
-                    c.execute("INSERT INTO materiales VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
+                    c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
                     conn.commit()
                     st.success("Material guardado correctamente en la BD.")
                     st.rerun()
@@ -300,7 +302,7 @@ with col_form:
             if st.form_submit_button("➕ Agregar Trabajador", use_container_width=True):
                 if nuevo_nombre:
                     try:
-                        c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp))
+                        c.execute("INSERT INTO personal (partida, nombre, especialidad) VALUES (?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp))
                         conn.commit()
                         st.success(f"¡{nuevo_nombre} agregado!")
                         st.rerun()
@@ -321,7 +323,7 @@ with col_form:
             for _, row in df_pers_editado.iterrows():
                 if row["nombre"] and str(row["nombre"]).strip() != "":
                     try:
-                        c.execute("INSERT INTO personal VALUES (?, ?, ?)", (st.session_state['partida_actual'], row["nombre"].strip(), row["especialidad"]))
+                        c.execute("INSERT INTO personal (partida, nombre, especialidad) VALUES (?, ?, ?)", (st.session_state['partida_actual'], row["nombre"].strip(), row["especialidad"]))
                     except:
                         pass
             conn.commit()
@@ -349,7 +351,8 @@ with col_form:
 
             if btn_guardar:
                 if trabajador:
-                    c.execute("INSERT OR REPLACE INTO asistencia VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
+                    c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
                     conn.commit()
                     st.success("¡Asistencia guardada (actualizada para esta fecha)!")
                     st.rerun()
@@ -363,8 +366,8 @@ with col_form:
                     st.success(f"¡Asistencia del {f_mo} borrada para {trabajador}!")
                     st.rerun()
 
-# Consultar datos reales de la BD con conversión numérica robusta
-df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
+# Consultar datos reales de la BD con columnas explícitas
+df_mat_db = pd.read_sql(f"SELECT partida, fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_mat_db.empty:
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
     df_mat_db['cantidad'] = pd.to_numeric(df_mat_db['cantidad'], errors='coerce').fillna(0.0)
@@ -374,7 +377,7 @@ else:
     df_mat_db['cantidad'] = pd.Series(dtype='float64')
     df_mat_db['precio'] = pd.Series(dtype='float64')
 
-df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
+df_asist_db = pd.read_sql(f"SELECT partida, trabajador, fecha, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_asist_db.empty:
     df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
 else:
