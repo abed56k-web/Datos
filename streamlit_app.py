@@ -8,13 +8,6 @@ import sqlite3
 import hashlib
 import random
 import os
-import io
-
-# Importaciones para generación de PDF profesional
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
 
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(
@@ -184,7 +177,7 @@ st.markdown("""
 # 5. GESTOR DE PARTIDAS
 # ==========================================
 if st.session_state['partida_actual'] is None:
-    st.markdown("<h1 style='text-align: center; color: #38bdf8 !important; ' >🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
     
@@ -766,269 +759,219 @@ with col_res3:
 st.write("---")
 
 # ==========================================
-# 10. GENERADOR DE REPORTE PROFESIONAL EN PDF
+# 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
 # ==========================================
-st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Reporte Ejecutivo en PDF</h2>", unsafe_allow_html=True)
-st.write("Genera un informe técnico detallado para la obra con membrete institucional, análisis financiero, planillas por trabajador y control de materiales de la semana seleccionada.")
+st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, análisis financiero, planillas por trabajador y control de materiales. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
-def generar_pdf_obra(partida_nombre, semana_str, f_ini, f_fin, presupuesto, gasto_acum, trabajadores_db, asist_df, mat_df, resumen_df):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
-    story = []
+if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
+    # Recopilar datos detallados de la semana seleccionada para el reporte HTML
+    dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
+    fecha_impresion_str = date.today().strftime('%d/%m/%Y')
     
-    styles = getSampleStyleSheet()
-    
-    # Estilos profesionales
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading1'],
-        fontName='Helvetica-Bold',
-        fontSize=16,
-        textColor=colors.HexColor('#0f172a'),
-        alignment=1,
-        spaceAfter=10
-    )
-    
-    subtitle_style = ParagraphStyle(
-        'SubtitleStyle',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=10,
-        textColor=colors.HexColor('#334155'),
-        alignment=1,
-        spaceAfter=15
-    )
-    
-    header_block_style = ParagraphStyle(
-        'HeaderBlock',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=9,
-        textColor=colors.HexColor('#1e293b'),
-        leading=14
-    )
-    
-    section_title = ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Heading2'],
-        fontName='Helvetica-Bold',
-        fontSize=12,
-        textColor=colors.HexColor('#0284c7'),
-        spaceBefore=12,
-        spaceAfter=6
-    )
-    
-    table_text = ParagraphStyle(
-        'TableText',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=8,
-        textColor=colors.HexColor('#0f172a')
-    )
-    
-    table_header = ParagraphStyle(
-        'TableHeader',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=8,
-        textColor=colors.white
-    )
+    # HTML profesional para impresión
+    html_reporte = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Informe Técnico - Nexus Obra</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; color: #000; margin: 20px; font-size: 11pt; line-height: 1.3; }}
+            .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px; }}
+            .header h1 {{ font-size: 16pt; margin: 0 0 5px 0; color: #0f172a; text-transform: uppercase; }}
+            .header h2 {{ font-size: 11pt; margin: 0; color: #334155; font-weight: normal; }}
+            .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 15px; font-size: 10pt; }}
+            .section-title {{ font-size: 12pt; font-weight: bold; color: #0284c7; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #0284c7; padding-bottom: 3px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 10px; font-size: 9pt; }}
+            th, td {{ border: 1px solid #94a3b8; padding: 5px 7px; text-align: left; }}
+            th {{ background: #1e293b; color: white; }}
+            .text-right {{ text-align: right; }}
+            .text-center {{ text-align: center; }}
+            @media print {{
+                button {{ display: none; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
+            <h2>Informe Técnico de Control Presupuestal y Mano de Obra</h2>
+        </div>
+        
+        <div class="info-box">
+            <b>Proyecto / Descripción:</b> Vivienda Unifamiliar - Tercer Nivel (ADCIDEPATA Mz. E Lt. 3)<br>
+            <b>Ubicación:</b> Distrito Ayacucho, Provincia Huamanga, Departamento Ayacucho<br>
+            <b>Partida Evaluada:</b> {st.session_state['partida_actual']}<br>
+            <b>Cliente:</b> Cliente X<br>
+            <b>Período Evaluado:</b> {semana_seleccionada} ({fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')})<br>
+            <b>Costo al:</b> {fecha_fin.strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Impresión:</b> {fecha_impresion_str}
+        </div>
 
-    # Membrete / Encabezado Grande de Obra
-    story.append(Paragraph("SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA", title_style))
-    story.append(Paragraph("INFORME TÉCNICO DE CONTROL PRESUPUESTAL Y MANO DE OBRA", subtitle_style))
-    story.append(Spacer(1, 5))
-    
-    # Bloque de Datos del Proyecto
-    fecha_impresion = date.today().strftime('%d/%m/%Y')
-    info_texto = f"""
-    <b>Proyecto / Descripción:</b> Vivienda Unifamiliar - Tercer Nivel (ADCIDEPATA Mz. E Lt. 3)<br/>
-    <b>Ubicación:</b> Distrito Ayacucho, Provincia Huamanga, Departamento Ayacucho<br/>
-    <b>Partida Evaluada:</b> {partida_nombre}<br/>
-    <b>Cliente:</b> Cliente X<br/>
-    <b>Período Evaluado:</b> {semana_str} ({f_ini.strftime('%d/%m/%Y')} al {f_fin.strftime('%d/%m/%Y')})<br/>
-    <b>Costo al:</b> {f_fin.strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Emisión:</b> {fecha_impresion}
+        <div class="section-title">1. Análisis Financiero y Resumen Global</div>
+        <p>
+            El presente informe detalla el estado económico y operativo de la partida <b>{st.session_state['partida_actual']}</b>. 
+            Hasta la fecha de corte, se ha asignado un presupuesto total de <b>S/ {st.session_state['presupuesto_total']:,.2f}</b>, 
+            registrando un gasto acumulado de <b>S/ {gasto_total_acumulado:,.2f}</b>. 
+            Esto representa un estado financiero de <b>{"SALDO A FAVOR" if (st.session_state['presupuesto_total'] - gasto_total_acumulado) >= 0 else "SOBREGIRO"}</b> 
+            por un monto de <b>S/ {abs(st.session_state['presupuesto_total'] - gasto_total_acumulado):,.2f}</b>. 
+            El análisis de distribución muestra un control riguroso de la ejecución en campo dentro del ámbito de Ayacucho-Huamanga.
+        </p>
+
+        <div class="section-title">2. Resumen General por Semanas de Trabajo (Lunes a Sábado)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Semana</th>
+                    <th>Rango (Lunes a Sábado)</th>
+                    <th class="text-right">Mano Obra (S/)</th>
+                    <th class="text-right">Materiales (S/)</th>
+                    <th class="text-right">Total Semanal (S/)</th>
+                    <th class="text-right">Acumulado (S/)</th>
+                    <th class="text-right">Saldo (S/)</th>
+                </tr>
+            </thead>
+            <tbody>
     """
     
-    t_info = Table([[Paragraph(info_texto, header_block_style)]], colWidths=[550])
-    t_info.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f1f5f9')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-    ]))
-    story.append(t_info)
-    story.append(Spacer(1, 15))
-    
-    # Análisis Financiero y de Gráficos
-    story.append(Paragraph("1. Análisis Financiero y Resumen Global", section_title))
-    saldo_actual = presupuesto - gasto_acum
-    estado_fin = "SALDO A FAVOR" if saldo_actual >= 0 else "SOBREGIRO"
-    
-    analisis_texto = f"""
-    El presente informe detalla el estado económico y operativo de la partida <b>{partida_nombre}</b>. 
-    Hasta la fecha de corte, se ha asignado un presupuesto total de <b>S/ {presupuesto:,.2f}</b>, registrando un gasto acumulado de <b>S/ {gasto_acum:,.2f}</b>. 
-    Esto representa un estado financiero de <b>{estado_fin}</b> por un monto de <b>S/ {abs(saldo_actual):,.2f}</b>. 
-    Las curvas de tendencia y la distribución porcentual indican un control adecuado de los insumos y jornales dentro de los parámetros previstos para la región de Ayacucho.
+    for _, row in df_resumen_final.iterrows():
+        html_reporte += f"""
+                <tr>
+                    <td>{row['Semana']}</td>
+                    <td>{row['Rango (Lunes a Sábado)']}</td>
+                    <td class="text-right">S/ {row['Gasto Mano Obra (S/)']:,.2f}</td>
+                    <td class="text-right">S/ {row['Gasto Materiales (S/)']:,.2f}</td>
+                    <td class="text-right">S/ {row['Gasto Total Semanal (S/)']:,.2f}</td>
+                    <td class="text-right">S/ {row['Gasto Acumulado (S/)']:,.2f}</td>
+                    <td class="text-right">S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td>
+                </tr>
+        """
+        
+    html_reporte += """
+            </tbody>
+        </table>
+
+        <div class="section-title">3. Detalle de Planilla de Mano de Obra por Trabajador</div>
     """
-    story.append(Paragraph(analisis_texto, table_text))
-    story.append(Spacer(1, 10))
     
-    # Tabla Resumen Semanal
-    story.append(Paragraph("2. Resumen General por Semanas de Trabajo", section_title))
-    resumen_data = [["Semana", "Rango (Lunes a Sábado)", "Mano Obra (S/)", "Materiales (S/)", "Total Semanal (S/)", "Acumulado (S/)", "Saldo (S/)"]]
-    for _, row in resumen_df.iterrows():
-        resumen_data.append([
-            str(row["Semana"]),
-            str(row["Rango (Lunes a Sábado)"]),
-            f"S/ {row['Gasto Mano Obra (S/)']:,.2f}",
-            f"S/ {row['Gasto Materiales (S/)']:,.2f}",
-            f"S/ {row['Gasto Total Semanal (S/)']:,.2f}",
-            f"S/ {row['Gasto Acumulado (S/)']:,.2f}",
-            f"S/ {row['Saldo vs Presupuesto (S/)']:,.2f}"
-        ])
-    
-    t_resumen = Table(resumen_data, colWidths=[55, 115, 75, 75, 80, 75, 75])
-    t_resumen.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f172a')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-    ]))
-    story.append(t_resumen)
-    story.append(Spacer(1, 15))
-    
-    # Detalle de Mano de Obra por Trabajador en la Semana
-    story.append(Paragraph(f"3. Detalle de Planilla de Mano de Obra ({semana_str})", section_title))
-    
-    dias_es_map = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
-    
-    for _, pers in trabajadores_db.iterrows():
+    # Asistencia de la semana seleccionada
+    mask_asis_rep = (df_asist_db['fecha_dt'] >= fecha_inicio) & (df_asist_db['fecha_dt'] <= fecha_fin) & (df_asist_db['partida'] == st.session_state['partida_actual']) if not df_asist_db.empty else pd.Series(dtype='bool')
+    df_asist_rep = df_asist_db.loc[mask_asis_rep] if not df_asist_db.empty else pd.DataFrame()
+
+    for _, pers in df_personal_db.iterrows():
         t_nombre = pers['nombre']
         t_esp = pers['especialidad']
         
-        # Filtrar asistencia del trabajador en la semana
-        t_asist = pd.DataFrame()
-        if not asist_df.empty:
-            mask_t = (asist_df['trabajador'] == t_nombre) & (asist_df['fecha_dt'] >= f_ini) & (asist_df['fecha_dt'] <= f_fin) & (asist_df['partida'] == st.session_state['partida_actual'])
-            t_asist = asist_df.loc[mask_t]
-            
-        c_comp = len(t_asist[t_asist['estado'] == 'Día Completo']) if not t_asist.empty else 0
-        c_med = len(t_asist[t_asist['estado'] == 'Medio Día']) if not t_asist.empty else 0
-        c_alm = len(t_asist[t_asist['almuerzo'].str.startswith('No', na=False)]) if not t_asist.empty else 0
+        df_tr_sem = df_asist_rep[df_asist_rep['trabajador'] == t_nombre] if not df_asist_rep.empty else pd.DataFrame()
+        c_comp = len(df_tr_sem[df_tr_sem['estado'] == 'Día Completo']) if not df_tr_sem.empty else 0
+        c_med = len(df_tr_sem[df_tr_sem['estado'] == 'Medio Día']) if not df_tr_sem.empty else 0
+        c_alm = len(df_tr_sem[df_tr_sem['almuerzo'].str.startswith('No', na=False)]) if not df_tr_sem.empty else 0
         
         jornal_v = st.session_state.get(f"jornal_{t_nombre}", 80.0)
         alm_costo_v = st.session_state.get(f"alm_costo_{t_nombre}", 7.0)
+        total_trab = (c_comp * jornal_v) + (c_med * (jornal_v / 2.0)) + (c_alm * alm_costo_v)
         
-        p_comp = c_comp * jornal_v
-        p_med = c_med * (jornal_v / 2.0)
-        p_alm = c_alm * alm_costo_v
-        total_trab = p_comp + p_med + p_alm
+        html_reporte += f"""
+        <p style="margin: 8px 0 3px 0; font-size: 10pt;"><b>Trabajador:</b> {t_nombre} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Especialidad:</b> {t_esp} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total a Pagar: S/ {total_trab:,.2f}</b></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Día</th>
+                    <th>Estado Asistencia</th>
+                    <th>Almuerzo Afuera</th>
+                    <th>Actividad / Observación</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
         
-        story.append(Paragraph(f"<b>Trabajador:</b> {t_nombre} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Especialidad:</b> {t_esp} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Total a Pagar: S/ {total_trab:,.2f}</b>", ParagraphStyle('TrabHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#1e293b'))))
-        
-        det_data = [["Fecha", "Día", "Estado Asistencia", "Almuerzo Afuera", "Actividad / Observación"]]
-        if not t_asist.empty:
-            for _, r_as in t_asist.iterrows():
+        if not df_tr_sem.empty:
+            for _, r_as in df_tr_sem.iterrows():
                 dt_f = date.fromisoformat(str(r_as['fecha']))
-                d_nombre = dias_es_map[dt_f.weekday()]
-                det_data.append([
-                    dt_f.strftime('%d/%m/%Y'),
-                    d_nombre,
-                    str(r_as['estado']),
-                    str(r_as['almuerzo']),
-                    str(r_as['actividad']) if r_as['actividad'] else 'Sin observaciones'
-                ])
+                d_nombre = dias_es_map_rep[dt_f.weekday()]
+                html_reporte += f"""
+                <tr>
+                    <td>{dt_f.strftime('%d/%m/%Y')}</td>
+                    <td>{d_nombre}</td>
+                    <td>{r_as['estado']}</td>
+                    <td>{r_as['almuerzo']}</td>
+                    <td>{r_as['actividad'] if r_as['actividad'] else 'Sin observaciones'}</td>
+                </tr>
+                """
         else:
-            det_data.append(["Sin registros de asistencia en esta semana.", "", "", "", ""])
-            
-        t_det = Table(det_data, colWidths=[65, 65, 100, 110, 200])
-        t_det.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#334155')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,-1), 8),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ]))
-        story.append(t_det)
-        story.append(Spacer(1, 8))
+            html_reporte += """
+                <tr>
+                    <td colspan="5" class="text-center"><i>No registra asistencia en esta semana.</i></td>
+                </tr>
+            """
+        html_reporte += """
+            </tbody>
+        </table>
+        """
 
-    story.append(Spacer(1, 10))
-
-    # Control de Materiales en la Semana
-    story.append(Paragraph(f"4. Control de Materiales e Insumos ({semana_str})", section_title))
+    html_reporte += f"""
+        <div class="section-title">4. Control de Materiales e Insumos ({semana_seleccionada})</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Insumo / Material</th>
+                    <th class="text-center">UND</th>
+                    <th class="text-right">Cantidad</th>
+                    <th class="text-right">P. Unitario (S/)</th>
+                    <th class="text-right">Parcial (S/)</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
     
-    mat_data = [["Fecha", "Insumo / Material", "UND", "Cantidad", "P. Unitario (S/)", "Parcial (S/)"]]
-    gasto_mat_pdf = 0.0
-    
-    if not mat_df.empty:
-        mask_m = (mat_df['fecha_dt'] >= f_ini) & (mat_df['fecha_dt'] <= f_fin) & (mat_df['partida'] == st.session_state['partida_actual'])
-        mat_sem_df = mat_df.loc[mask_m]
-        for _, r_m in mat_sem_df.iterrows():
+    gasto_mat_rep = 0.0
+    if not df_mat_db.empty:
+        mask_m_rep = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
+        df_mat_rep = df_mat_db.loc[mask_m_rep]
+        for _, r_m in df_mat_rep.iterrows():
             dt_m = date.fromisoformat(str(r_m['fecha']))
-            d_m_nom = dias_es_map[dt_m.weekday()]
+            d_m_nom = dias_es_map_rep[dt_m.weekday()]
             cant_m = float(r_m['cantidad'])
             prec_m = float(r_m['precio'])
             parc_m = cant_m * prec_m
-            gasto_mat_pdf += parc_m
+            gasto_mat_rep += parc_m
             
-            mat_data.append([
-                f"{dt_m.strftime('%d/%m/%Y')} ({d_m_nom})",
-                str(r_m['insumo']),
-                str(r_m['und']),
-                f"{cant_m:,.2f}",
-                f"S/ {prec_m:,.2f}",
-                f"S/ {parc_m:,.2f}"
-            ])
+            html_reporte += f"""
+                <tr>
+                    <td>{dt_m.strftime('%d/%m/%Y')} ({d_m_nom})</td>
+                    <td>{r_m['insumo']}</td>
+                    <td class="text-center">{r_m['und']}</td>
+                    <td class="text-right">{cant_m:,.2f}</td>
+                    <td class="text-right">S/ {prec_m:,.2f}</td>
+                    <td class="text-right">S/ {parc_m:,.2f}</td>
+                </tr>
+            """
             
-    if len(mat_data) == 1:
-        mat_data.append(["No se registraron materiales en esta semana.", "", "", "", "", ""])
-
-    t_mat = Table(mat_data, colWidths=[110, 160, 50, 70, 80, 80])
-    t_mat.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0284c7')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('ALIGN', (3,0), (-1,-1), 'RIGHT'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-    ]))
-    story.append(t_mat)
-    story.append(Spacer(1, 10))
-    story.append(Paragraph(f"<b>TOTAL MATERIALES SEMANA: S/ {gasto_mat_pdf:,.2f}</b>", ParagraphStyle('TotMat', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#0f172a'), alignment=2)))
-
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
-
-# Botón de descarga en PDF
-pdf_buffer = generar_pdf_obra(
-    partida_nombre=st.session_state['partida_actual'],
-    semana_str=semana_seleccionada,
-    f_ini=fecha_inicio,
-    f_fin=fecha_fin,
-    presupuesto=st.session_state['presupuesto_total'],
-    gasto_acum=gasto_total_acumulado,
-    trabajadores_db=df_personal_db,
-    asist_df=df_asist_db,
-    mat_df=df_mat_db,
-    resumen_df=df_resumen_final
-)
-
-st.download_button(
-    label="📥 Descargar Informe Técnico en PDF (Membrete Obra)",
-    data=pdf_buffer,
-    file_name=f"Informe_Obra_{st.session_state['partida_actual'].replace(' ', '_')}_{fecha_inicio.strftime('%d%m%Y')}.pdf",
-    mime="application/pdf",
-    use_container_width=True
-)
+    if gasto_mat_rep == 0.0:
+        html_reporte += """
+                <tr>
+                    <td colspan="6" class="text-center"><i>No se registraron materiales en esta semana.</i></td>
+                </tr>
+        """
+        
+    html_reporte += f"""
+            </tbody>
+        </table>
+        <p class="text-right" style="font-size: 11pt; font-weight: bold; margin-top: 5px;">TOTAL MATERIALES SEMANA: S/ {gasto_mat_rep:,.2f}</p>
+        
+        <br><br>
+        <div style="text-align: center; font-size: 9pt; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 10px;">
+            Reporte generado automáticamente por la plataforma Nexus Obra &bull; Ayacucho, Perú
+        </div>
+        
+        <script>
+            window.print();
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Mostrar el reporte en una ventana emergente / iframe interactivo para impresión directa
+    st.components.v1.html(html_reporte, height=800, scrolling=True)
