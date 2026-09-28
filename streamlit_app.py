@@ -630,7 +630,7 @@ with tab_planilla:
             
             col_w1, col_w2, col_w3 = st.columns(3)
             with col_w1:
-                jornal_dia = st.number_input(f"Jornal Diario (S/)", value=80.0, step=10.0, key=f"jornal_{trabajador}")
+                jornal_dia = st.number_input(f"Jornal Diario (S/)", value=120.0, step=10.0, key=f"jornal_{trabajador}")
                 costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=7.0, step=1.0, key=f"alm_costo_{trabajador}")
             with col_w2:
                 comentario_nota = st.text_input(f"Cuadro Comentario (Ej. Adelanto / Arreglado)", value="", key=f"comentario_{trabajador}")
