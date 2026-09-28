@@ -812,10 +812,10 @@ st.write("---")
 
 # ==========================================
 # 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS EN FILA HORIZONTAL Y DISEÑO COMPACTO SIN HUECOS)
+# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS EN FILA HORIZONTAL Y DISEÑO FLUIDO SIN HUECOS)
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos lado a lado con textos perfectamente legibles, planillas detalladas y resumen general optimizado sin espacios en blanco. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, gráficos lado a lado optimizados, planillas detalladas y resumen general. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -844,7 +844,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
     fig_dona_print.update_layout(
         title=dict(text="Distribución de Costos", font=dict(color="#0f172a", size=11)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=20, b=5, l=5, r=5),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=5, r=5),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8)),
         width=340, height=210
     )
@@ -860,7 +860,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
     fig_linea_print.update_layout(
         title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=11)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=20, b=5, l=50, r=5),
+        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=25, b=5, l=50, r=5),
         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(color="#0f172a", size=8)),
         font=dict(color="#0f172a"),
         yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0"),
