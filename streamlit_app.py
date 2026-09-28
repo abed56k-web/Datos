@@ -242,7 +242,7 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
         with col_b2:
             st.session_state['presupuesto_mo'] = st.number_input("Presupuesto Mano de Obra (S/)", value=st.session_state['presupuesto_mo'], step=500.0)
         st.session_state['presupuesto_total'] = st.session_state['presupuesto_mat'] + st.session_state['presupuesto_mo']
-        st.markdown(f"### 💡 Presupuesto Total Calculated: <span style='color:#38bdf8;'>S/ {st.session_state['presupuesto_total']:,.2f}</span>", unsafe_allow_html=True)
+        st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {st.session_state['presupuesto_total']:,.2f}</span>", unsafe_allow_html=True)
     else:
         st.session_state['presupuesto_total'] = st.number_input("Presupuesto Total Directo (S/)", value=st.session_state['presupuesto_total'], step=1000.0)
 
@@ -590,23 +590,60 @@ with tab_materiales:
 st.write("---")
 
 # ==========================================
-# 9. TABLA RESUMEN SEMANAL DINÁMICA (CON FECHAS REALES)
+# 9. TABLA RESUMEN SEMANAL DIVIDIDA POR LAS 4 SEMANAS DEL MES
 # ==========================================
-st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Dinámico)</h2>", unsafe_allow_html=True)
-st.write(f"Resumen basado en el rango de fechas actual: **{fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}**")
+st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Desglose por Semanas del Mes)</h2>", unsafe_allow_html=True)
+st.write(f"Mostrando el desglose automático en semanas para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
 
-df_resumen = pd.DataFrame({
-    "Semana / Rango": [f"{fecha_inicio.strftime('%d/%m')} al {fecha_fin.strftime('%d/%m/%Y')}"],
-    "Gasto Mano Obra (S/)": [gasto_semana_mo],
-    "Gasto Materiales (S/)": [gasto_semana_mat]
-})
-df_resumen["Gasto Total Semanal (S/)"] = df_resumen["Gasto Mano Obra (S/)"] + df_resumen["Gasto Materiales (S/)"]
-df_resumen["Gasto Acumulado (S/)"] = df_resumen["Gasto Total Semanal (S/)"].cumsum()
-df_resumen["Saldo vs Presupuesto (S/)"] = st.session_state['presupuesto_total'] - df_resumen["Gasto Acumulado (S/)"]
+mes_cal_resumen = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
+datos_resumen_semanas = []
+gasto_acum_temp = 0.0
 
-st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+for i, semana_dias in enumerate(mes_cal_resumen):
+    valid_days = [d for d in semana_dias if d != 0]
+    if not valid_days: continue
+    inicio_sem = date(st.session_state['cal_ano'], st.session_state['cal_mes'], min(valid_days))
+    fin_sem = date(st.session_state['cal_ano'], st.session_state['cal_mes'], max(valid_days))
 
-gasto_total_acumulado = df_resumen["Gasto Acumulado (S/)"].iloc[-1]
+    # Calcular Mano de Obra para esta semana específica
+    mo_sem = 0.0
+    if not df_asist_db.empty:
+        mask_w = (df_asist_db['fecha_dt'] >= inicio_sem) & (df_asist_db['fecha_dt'] <= fin_sem) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+        df_w_asist = df_asist_db.loc[mask_w]
+        for trab in trabajadores_registrados:
+            df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
+            c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
+            c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
+            c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
+            jornal_def = 80.0
+            alm_def = 7.0
+            mo_sem += (c_comp * jornal_def) + (c_med * (jornal_def / 2.0)) + (c_alm * alm_def)
+
+    # Calcular Materiales para esta semana específica
+    mat_sem = 0.0
+    if not df_mat_db.empty:
+        mask_m = (df_mat_db['fecha_dt'] >= inicio_sem) & (df_mat_db['fecha_dt'] <= fin_sem) & (df_mat_db['partida'] == st.session_state['partida_actual'])
+        df_w_mat = df_mat_db.loc[mask_m]
+        mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
+
+    total_sem = mo_sem + mat_sem
+    gasto_acum_temp += total_sem
+    saldo_s = st.session_state['presupuesto_total'] - gasto_acum_temp
+
+    datos_resumen_semanas.append({
+        "Semana": f"Semana {i+1}",
+        "Rango de Fechas": f"{inicio_sem.strftime('%d/%m')} al {fin_sem.strftime('%d/%m/%Y')}",
+        "Gasto Mano Obra (S/)": mo_sem,
+        "Gasto Materiales (S/)": mat_sem,
+        "Gasto Total Semanal (S/)": total_sem,
+        "Gasto Acumulado (S/)": gasto_acum_temp,
+        "Saldo vs Presupuesto (S/)": saldo_s
+    })
+
+df_resumen_final = pd.DataFrame(datos_resumen_semanas)
+st.dataframe(df_resumen_final, use_container_width=True, hide_index=True)
+
+gasto_total_acumulado = gasto_acum_temp
 saldo_final = st.session_state['presupuesto_total'] - gasto_total_acumulado
 
 col_res1, col_res2, col_res3 = st.columns(3)
