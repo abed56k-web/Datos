@@ -300,8 +300,7 @@ with col_form:
             mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
             
             tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "caja (Cajas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
-            und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad...": else st.text_input("Especifique su unidad:")
-            
+            und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
             col_m1, col_m2 = st.columns(2)
             with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
             with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
