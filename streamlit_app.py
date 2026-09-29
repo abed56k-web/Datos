@@ -31,7 +31,7 @@ c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT)')
 c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, jornal REAL DEFAULT 120.0, almuerzo_costo REAL DEFAULT 7.0, UNIQUE(partida, nombre))')
-c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL)')
+c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL, descuento REAL DEFAULT 0.0)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
 conn.commit()
@@ -45,6 +45,12 @@ except sqlite3.OperationalError:
 
 try:
     c.execute('ALTER TABLE materiales ADD COLUMN und TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+
+try:
+    c.execute('ALTER TABLE materiales ADD COLUMN descuento REAL DEFAULT 0.0')
     conn.commit()
 except sqlite3.OperationalError:
     pass
@@ -294,10 +300,15 @@ if not df_mat_db.empty:
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
     df_mat_db['cantidad'] = pd.to_numeric(df_mat_db['cantidad'], errors='coerce').fillna(0.0)
     df_mat_db['precio'] = pd.to_numeric(df_mat_db['precio'], errors='coerce').fillna(0.0)
+    if 'descuento' in df_mat_db.columns:
+        df_mat_db['descuento'] = pd.to_numeric(df_mat_db['descuento'], errors='coerce').fillna(0.0)
+    else:
+        df_mat_db['descuento'] = 0.0
 else:
     df_mat_db['fecha_dt'] = pd.Series(dtype='object')
     df_mat_db['cantidad'] = pd.Series(dtype='float64')
     df_mat_db['precio'] = pd.Series(dtype='float64')
+    df_mat_db['descuento'] = pd.Series(dtype='float64')
 
 df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_asist_db.empty:
@@ -346,7 +357,9 @@ while start_current_week_res <= last_day_month:
     if not df_mat_db.empty:
         mask_m = (df_mat_db['fecha_dt'] >= start_current_week_res) & (df_mat_db['fecha_dt'] <= end_current_week_res) & (df_mat_db['partida'] == st.session_state['partida_actual'])
         df_w_mat = df_mat_db.loc[mask_m]
-        mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
+        # Aplicamos el descuento matemático a los resúmenes semanales
+        df_w_mat['parcial_calc'] = df_w_mat['cantidad'] * df_w_mat['precio'] * (1 - (df_w_mat['descuento'] / 100.0))
+        mat_sem = df_w_mat['parcial_calc'].sum()
 
     total_sem = round(mo_sem + mat_sem, 2)
     gasto_acum_temp = round(gasto_acum_temp + total_sem, 2)
@@ -424,10 +437,14 @@ with tab_mat:
         tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "caja (Cajas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
         und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
         
-        col_m1, col_m2 = st.columns(2)
+        col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
         with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
-        st.info(f"Total: S/ {cant * pre:.2f}")
+        with col_m3: desc = st.number_input("Descuento (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0)
+        
+        # Calculamos el total previsualizado restando el %
+        calc_total_desc = cant * pre * (1 - (desc / 100.0))
+        st.info(f"Total a pagar (con desc.): S/ {calc_total_desc:.2f}")
         
         col_mb1, col_mb2 = st.columns(2)
         with col_mb1:
@@ -437,8 +454,8 @@ with tab_mat:
 
         if btn_guardar_mat:
             if mat_nom and und_final:
-                c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
-                          (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
+                c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio, descuento) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                          (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre, desc))
                 conn.commit()
                 st.success("Material guardado correctamente.")
                 st.rerun()
@@ -451,15 +468,21 @@ with tab_mat:
             st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
             st.rerun()
             
-    # --- TABLA EDITABLE DE MATERIALES EXPANSIVA (Canto a canto) ---
+    # --- TABLA EDITABLE DE MATERIALES EXPANSIVA CON DESCUENTO ---
     st.write("---")
     st.write("📋 **Editar Base de Materiales**")
-    df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
     
+    # Intentamos traer la columna descuento (si es una BD muy vieja y falló el ALTER, agregamos el default)
+    try:
+        df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio, descuento FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+    except:
+        df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+        df_mat_actual['descuento'] = 0.0
+        
     if not df_mat_actual.empty:
         df_mat_actual['fecha'] = pd.to_datetime(df_mat_actual['fecha']).dt.date
     else:
-        df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio"])
+        df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio", "descuento"])
         
     df_mat_editado = st.data_editor(
         df_mat_actual, 
@@ -472,7 +495,8 @@ with tab_mat:
             "insumo": st.column_config.TextColumn("Insumo / Material"),
             "und": st.column_config.TextColumn("UND"),
             "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
-            "precio": st.column_config.NumberColumn("Precio (S/)", format="%.2f")
+            "precio": st.column_config.NumberColumn("Precio Unit.", format="%.2f"),
+            "descuento": st.column_config.NumberColumn("Desc. (%)", format="%.2f")
         }
     )
     
@@ -485,8 +509,9 @@ with tab_mat:
                     c_val = float(row["cantidad"]) if pd.notna(row["cantidad"]) else 1.0
                     p_val = float(row["precio"]) if pd.notna(row["precio"]) else 0.0
                     u_val = str(row["und"]).strip() if pd.notna(row["und"]) else "und"
-                    c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
-                              (st.session_state['partida_actual'], f_val, str(row["insumo"]).strip(), u_val, c_val, p_val))
+                    d_val = float(row["descuento"]) if "descuento" in row and pd.notna(row["descuento"]) else 0.0
+                    c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio, descuento) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], f_val, str(row["insumo"]).strip(), u_val, c_val, p_val, d_val))
                 except:
                     pass
         conn.commit()
@@ -816,7 +841,7 @@ with tab_materiales:
         mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
         df_mat_filtrado = df_mat_db.loc[mask].copy()
     else:
-        df_mat_filtrado = pd.DataFrame(columns=['partida', 'fecha', 'insumo', 'und', 'cantidad', 'precio', 'fecha_dt'])
+        df_mat_filtrado = pd.DataFrame(columns=['partida', 'fecha', 'insumo', 'und', 'cantidad', 'precio', 'descuento', 'fecha_dt'])
 
     if not df_mat_filtrado.empty:
         dias_es_map = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -828,24 +853,27 @@ with tab_materiales:
                 return str(f_str)
 
         df_mat_filtrado['Fecha_Formateada'] = df_mat_filtrado['fecha'].apply(formatear_fecha_mat)
-        df_mat_filtrado['Parcial'] = df_mat_filtrado['cantidad'] * df_mat_filtrado['precio']
+        # Aplicar el descuento al Parcial visual
+        df_mat_filtrado['Parcial'] = df_mat_filtrado['cantidad'] * df_mat_filtrado['precio'] * (1 - (df_mat_filtrado['descuento'] / 100.0))
         
-        df_mats_show = df_mat_filtrado[['Fecha_Formateada', 'insumo', 'und', 'cantidad', 'precio', 'Parcial']].rename(columns={
+        df_mats_show = df_mat_filtrado[['Fecha_Formateada', 'insumo', 'und', 'cantidad', 'precio', 'descuento', 'Parcial']].rename(columns={
             'Fecha_Formateada': 'Fecha',
             'insumo': 'Insumo / Material',
             'und': 'UND',
             'cantidad': 'Cantidad',
-            'precio': 'Precio Unit. (S/)',
+            'precio': 'Precio Unit.',
+            'descuento': 'Desc. (%)',
             'Parcial': 'Parcial (S/)'
         })
         # Damos formato a 2 decimales para la tabla visual (y quitamos las "S/" sobrantes como pediste)
         df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
-        df_mats_show['Precio Unit. (S/)'] = df_mats_show['Precio Unit. (S/)'].apply(lambda x: f"{x:,.2f}")
+        df_mats_show['Precio Unit.'] = df_mats_show['Precio Unit.'].apply(lambda x: f"{x:,.2f}")
+        df_mats_show['Desc. (%)'] = df_mats_show['Desc. (%)'].apply(lambda x: f"{x:.0f}%" if x > 0 else "0%")
         df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
     else:
-        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)', 'Parcial (S/)'])
+        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit.', 'Desc. (%)', 'Parcial (S/)'])
         
-    # --- TABLA DE LECTURA DE SEMANA (SIN S/) ---
+    # --- TABLA DE LECTURA DE SEMANA (SIN S/ EN MEDIO Y CON DESCUENTO) ---
     st.dataframe(
         df_mats_show,
         use_container_width=True,
@@ -855,7 +883,8 @@ with tab_materiales:
             "Insumo / Material": st.column_config.TextColumn("Insumo / Material"),
             "UND": st.column_config.TextColumn("UND"),
             "Cantidad": st.column_config.TextColumn("Cantidad"),
-            "Precio Unit. (S/)": st.column_config.TextColumn("Precio Unit. (S/)"),
+            "Precio Unit.": st.column_config.TextColumn("Precio Unit."),
+            "Desc. (%)": st.column_config.TextColumn("Desc. (%)"),
             "Parcial (S/)": st.column_config.TextColumn("Parcial (S/)")
         }
     )
@@ -1160,7 +1189,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             """
         html_reporte += "</div>"
 
-    # 5. Control de Materiales e Insumos
+    # 5. Control de Materiales e Insumos (ACTUALIZADO CON DESCUENTO)
     html_reporte += f"""
         <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
@@ -1171,6 +1200,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <th class="text-center">UND</th>
                     <th class="text-right">Cantidad</th>
                     <th class="text-right">P. Unitario (S/)</th>
+                    <th class="text-right">Desc. (%)</th>
                     <th class="text-right">Parcial (S/)</th>
                 </tr>
             </thead>
@@ -1186,7 +1216,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             d_m_nom = dias_es_map_rep[dt_m.weekday()]
             cant_m = float(r_m['cantidad'])
             prec_m = float(r_m['precio'])
-            parc_m = cant_m * prec_m
+            desc_m = float(r_m['descuento']) if 'descuento' in r_m and pd.notna(r_m['descuento']) else 0.0
+            
+            parc_m = cant_m * prec_m * (1 - (desc_m / 100.0))
             gasto_mat_rep += parc_m
             
             html_reporte += f"""
@@ -1196,6 +1228,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <td class="text-center">{r_m['und']}</td>
                     <td class="text-right">{cant_m:,.2f}</td>
                     <td class="text-right">S/ {prec_m:,.2f}</td>
+                    <td class="text-right">{desc_m:.0f}%</td>
                     <td class="text-right">S/ {parc_m:,.2f}</td>
                 </tr>
             """
@@ -1203,7 +1236,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     if gasto_mat_rep == 0.0:
         html_reporte += """
                 <tr>
-                    <td colspan="6" class="text-center"><i>No se registraron materiales en este mes.</i></td>
+                    <td colspan="7" class="text-center"><i>No se registraron materiales en este mes.</i></td>
                 </tr>
         """
         
