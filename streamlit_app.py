@@ -216,7 +216,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD
+# Recuperar o inicializar presupuesto en la BD (Default total: 10000.00)
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
@@ -327,6 +327,45 @@ with col_form:
                 conn.commit()
                 st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
                 st.rerun()
+                
+        # --- TABLA EDITABLE DE MATERIALES ---
+        st.write("---")
+        st.write("📋 **Editar Base de Materiales**")
+        df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+        
+        if df_mat_actual.empty:
+            df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio"])
+            
+        df_mat_editado = st.data_editor(
+            df_mat_actual, 
+            num_rows="dynamic", 
+            use_container_width=True, 
+            key="editor_tabla_materiales",
+            column_config={
+                "fecha": st.column_config.TextColumn("Fecha (AAAA-MM-DD)"),
+                "insumo": st.column_config.TextColumn("Insumo / Material"),
+                "und": st.column_config.TextColumn("UND"),
+                "cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f"),
+                "precio": st.column_config.NumberColumn("Precio Unit. (S/)", format="%.2f")
+            }
+        )
+        
+        if st.button("💾 Guardar Cambios en Materiales", use_container_width=True):
+            c.execute("DELETE FROM materiales WHERE partida=?", (st.session_state['partida_actual'],))
+            for _, row in df_mat_editado.iterrows():
+                if pd.notna(row["insumo"]) and str(row["insumo"]).strip() != "":
+                    try:
+                        f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
+                        c_val = float(row["cantidad"]) if pd.notna(row["cantidad"]) else 1.0
+                        p_val = float(row["precio"]) if pd.notna(row["precio"]) else 0.0
+                        u_val = str(row["und"]).strip() if pd.notna(row["und"]) else "und"
+                        c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
+                                  (st.session_state['partida_actual'], f_val, str(row["insumo"]).strip(), u_val, c_val, p_val))
+                    except:
+                        pass
+            conn.commit()
+            st.success("¡Lista de materiales actualizada con éxito!")
+            st.rerun()
                     
     with tab_pers:
         st.write("👤 **Gestión de Personal**")
