@@ -258,13 +258,19 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
         col_b1, col_b2 = st.columns(2)
         with col_b1:
-            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=float(presupuesto_mat_db), step=500.0)
+            try: val_mat = float(presupuesto_mat_db)
+            except (ValueError, TypeError): val_mat = 6000.0
+            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0)
         with col_b2:
-            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=float(presupuesto_mo_db), step=500.0)
+            try: val_mo = float(presupuesto_mo_db)
+            except (ValueError, TypeError): val_mo = 4000.0
+            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0)
         nuevo_total = nuevo_mat + nuevo_mo
         st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
     else:
-        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=float(presupuesto_total_db), step=1000.0)
+        try: val_tot = float(presupuesto_total_db)
+        except (ValueError, TypeError): val_tot = 10000.0
+        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0)
         nuevo_mat = presupuesto_mat_db
         nuevo_mo = presupuesto_mo_db
 
