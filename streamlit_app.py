@@ -216,7 +216,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD (Default total: 10000.00)
+# Recuperar o inicializar presupuesto en la BD
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
@@ -265,7 +265,7 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
             try: val_mo = float(presupuesto_mo_db)
             except (ValueError, TypeError): val_mo = 4000.0
             nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0)
-        nuevo_total = nuevo_mat + nuevo_mo
+        nuevo_total = round(nuevo_mat + nuevo_mo, 2)
         st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
     else:
         try: val_tot = float(presupuesto_total_db)
@@ -275,12 +275,12 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
         nuevo_mo = presupuesto_mo_db
 
     if st.button("💾 Guardar Configuración de Presupuesto"):
-        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, nuevo_total, nuevo_mat, nuevo_mo))
+        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
         conn.commit()
         st.success("¡Presupuesto actualizado correctamente!")
         st.rerun()
 
-presupuesto_actual_total = nuevo_total
+presupuesto_actual_total = round(nuevo_total, 2)
 
 st.write("---")
 
@@ -298,7 +298,7 @@ with col_form:
             f_mat = st.date_input("Fecha", date.today(), key="f1")
             mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
             
-            tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
+            tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "caja (Cajas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
             und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
             
             col_m1, col_m2 = st.columns(2)
@@ -310,14 +310,14 @@ with col_form:
             with col_mb1:
                 btn_guardar_mat = st.form_submit_button("Guardar Material", use_container_width=True)
             with col_mb2:
-                btn_limpiar_mat = st.form_submit_button("🧹 Limpiar Material de Día", use_container_width=True)
+                btn_limpiar_mat = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
 
             if btn_guardar_mat:
                 if mat_nom and und_final:
                     c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
                               (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
                     conn.commit()
-                    st.success("Material guardado correctamente en la BD.")
+                    st.success("Material guardado correctamente.")
                     st.rerun()
                 else:
                     st.warning("Completa el nombre y la unidad del material.")
@@ -328,25 +328,28 @@ with col_form:
                 st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
                 st.rerun()
                 
-        # --- TABLA EDITABLE DE MATERIALES ---
+        # --- TABLA EDITABLE DE MATERIALES (MEJORADA) ---
         st.write("---")
         st.write("📋 **Editar Base de Materiales**")
         df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
         
-        if df_mat_actual.empty:
+        if not df_mat_actual.empty:
+            df_mat_actual['fecha'] = pd.to_datetime(df_mat_actual['fecha']).dt.date
+        else:
             df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio"])
             
         df_mat_editado = st.data_editor(
             df_mat_actual, 
             num_rows="dynamic", 
-            use_container_width=True, 
+            use_container_width=True,
+            hide_index=True,
             key="editor_tabla_materiales",
             column_config={
-                "fecha": st.column_config.TextColumn("Fecha (AAAA-MM-DD)"),
-                "insumo": st.column_config.TextColumn("Insumo / Material"),
-                "und": st.column_config.TextColumn("UND"),
-                "cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f"),
-                "precio": st.column_config.NumberColumn("Precio Unit. (S/)", format="%.2f")
+                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="small"),
+                "insumo": st.column_config.TextColumn("Insumo / Material", width="large"),
+                "und": st.column_config.TextColumn("UND", width="small"),
+                "cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f", width="small"),
+                "precio": st.column_config.NumberColumn("P. Unit (S/)", format="%.2f", width="small")
             }
         )
         
@@ -397,7 +400,7 @@ with col_form:
         if df_pers_actual.empty:
             df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad", "jornal", "almuerzo_costo"])
             
-        df_pers_editado = st.data_editor(df_pers_actual, num_rows="dynamic", use_container_width=True, key="editor_tabla_personal")
+        df_pers_editado = st.data_editor(df_pers_actual, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_tabla_personal")
         
         if st.button("💾 Guardar Cambios en Personal", use_container_width=True):
             c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
@@ -433,14 +436,14 @@ with col_form:
             with col_fb1:
                 btn_guardar = st.form_submit_button("Guardar Asistencia", use_container_width=True)
             with col_fb2:
-                btn_limpiar_dia = st.form_submit_button("🧹 Limpiar Este Día", use_container_width=True)
+                btn_limpiar_dia = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
 
             if btn_guardar:
                 if trabajador:
                     c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
                               (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
                     conn.commit()
-                    st.success("¡Asistencia guardada (actualizada para esta fecha)!")
+                    st.success("¡Asistencia guardada!")
                     st.rerun()
                 else:
                     st.warning("Selecciona un trabajador.")
@@ -449,8 +452,52 @@ with col_form:
                 if trabajador:
                     c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=? AND fecha=?", (st.session_state['partida_actual'], trabajador, str(f_mo)))
                     conn.commit()
-                    st.success(f"¡Asistencia del {f_mo} borrada para {trabajador}!")
+                    st.success(f"¡Asistencia del {f_mo} borrada!")
                     st.rerun()
+                    
+        # --- NUEVA TABLA EDITABLE DE ASISTENCIA ---
+        st.write("---")
+        st.write("📋 **Editar Registro de Asistencia**")
+        df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+        
+        if not df_asist_edit_db.empty:
+            df_asist_edit_db['fecha'] = pd.to_datetime(df_asist_edit_db['fecha']).dt.date
+        else:
+            df_asist_edit_db = pd.DataFrame(columns=["fecha", "trabajador", "estado", "almuerzo", "actividad"])
+
+        lista_opciones_trabajadores = lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]
+        
+        df_asist_editado = st.data_editor(
+            df_asist_edit_db,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            key="editor_tabla_asistencia",
+            column_config={
+                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="medium"),
+                "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores, width="medium"),
+                "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"], width="small"),
+                "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], width="medium"),
+                "actividad": st.column_config.TextColumn("Nota", width="large")
+            }
+        )
+
+        if st.button("💾 Guardar Cambios en Asistencia", use_container_width=True):
+            c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
+            for _, row in df_asist_editado.iterrows():
+                if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
+                    try:
+                        f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
+                        est_val = str(row["estado"]) if pd.notna(row["estado"]) else "Día Completo"
+                        alm_val = str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Sí (Almuerza en obra / con comida de obra - S/ 0 extra)"
+                        act_val = str(row["actividad"]) if pd.notna(row["actividad"]) else ""
+                        c.execute("INSERT INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
+                                  (st.session_state['partida_actual'], str(row["trabajador"]), f_val, est_val, alm_val, act_val))
+                    except:
+                        pass
+            conn.commit()
+            st.success("¡Registro de asistencia actualizado con éxito!")
+            st.rerun()
 
 # Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
@@ -515,15 +562,15 @@ while start_current_week_res <= last_day_month:
         df_w_mat = df_mat_db.loc[mask_m]
         mat_sem = (df_w_mat['cantidad'] * df_w_mat['precio']).sum()
 
-    total_sem = mo_sem + mat_sem
-    gasto_acum_temp += total_sem
-    saldo_s = presupuesto_actual_total - gasto_acum_temp
+    total_sem = round(mo_sem + mat_sem, 2)
+    gasto_acum_temp = round(gasto_acum_temp + total_sem, 2)
+    saldo_s = round(presupuesto_actual_total - gasto_acum_temp, 2)
 
     datos_resumen_semanas.append({
         "Semana": f"Semana {semana_contador}",
         "Rango (Lunes a Sábado)": f"{start_current_week_res.strftime('%d/%m/%Y')} al {end_current_week_res.strftime('%d/%m/%Y')}",
-        "Gasto Mano Obra (S/)": mo_sem,
-        "Gasto Materiales (S/)": mat_sem,
+        "Gasto Mano Obra (S/)": round(mo_sem, 2),
+        "Gasto Materiales (S/)": round(mat_sem, 2),
         "Gasto Total Semanal (S/)": total_sem,
         "Gasto Acumulado (S/)": gasto_acum_temp,
         "Saldo vs Presupuesto (S/)": saldo_s
@@ -533,9 +580,9 @@ while start_current_week_res <= last_day_month:
     start_current_week_res += timedelta(days=7)
 
 df_resumen_final = pd.DataFrame(datos_resumen_semanas)
-gasto_mo_real_total = df_resumen_final["Gasto Mano Obra (S/)"].sum() if not df_resumen_final.empty else 0.0
-gasto_mat_real_total = df_resumen_final["Gasto Materiales (S/)"].sum() if not df_resumen_final.empty else 0.0
-gasto_total_acumulado = df_resumen_final["Gasto Acumulado (S/)"].iloc[-1] if not df_resumen_final.empty else 0.0
+gasto_mo_real_total = round(df_resumen_final["Gasto Mano Obra (S/)"].sum(), 2) if not df_resumen_final.empty else 0.0
+gasto_mat_real_total = round(df_resumen_final["Gasto Materiales (S/)"].sum(), 2) if not df_resumen_final.empty else 0.0
+gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1], 2) if not df_resumen_final.empty else 0.0
 
 # ==========================================
 # GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD)
@@ -669,7 +716,7 @@ st.write("---")
 # ==========================================
 # 8. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
 # ==========================================
-st.markdown("<h2 style='color: #a855f7 !important;'>🗓️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #a855f7 !important;'>🗓️️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 
 first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
 if st.session_state['cal_mes'] == 12:
@@ -789,34 +836,24 @@ with tab_materiales:
             'precio': 'Precio Unit. (S/)',
             'Parcial': 'Parcial (S/)'
         })
+        # Damos formato a 2 decimales para la tabla visual
+        df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
+        df_mats_show['Precio Unit. (S/)'] = df_mats_show['Precio Unit. (S/)'].apply(lambda x: f"{x:,.2f}")
+        df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
     else:
         df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)', 'Parcial (S/)'])
         
-    df_edit_mat = st.data_editor(
+    st.dataframe(
         df_mats_show,
-        num_rows="dynamic",
         use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Fecha": st.column_config.TextColumn("Fecha", width="medium"),
-            "Insumo / Material": st.column_config.TextColumn("Insumo / Material", width="large"),
-            "UND": st.column_config.TextColumn("UND", width="small"),
-            "Cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f", width="small"),
-            "Precio Unit. (S/)": st.column_config.NumberColumn("Precio Unit. (S/)", format="S/ %.2f", width="small"),
-            "Parcial (S/)": st.column_config.NumberColumn("Parcial (S/)", format="S/ %.2f", width="small", disabled=True)
-        }
+        hide_index=True
     )
 
     gasto_semana_mat = 0.0
-    for _, row in df_edit_mat.iterrows():
-        try:
-            cant_v = float(row["Cantidad"]) if row["Cantidad"] is not None else 0.0
-            prec_v = float(row["Precio Unit. (S/)"]) if row["Precio Unit. (S/)"] is not None else 0.0
-            gasto_semana_mat += cant_v * prec_v
-        except:
-            pass
+    if not df_mat_filtrado.empty:
+        gasto_semana_mat = df_mat_filtrado['Parcial'].sum()
             
-    st.markdown(f"<h3 style='color: #38bdf8; text-align: right;'>Total Materiales Semana: S/ {gasto_semana_mat:.2f}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='color: #38bdf8; text-align: right;'>Total Materiales Semana: S/ {gasto_semana_mat:,.2f}</h3>", unsafe_allow_html=True)
 
 st.write("---")
 
@@ -834,49 +871,52 @@ if not df_resumen_mostrar.empty:
         "Rango (Lunes a Sábado)": "",
         "Gasto Mano Obra (S/)": gasto_mo_real_total,
         "Gasto Materiales (S/)": gasto_mat_real_total,
-        "Gasto Total Semanal (S/)": gasto_mo_real_total + gasto_mat_real_total,
+        "Gasto Total Semanal (S/)": round(gasto_mo_real_total + gasto_mat_real_total, 2),
         "Gasto Acumulado (S/)": "",
         "Saldo vs Presupuesto (S/)": ""
     }
+    
+    # Damos un formato bonito con comas y 2 decimales para leerlo bien
+    for col in ["Gasto Mano Obra (S/)", "Gasto Materiales (S/)", "Gasto Total Semanal (S/)", "Gasto Acumulado (S/)", "Saldo vs Presupuesto (S/)"]:
+        df_resumen_mostrar[col] = df_resumen_mostrar[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
 
 st.dataframe(df_resumen_mostrar, use_container_width=True, hide_index=True)
 # --------------------------------------------------------------------------
 
-saldo_final = presupuesto_actual_total - gasto_total_acumulado
+saldo_final = round(presupuesto_actual_total - gasto_total_acumulado, 2)
 
 col_res1, col_res2, col_res3 = st.columns(3)
 with col_res1:
     st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6;'>
+        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; text-align: center;'>
             <h4 style='margin:0; color:#94a3b8;'>Presupuesto Asignado</h4>
-            <h2 style='margin:0; color:#38bdf8;'>S/ {presupuesto_actual_total:.2f}</h2>
+            <h2 style='margin:0; color:#38bdf8;'>S/ {presupuesto_actual_total:,.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
 with col_res2:
     st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #f59e0b;'>
+        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #f59e0b; text-align: center;'>
             <h4 style='margin:0; color:#94a3b8;'>Gasto Acumulado a la fecha</h4>
-            <h2 style='margin:0; color:#f59e0b;'>S/ {gasto_total_acumulado:.2f}</h2>
+            <h2 style='margin:0; color:#f59e0b;'>S/ {gasto_total_acumulado:,.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
 with col_res3:
     color_saldo = "#10b981" if saldo_final >= 0 else "#ef4444"
     estado_saldo = "Saldo a Favor" if saldo_final >= 0 else "Sobregiro"
     st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid {color_saldo};'>
+        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid {color_saldo}; text-align: center;'>
             <h4 style='margin:0; color:#94a3b8;'>Estado: {estado_saldo}</h4>
-            <h2 style='margin:0; color:{color_saldo};'>S/ {abs(saldo_final):.2f}</h2>
+            <h2 style='margin:0; color:{color_saldo};'>S/ {abs(saldo_final):,.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
 
 st.write("---")
 
 # ==========================================
-# 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF (NATIVO BROWSER)
-# SECUENCIA ESTRICTA: 1 - 4 - 2 - 3 - 5 (GRÁFICOS EN COLUMNA VERTICAL CENTRADA)
+# 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería, ordenado estrictamente en la secuencia **1 - 4 - 2 - 3 - 5**, con el **gráfico circular centrado arriba** y el **gráfico de líneas abajo** completamente visibles. Podrás guardarlo directamente como **PDF** usando tu navegador.")
+st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería. Podrás guardarlo directamente como **PDF** usando tu navegador.")
 
 if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
@@ -897,7 +937,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         idx_s += 1
         curr_w += timedelta(days=7)
 
-    # Gráfico circular optimizado y centrado
+    # Gráfico circular optimizado
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
     colores_print = ['#06b6d4', '#f59e0b', '#10b981']
@@ -911,7 +951,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     )
     fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont=dict(size=9.5, color='white'), insidetextorientation='horizontal')
 
-    # Gráfico de líneas vertical optimizado con eje X horizontal y completo
+    # Gráfico de líneas vertical optimizado
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
@@ -933,7 +973,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
     # ==========================================
-    # ENSAMBLAJE HTML EN SECUENCIA ESTRICTA 1-4-2-3-5 (GRÁFICOS EN COLUMNA VERTICAL CENTRADA)
+    # ENSAMBLAJE HTML
     # ==========================================
     html_reporte = f"""
     <!DOCTYPE html>
@@ -1009,14 +1049,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <tbody>
     """
     
-    for _, row in df_resumen_mostrar.iterrows():
-        # Validamos si los valores están vacíos en la fila TOTAL para no aplicar formato numérico
-        acu_val = row['Gasto Acumulado (S/)']
-        saldo_val = row['Saldo vs Presupuesto (S/)']
-        
-        acu_formateado = "" if acu_val == "" else f"S/ {acu_val:,.2f}"
-        saldo_formateado = "" if saldo_val == "" else f"S/ {saldo_val:,.2f}"
-        
+    for _, row in df_resumen_final.iterrows():
         html_reporte += f"""
                 <tr>
                     <td>{row['Semana']}</td>
@@ -1024,12 +1057,21 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <td class="text-right">S/ {row['Gasto Mano Obra (S/)']:,.2f}</td>
                     <td class="text-right">S/ {row['Gasto Materiales (S/)']:,.2f}</td>
                     <td class="text-right">S/ {row['Gasto Total Semanal (S/)']:,.2f}</td>
-                    <td class="text-right">{acu_formateado}</td>
-                    <td class="text-right">{saldo_formateado}</td>
+                    <td class="text-right">S/ {row['Gasto Acumulado (S/)']:,.2f}</td>
+                    <td class="text-right">S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td>
                 </tr>
         """
         
-    html_reporte += """
+    html_reporte += f"""
+                <tr>
+                    <td><b>TOTAL</b></td>
+                    <td></td>
+                    <td class="text-right"><b>S/ {gasto_mo_real_total:,.2f}</b></td>
+                    <td class="text-right"><b>S/ {gasto_mat_real_total:,.2f}</b></td>
+                    <td class="text-right"><b>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</b></td>
+                    <td></td>
+                    <td></td>
+                </tr>
             </tbody>
         </table>
 
