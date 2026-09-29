@@ -132,7 +132,7 @@ if not st.session_state['autenticado']:
                 st.session_state['mostrar_registro'] = True
                 st.rerun()
                 
-            with st.expander("🛠️️ ¿Se reinició el servidor? Restaura tu Base de Datos aquí"):
+            with st.expander("🛠️ ¿Se reinició el servidor? Restaura tu Base de Datos aquí"):
                 archivo_emergencia = st.file_uploader("Sube tu archivo de respaldo (.db)", type=["db"])
                 if archivo_emergencia is not None:
                     with open("obra_nexus.db", "wb") as f:
@@ -300,7 +300,7 @@ with col_form:
             mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
             
             tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "caja (Cajas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
-            und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
+            und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad...": else st.text_input("Especifique su unidad:")
             
             col_m1, col_m2 = st.columns(2)
             with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
@@ -329,7 +329,7 @@ with col_form:
                 st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
                 st.rerun()
                 
-        # --- TABLA EDITABLE DE MATERIALES OPTIMIZADA PARA ESPACIO ---
+        # --- TABLA EDITABLE DE MATERIALES EXPANSIVA ---
         st.write("---")
         st.write("📋 **Editar Base de Materiales**")
         df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
@@ -339,6 +339,7 @@ with col_form:
         else:
             df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio"])
             
+        # Al NO definir un "width" para las columnas largas, Streamlit las expande automáticamente (canto a canto)
         df_mat_editado = st.data_editor(
             df_mat_actual, 
             num_rows="dynamic", 
@@ -346,11 +347,11 @@ with col_form:
             hide_index=True,
             key="editor_tabla_materiales",
             column_config={
-                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="small"),
-                "insumo": st.column_config.TextColumn("Insumo", width="medium"), # Cortamos nombre de columna y ancho medio
-                "und": st.column_config.TextColumn("Und", width="small"),
-                "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f", width="small"),
-                "precio": st.column_config.NumberColumn("Precio (S/)", format="%.2f", width="small")
+                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+                "insumo": st.column_config.TextColumn("Insumo / Material"),
+                "und": st.column_config.TextColumn("UND"),
+                "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
+                "precio": st.column_config.NumberColumn("Precio (S/)", format="%.2f")
             }
         )
         
@@ -456,7 +457,7 @@ with col_form:
                     st.success(f"¡Asistencia del {f_mo} borrada!")
                     st.rerun()
                     
-        # --- NUEVA TABLA EDITABLE DE ASISTENCIA OPTIMIZADA ---
+        # --- TABLA EDITABLE DE ASISTENCIA EXPANSIVA ---
         st.write("---")
         st.write("📋 **Editar Registro de Asistencia**")
         df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
@@ -475,11 +476,11 @@ with col_form:
             hide_index=True,
             key="editor_tabla_asistencia",
             column_config={
-                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="small"),
-                "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores, width="medium"),
-                "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"], width="small"),
-                "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], width="small"),
-                "actividad": st.column_config.TextColumn("Nota", width="medium")
+                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+                "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores),
+                "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]),
+                "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"]),
+                "actividad": st.column_config.TextColumn("Nota")
             }
         )
 
@@ -837,25 +838,21 @@ with tab_materiales:
             'precio': 'Precio Unit. (S/)',
             'Parcial': 'Parcial (S/)'
         })
-        # Damos formato a 2 decimales para la tabla visual
-        df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
-        df_mats_show['Precio Unit. (S/)'] = df_mats_show['Precio Unit. (S/)'].apply(lambda x: f"{x:,.2f}")
-        df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
     else:
         df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)', 'Parcial (S/)'])
         
-    # --- CAMBIADO A DATAFRAME (SOLO LECTURA) PARA EVITAR CONFUSIONES ---
+    # --- TABLA DE LECTURA (CANTIDADES SIN LA REDUNDANCIA S/) ---
     st.dataframe(
         df_mats_show,
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Fecha": st.column_config.TextColumn("Fecha", width="medium"),
-            "Insumo / Material": st.column_config.TextColumn("Insumo / Material", width="large"),
-            "UND": st.column_config.TextColumn("UND", width="small"),
-            "Cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f", width="small"),
-            "Precio Unit. (S/)": st.column_config.NumberColumn("Precio Unit. (S/)", format="S/ %.2f", width="small"),
-            "Parcial (S/)": st.column_config.NumberColumn("Parcial (S/)", format="S/ %.2f", width="small")
+            "Fecha": st.column_config.TextColumn("Fecha"),
+            "Insumo / Material": st.column_config.TextColumn("Insumo / Material"),
+            "UND": st.column_config.TextColumn("UND"),
+            "Cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f"),
+            "Precio Unit. (S/)": st.column_config.NumberColumn("Precio Unit. (S/)", format="%.2f"),
+            "Parcial (S/)": st.column_config.NumberColumn("Parcial (S/)", format="%.2f")
         }
     )
 
