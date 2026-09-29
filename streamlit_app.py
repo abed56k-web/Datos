@@ -786,12 +786,12 @@ df_resumen_mostrar = df_resumen_final.copy()
 if not df_resumen_mostrar.empty:
     df_resumen_mostrar.loc["Total"] = {
         "Semana": "TOTAL",
-        "Rango (Lunes a Sábado)": "-",
+        "Rango (Lunes a Sábado)": "",
         "Gasto Mano Obra (S/)": gasto_mo_real_total,
         "Gasto Materiales (S/)": gasto_mat_real_total,
         "Gasto Total Semanal (S/)": gasto_mo_real_total + gasto_mat_real_total,
-        "Gasto Acumulado (S/)": gasto_total_acumulado,
-        "Saldo vs Presupuesto (S/)": "-"
+        "Gasto Acumulado (S/)": "",
+        "Saldo vs Presupuesto (S/)": ""
     }
 
 st.dataframe(df_resumen_mostrar, use_container_width=True, hide_index=True)
@@ -964,9 +964,13 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <tbody>
     """
     
-    for _, row in df_resumen_mostrar.iterrows():
-        # Validamos si el saldo es un guion para no aplicarle formato numérico
-        saldo_formateado = "-" if row['Saldo vs Presupuesto (S/)'] == "-" else f"S/ {row['Saldo vs Presupuesto (S/)']:,.2f}"
+   for _, row in df_resumen_mostrar.iterrows():
+        # Validamos si los valores están vacíos en la fila TOTAL para no aplicar formato numérico
+        acu_val = row['Gasto Acumulado (S/)']
+        saldo_val = row['Saldo vs Presupuesto (S/)']
+        
+        acu_formateado = "" if acu_val == "" else f"S/ {acu_val:,.2f}"
+        saldo_formateado = "" if saldo_val == "" else f"S/ {saldo_val:,.2f}"
         
         html_reporte += f"""
                 <tr>
@@ -975,7 +979,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <td class="text-right">S/ {row['Gasto Mano Obra (S/)']:,.2f}</td>
                     <td class="text-right">S/ {row['Gasto Materiales (S/)']:,.2f}</td>
                     <td class="text-right">S/ {row['Gasto Total Semanal (S/)']:,.2f}</td>
-                    <td class="text-right">S/ {row['Gasto Acumulado (S/)']:,.2f}</td>
+                    <td class="text-right">{acu_formateado}</td>
                     <td class="text-right">{saldo_formateado}</td>
                 </tr>
         """
