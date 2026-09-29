@@ -189,7 +189,7 @@ if st.session_state['partida_actual'] is None:
     with col_p1:
         st.markdown("### 📂 Entrar a Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
-        if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
+        if st.button("INGRESAR AL PANEL ➡️️", use_container_width=True):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
             
@@ -281,226 +281,14 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
         st.rerun()
 
 presupuesto_actual_total = round(nuevo_total, 2)
-
 st.write("---")
 
+# ==========================================
+# RECOLECCIÓN DE DATOS Y CÁLCULOS ANTES DE LOS GRÁFICOS
+# ==========================================
 df_personal_db = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
 lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
 
-# --- COLUMNA IZQUIERDA UN POCO MÁS ANCHA PARA QUE LAS TABLAS QUEPAN PERFECTO ---
-col_form, col_graf_circulo, col_graf_linea = st.columns([1.5, 1, 1])
-
-with col_form:
-    st.subheader("📝 Centro de Registro")
-    tab_mat, tab_pers, tab_mo = st.tabs(["📦 Ingresar Materiales", "👤 Registrar Personal", "👷 Registrar Asistencia"])
-    
-    with tab_mat:
-        with st.form("form_materiales"):
-            f_mat = st.date_input("Fecha", date.today(), key="f1")
-            mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
-            
-            tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "caja (Cajas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
-            und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
-            col_m1, col_m2 = st.columns(2)
-            with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
-            with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
-            st.info(f"Total: S/ {cant * pre:.2f}")
-            
-            col_mb1, col_mb2 = st.columns(2)
-            with col_mb1:
-                btn_guardar_mat = st.form_submit_button("Guardar Material", use_container_width=True)
-            with col_mb2:
-                btn_limpiar_mat = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
-
-            if btn_guardar_mat:
-                if mat_nom and und_final:
-                    c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
-                              (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
-                    conn.commit()
-                    st.success("Material guardado correctamente.")
-                    st.rerun()
-                else:
-                    st.warning("Completa el nombre y la unidad del material.")
-
-            if btn_limpiar_mat:
-                c.execute("DELETE FROM materiales WHERE partida=? AND fecha=?", (st.session_state['partida_actual'], str(f_mat)))
-                conn.commit()
-                st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
-                st.rerun()
-                
-        # --- TABLA EDITABLE DE MATERIALES EXPANSIVA ---
-        st.write("---")
-        st.write("📋 **Editar Base de Materiales**")
-        df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
-        
-        if not df_mat_actual.empty:
-            df_mat_actual['fecha'] = pd.to_datetime(df_mat_actual['fecha']).dt.date
-        else:
-            df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio"])
-            
-        # Al NO definir un "width" para las columnas largas, Streamlit las expande automáticamente (canto a canto)
-        df_mat_editado = st.data_editor(
-            df_mat_actual, 
-            num_rows="dynamic", 
-            use_container_width=True,
-            hide_index=True,
-            key="editor_tabla_materiales",
-            column_config={
-                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-                "insumo": st.column_config.TextColumn("Insumo / Material"),
-                "und": st.column_config.TextColumn("UND"),
-                "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
-                "precio": st.column_config.NumberColumn("Precio (S/)", format="%.2f")
-            }
-        )
-        
-        if st.button("💾 Guardar Cambios en Materiales", use_container_width=True):
-            c.execute("DELETE FROM materiales WHERE partida=?", (st.session_state['partida_actual'],))
-            for _, row in df_mat_editado.iterrows():
-                if pd.notna(row["insumo"]) and str(row["insumo"]).strip() != "":
-                    try:
-                        f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
-                        c_val = float(row["cantidad"]) if pd.notna(row["cantidad"]) else 1.0
-                        p_val = float(row["precio"]) if pd.notna(row["precio"]) else 0.0
-                        u_val = str(row["und"]).strip() if pd.notna(row["und"]) else "und"
-                        c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
-                                  (st.session_state['partida_actual'], f_val, str(row["insumo"]).strip(), u_val, c_val, p_val))
-                    except:
-                        pass
-            conn.commit()
-            st.success("¡Lista de materiales actualizada con éxito!")
-            st.rerun()
-                    
-    with tab_pers:
-        st.write("👤 **Gestión de Personal**")
-        with st.form("form_nuevo_personal"):
-            col_np1, col_np2 = st.columns(2)
-            with col_np1: nuevo_nombre = st.text_input("Nombre y Apellido")
-            with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Enchapador", "Oficial", "Ayudante / Peón", "Pintor", "Electricista", "Plomero"])
-            
-            col_np3, col_np4 = st.columns(2)
-            default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in nueva_esp else 120.0)
-            with col_np3: def_jornal = st.number_input("Jornal Base (S/)", value=default_jornal_init, step=10.0)
-            with col_np4: def_alm = st.number_input("Costo Almuerzo (S/)", value=7.0, step=1.0)
-
-            if st.form_submit_button("➕ Agregar Trabajador", use_container_width=True):
-                if nuevo_nombre:
-                    try:
-                        c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
-                                  (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm))
-                        conn.commit()
-                        st.success(f"¡{nuevo_nombre} agregado!")
-                        st.rerun()
-                    except:
-                        st.warning("El trabajador ya existe.")
-                else:
-                    st.warning("Escribe un nombre.")
-
-        st.write("---")
-        df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
-        if df_pers_actual.empty:
-            df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad", "jornal", "almuerzo_costo"])
-            
-        df_pers_editado = st.data_editor(df_pers_actual, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_tabla_personal")
-        
-        if st.button("💾 Guardar Cambios en Personal", use_container_width=True):
-            c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
-            for _, row in df_pers_editado.iterrows():
-                if row["nombre"] and str(row["nombre"]).strip() != "":
-                    try:
-                        esp_w = row["especialidad"]
-                        j_default = 120.0 if esp_w in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
-                        j_val = float(row["jornal"]) if "jornal" in row and pd.notna(row["jornal"]) else j_default
-                        a_val = float(row["almuerzo_costo"]) if "almuerzo_costo" in row and pd.notna(row["almuerzo_costo"]) else 7.0
-                        c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
-                                  (st.session_state['partida_actual'], row["nombre"].strip(), esp_w, j_val, a_val))
-                    except:
-                        pass
-            conn.commit()
-            st.success("¡Lista de personal actualizada con éxito!")
-            st.rerun()
-
-    with tab_mo:
-        with st.form("form_mano_obra"):
-            f_mo = st.date_input("Fecha", date.today(), key="f2")
-            
-            if lista_trabajadores_db:
-                trabajador = st.selectbox("Seleccione Trabajador", lista_trabajadores_db)
-            else:
-                trabajador = st.text_input("Nombre del Trabajador (Registra en la pestaña Personal primero)")
-
-            estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
-            almuerzo_opc = st.radio("Almuerzo", ["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], horizontal=True)
-            actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
-            
-            col_fb1, col_fb2 = st.columns(2)
-            with col_fb1:
-                btn_guardar = st.form_submit_button("Guardar Asistencia", use_container_width=True)
-            with col_fb2:
-                btn_limpiar_dia = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
-
-            if btn_guardar:
-                if trabajador:
-                    c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
-                              (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
-                    conn.commit()
-                    st.success("¡Asistencia guardada!")
-                    st.rerun()
-                else:
-                    st.warning("Selecciona un trabajador.")
-
-            if btn_limpiar_dia:
-                if trabajador:
-                    c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=? AND fecha=?", (st.session_state['partida_actual'], trabajador, str(f_mo)))
-                    conn.commit()
-                    st.success(f"¡Asistencia del {f_mo} borrada!")
-                    st.rerun()
-                    
-        # --- TABLA EDITABLE DE ASISTENCIA EXPANSIVA ---
-        st.write("---")
-        st.write("📋 **Editar Registro de Asistencia**")
-        df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
-        
-        if not df_asist_edit_db.empty:
-            df_asist_edit_db['fecha'] = pd.to_datetime(df_asist_edit_db['fecha']).dt.date
-        else:
-            df_asist_edit_db = pd.DataFrame(columns=["fecha", "trabajador", "estado", "almuerzo", "actividad"])
-
-        lista_opciones_trabajadores = lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]
-        
-        df_asist_editado = st.data_editor(
-            df_asist_edit_db,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            key="editor_tabla_asistencia",
-            column_config={
-                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-                "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores),
-                "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]),
-                "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"]),
-                "actividad": st.column_config.TextColumn("Nota")
-            }
-        )
-
-        if st.button("💾 Guardar Cambios en Asistencia", use_container_width=True):
-            c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
-            for _, row in df_asist_editado.iterrows():
-                if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
-                    try:
-                        f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
-                        est_val = str(row["estado"]) if pd.notna(row["estado"]) else "Día Completo"
-                        alm_val = str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Sí (Almuerza en obra / con comida de obra - S/ 0 extra)"
-                        act_val = str(row["actividad"]) if pd.notna(row["actividad"]) else ""
-                        c.execute("INSERT INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
-                                  (st.session_state['partida_actual'], str(row["trabajador"]), f_val, est_val, alm_val, act_val))
-                    except:
-                        pass
-            conn.commit()
-            st.success("¡Registro de asistencia actualizado con éxito!")
-            st.rerun()
-
-# Consultar datos reales de la BD
 df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
 if not df_mat_db.empty:
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
@@ -519,9 +307,6 @@ else:
 
 trabajadores_registrados = lista_trabajadores_db
 
-# ==========================================
-# CÁLCULO PREVIO DE SEMANAS (LUNES A SÁBADO) PARA GRÁFICOS Y TABLA
-# ==========================================
 first_day_month = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
 if st.session_state['cal_mes'] == 12:
     last_day_month = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
@@ -585,9 +370,12 @@ gasto_mo_real_total = round(df_resumen_final["Gasto Mano Obra (S/)"].sum(), 2) i
 gasto_mat_real_total = round(df_resumen_final["Gasto Materiales (S/)"].sum(), 2) if not df_resumen_final.empty else 0.0
 gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1], 2) if not df_resumen_final.empty else 0.0
 
+
 # ==========================================
-# GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD)
+# 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD) - ARRIBA COMO EN EL BOCETO
 # ==========================================
+col_graf_circulo, col_graf_linea = st.columns(2)
+
 with col_graf_circulo:
     st.subheader("💰 Distribución")
     labels = ['Materiales', 'Mano de Obra', 'Saldo Restante']
@@ -623,7 +411,220 @@ with col_graf_linea:
 st.write("---")
 
 # ==========================================
-# 7. ALMANAQUE INTERACTIVO CON TOOLTIP DE COMENTARIO
+# 8. CENTRO DE REGISTRO (FORMULARIOS Y TABLAS DE EDICIÓN - ANCHO COMPLETO)
+# ==========================================
+st.subheader("📝 Centro de Registro")
+tab_mat, tab_pers, tab_mo = st.tabs(["📦 Ingresar Materiales", "👤 Registrar Personal", "👷 Registrar Asistencia"])
+
+with tab_mat:
+    with st.form("form_materiales"):
+        f_mat = st.date_input("Fecha", date.today(), key="f1")
+        mat_nom = st.text_input("Material / Insumo (Ej. Cemento Portland)")
+        
+        tipo_und = st.selectbox("Unidad de Medida (Norma Peruana)", ["bol (Bolsas)", "caja (Cajas)", "m3 (Metro cúbico)", "m2 (Metro cuadrado)", "kg (Kilogramo)", "und (Unidad)", "gln (Galón)", "glb (Global)", "pza (Pieza)", "ml (Metro lineal)", "Otra unidad..."])
+        und_final = tipo_und.split(" ")[0] if tipo_und != "Otra unidad..." else st.text_input("Especifique su unidad:")
+        
+        col_m1, col_m2 = st.columns(2)
+        with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
+        with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
+        st.info(f"Total: S/ {cant * pre:.2f}")
+        
+        col_mb1, col_mb2 = st.columns(2)
+        with col_mb1:
+            btn_guardar_mat = st.form_submit_button("Guardar Material", use_container_width=True)
+        with col_mb2:
+            btn_limpiar_mat = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
+
+        if btn_guardar_mat:
+            if mat_nom and und_final:
+                c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
+                          (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre))
+                conn.commit()
+                st.success("Material guardado correctamente.")
+                st.rerun()
+            else:
+                st.warning("Completa el nombre y la unidad del material.")
+
+        if btn_limpiar_mat:
+            c.execute("DELETE FROM materiales WHERE partida=? AND fecha=?", (st.session_state['partida_actual'], str(f_mat)))
+            conn.commit()
+            st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
+            st.rerun()
+            
+    # --- TABLA EDITABLE DE MATERIALES EXPANSIVA (Canto a canto) ---
+    st.write("---")
+    st.write("📋 **Editar Base de Materiales**")
+    df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+    
+    if not df_mat_actual.empty:
+        df_mat_actual['fecha'] = pd.to_datetime(df_mat_actual['fecha']).dt.date
+    else:
+        df_mat_actual = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio"])
+        
+    df_mat_editado = st.data_editor(
+        df_mat_actual, 
+        num_rows="dynamic", 
+        use_container_width=True,
+        hide_index=True,
+        key="editor_tabla_materiales",
+        column_config={
+            "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+            "insumo": st.column_config.TextColumn("Insumo / Material"),
+            "und": st.column_config.TextColumn("UND"),
+            "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
+            "precio": st.column_config.NumberColumn("Precio (S/)", format="%.2f")
+        }
+    )
+    
+    if st.button("💾 Guardar Cambios en Materiales", use_container_width=True):
+        c.execute("DELETE FROM materiales WHERE partida=?", (st.session_state['partida_actual'],))
+        for _, row in df_mat_editado.iterrows():
+            if pd.notna(row["insumo"]) and str(row["insumo"]).strip() != "":
+                try:
+                    f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
+                    c_val = float(row["cantidad"]) if pd.notna(row["cantidad"]) else 1.0
+                    p_val = float(row["precio"]) if pd.notna(row["precio"]) else 0.0
+                    u_val = str(row["und"]).strip() if pd.notna(row["und"]) else "und"
+                    c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio) VALUES (?, ?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], f_val, str(row["insumo"]).strip(), u_val, c_val, p_val))
+                except:
+                    pass
+        conn.commit()
+        st.success("¡Lista de materiales actualizada con éxito!")
+        st.rerun()
+                
+with tab_pers:
+    with st.form("form_nuevo_personal"):
+        col_np1, col_np2 = st.columns(2)
+        with col_np1: nuevo_nombre = st.text_input("Nombre y Apellido")
+        with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Enchapador", "Oficial", "Ayudante / Peón", "Pintor", "Electricista", "Plomero"])
+        
+        col_np3, col_np4 = st.columns(2)
+        default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in nueva_esp else 120.0)
+        with col_np3: def_jornal = st.number_input("Jornal Base (S/)", value=default_jornal_init, step=10.0)
+        with col_np4: def_alm = st.number_input("Costo Almuerzo (S/)", value=7.0, step=1.0)
+
+        if st.form_submit_button("➕ Agregar Trabajador", use_container_width=True):
+            if nuevo_nombre:
+                try:
+                    c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm))
+                    conn.commit()
+                    st.success(f"¡{nuevo_nombre} agregado!")
+                    st.rerun()
+                except:
+                    st.warning("El trabajador ya existe.")
+            else:
+                st.warning("Escribe un nombre.")
+
+    st.write("---")
+    df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+    if df_pers_actual.empty:
+        df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad", "jornal", "almuerzo_costo"])
+        
+    df_pers_editado = st.data_editor(df_pers_actual, num_rows="dynamic", use_container_width=True, hide_index=True, key="editor_tabla_personal")
+    
+    if st.button("💾 Guardar Cambios en Personal", use_container_width=True):
+        c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
+        for _, row in df_pers_editado.iterrows():
+            if row["nombre"] and str(row["nombre"]).strip() != "":
+                try:
+                    esp_w = row["especialidad"]
+                    j_default = 120.0 if esp_w in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
+                    j_val = float(row["jornal"]) if "jornal" in row and pd.notna(row["jornal"]) else j_default
+                    a_val = float(row["almuerzo_costo"]) if "almuerzo_costo" in row and pd.notna(row["almuerzo_costo"]) else 7.0
+                    c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], row["nombre"].strip(), esp_w, j_val, a_val))
+                except:
+                    pass
+        conn.commit()
+        st.success("¡Lista de personal actualizada con éxito!")
+        st.rerun()
+
+with tab_mo:
+    with st.form("form_mano_obra"):
+        f_mo = st.date_input("Fecha", date.today(), key="f2")
+        
+        if lista_trabajadores_db:
+            trabajador = st.selectbox("Seleccione Trabajador", lista_trabajadores_db)
+        else:
+            trabajador = st.text_input("Nombre del Trabajador (Registra en la pestaña Personal primero)")
+
+        estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
+        almuerzo_opc = st.radio("Almuerzo", ["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], horizontal=True)
+        actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
+        
+        col_fb1, col_fb2 = st.columns(2)
+        with col_fb1:
+            btn_guardar = st.form_submit_button("Guardar Asistencia", use_container_width=True)
+        with col_fb2:
+            btn_limpiar_dia = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
+
+        if btn_guardar:
+            if trabajador:
+                c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
+                          (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
+                conn.commit()
+                st.success("¡Asistencia guardada!")
+                st.rerun()
+            else:
+                st.warning("Selecciona un trabajador.")
+
+        if btn_limpiar_dia:
+            if trabajador:
+                c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=? AND fecha=?", (st.session_state['partida_actual'], trabajador, str(f_mo)))
+                conn.commit()
+                st.success(f"¡Asistencia del {f_mo} borrada!")
+                st.rerun()
+                
+    # --- NUEVA TABLA EDITABLE DE ASISTENCIA EXPANSIVA ---
+    st.write("---")
+    st.write("📋 **Editar Registro de Asistencia**")
+    df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+    
+    if not df_asist_edit_db.empty:
+        df_asist_edit_db['fecha'] = pd.to_datetime(df_asist_edit_db['fecha']).dt.date
+    else:
+        df_asist_edit_db = pd.DataFrame(columns=["fecha", "trabajador", "estado", "almuerzo", "actividad"])
+
+    lista_opciones_trabajadores = lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]
+    
+    df_asist_editado = st.data_editor(
+        df_asist_edit_db,
+        num_rows="dynamic",
+        use_container_width=True,
+        hide_index=True,
+        key="editor_tabla_asistencia",
+        column_config={
+            "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+            "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores),
+            "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]),
+            "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"]),
+            "actividad": st.column_config.TextColumn("Nota")
+        }
+    )
+
+    if st.button("💾 Guardar Cambios en Asistencia", use_container_width=True):
+        c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
+        for _, row in df_asist_editado.iterrows():
+            if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
+                try:
+                    f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
+                    est_val = str(row["estado"]) if pd.notna(row["estado"]) else "Día Completo"
+                    alm_val = str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Sí (Almuerza en obra / con comida de obra - S/ 0 extra)"
+                    act_val = str(row["actividad"]) if pd.notna(row["actividad"]) else ""
+                    c.execute("INSERT INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
+                              (st.session_state['partida_actual'], str(row["trabajador"]), f_val, est_val, alm_val, act_val))
+                except:
+                    pass
+        conn.commit()
+        st.success("¡Registro de asistencia actualizado con éxito!")
+        st.rerun()
+
+st.write("---")
+
+# ==========================================
+# 9. ALMANAQUE INTERACTIVO CON TOOLTIP DE COMENTARIO
 # ==========================================
 st.subheader("📅 Control Mensual de Asistencia")
 
@@ -661,7 +662,7 @@ with col_cal:
         df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
         for _, row in df_t.iterrows():
             try:
-                f_reg = date.fromisoformat(row['fecha'])
+                f_reg = date.fromisoformat(str(row['fecha_dt']))
                 if f_reg.year == st.session_state['cal_ano'] and f_reg.month == st.session_state['cal_mes']:
                     asistencia_trabajador[f_reg.day] = row['estado']
                     comentarios_trabajador[f_reg.day] = row['actividad'] if row['actividad'] else "Sin observaciones"
@@ -715,7 +716,7 @@ with col_leyenda:
 st.write("---")
 
 # ==========================================
-# 8. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
+# 10. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
 # ==========================================
 st.markdown("<h2 style='color: #a855f7 !important;'>🗓 Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 
@@ -837,10 +838,14 @@ with tab_materiales:
             'precio': 'Precio Unit. (S/)',
             'Parcial': 'Parcial (S/)'
         })
+        # Damos formato a 2 decimales para la tabla visual (y quitamos las "S/" sobrantes como pediste)
+        df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
+        df_mats_show['Precio Unit. (S/)'] = df_mats_show['Precio Unit. (S/)'].apply(lambda x: f"{x:,.2f}")
+        df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
     else:
         df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)', 'Parcial (S/)'])
         
-    # --- TABLA DE LECTURA (CANTIDADES SIN LA REDUNDANCIA S/) ---
+    # --- TABLA DE LECTURA DE SEMANA (SIN S/) ---
     st.dataframe(
         df_mats_show,
         use_container_width=True,
@@ -849,9 +854,9 @@ with tab_materiales:
             "Fecha": st.column_config.TextColumn("Fecha"),
             "Insumo / Material": st.column_config.TextColumn("Insumo / Material"),
             "UND": st.column_config.TextColumn("UND"),
-            "Cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f"),
-            "Precio Unit. (S/)": st.column_config.NumberColumn("Precio Unit. (S/)", format="%.2f"),
-            "Parcial (S/)": st.column_config.NumberColumn("Parcial (S/)", format="%.2f")
+            "Cantidad": st.column_config.TextColumn("Cantidad"),
+            "Precio Unit. (S/)": st.column_config.TextColumn("Precio Unit. (S/)"),
+            "Parcial (S/)": st.column_config.TextColumn("Parcial (S/)")
         }
     )
 
@@ -864,7 +869,7 @@ with tab_materiales:
 st.write("---")
 
 # ==========================================
-# 9. TABLA RESUMEN SEMANAL (BLOQUES DE LUNES A SÁBADO)
+# 11. TABLA RESUMEN SEMANAL (BLOQUES DE LUNES A SÁBADO)
 # ==========================================
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
 st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
@@ -919,7 +924,7 @@ with col_res3:
 st.write("---")
 
 # ==========================================
-# 10. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF
+# 12. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF
 # ==========================================
 st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
 st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería. Podrás guardarlo directamente como **PDF** usando tu navegador.")
