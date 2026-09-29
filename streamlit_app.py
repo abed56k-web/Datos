@@ -965,6 +965,9 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     """
     
     for _, row in df_resumen_mostrar.iterrows():
+        # Validamos si el saldo es un guion para no aplicarle formato numérico
+        saldo_formateado = "-" if row['Saldo vs Presupuesto (S/)'] == "-" else f"S/ {row['Saldo vs Presupuesto (S/)']:,.2f}"
+        
         html_reporte += f"""
                 <tr>
                     <td>{row['Semana']}</td>
@@ -973,7 +976,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <td class="text-right">S/ {row['Gasto Materiales (S/)']:,.2f}</td>
                     <td class="text-right">S/ {row['Gasto Total Semanal (S/)']:,.2f}</td>
                     <td class="text-right">S/ {row['Gasto Acumulado (S/)']:,.2f}</td>
-                    <td class="text-right">S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td>
+                    <td class="text-right">{saldo_formateado}</td>
                 </tr>
         """
         
