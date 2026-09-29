@@ -781,7 +781,21 @@ st.write("---")
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
 st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
 
-st.dataframe(df_resumen_final, use_container_width=True, hide_index=True)
+# --- CREAMOS UNA COPIA PARA MOSTRAR LOS TOTALES SIN ROMPER LOS GRÁFICOS ---
+df_resumen_mostrar = df_resumen_final.copy()
+if not df_resumen_mostrar.empty:
+    df_resumen_mostrar.loc["Total"] = {
+        "Semana": "TOTAL",
+        "Rango (Lunes a Sábado)": "-",
+        "Gasto Mano Obra (S/)": gasto_mo_real_total,
+        "Gasto Materiales (S/)": gasto_mat_real_total,
+        "Gasto Total Semanal (S/)": gasto_mo_real_total + gasto_mat_real_total,
+        "Gasto Acumulado (S/)": gasto_total_acumulado,
+        "Saldo vs Presupuesto (S/)": "-"
+    }
+
+st.dataframe(df_resumen_mostrar, use_container_width=True, hide_index=True)
+# --------------------------------------------------------------------------
 
 saldo_final = presupuesto_actual_total - gasto_total_acumulado
 
@@ -950,7 +964,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             <tbody>
     """
     
-    for _, row in df_resumen_final.iterrows():
+    for _, row in df_resumen_mostrar.iterrows():
         html_reporte += f"""
                 <tr>
                     <td>{row['Semana']}</td>
