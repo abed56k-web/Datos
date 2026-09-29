@@ -132,7 +132,7 @@ if not st.session_state['autenticado']:
                 st.session_state['mostrar_registro'] = True
                 st.rerun()
                 
-            with st.expander("🛠️ ¿Se reinició el servidor? Restaura tu Base de Datos aquí"):
+            with st.expander("🛠️️ ¿Se reinició el servidor? Restaura tu Base de Datos aquí"):
                 archivo_emergencia = st.file_uploader("Sube tu archivo de respaldo (.db)", type=["db"])
                 if archivo_emergencia is not None:
                     with open("obra_nexus.db", "wb") as f:
@@ -287,7 +287,8 @@ st.write("---")
 df_personal_db = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
 lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
 
-col_form, col_graf_circulo, col_graf_linea = st.columns([1, 1, 1])
+# --- COLUMNA IZQUIERDA UN POCO MÁS ANCHA PARA QUE LAS TABLAS QUEPAN PERFECTO ---
+col_form, col_graf_circulo, col_graf_linea = st.columns([1.5, 1, 1])
 
 with col_form:
     st.subheader("📝 Centro de Registro")
@@ -328,7 +329,7 @@ with col_form:
                 st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
                 st.rerun()
                 
-        # --- TABLA EDITABLE DE MATERIALES (MEJORADA) ---
+        # --- TABLA EDITABLE DE MATERIALES OPTIMIZADA PARA ESPACIO ---
         st.write("---")
         st.write("📋 **Editar Base de Materiales**")
         df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
@@ -346,10 +347,10 @@ with col_form:
             key="editor_tabla_materiales",
             column_config={
                 "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="small"),
-                "insumo": st.column_config.TextColumn("Insumo / Material", width="large"),
-                "und": st.column_config.TextColumn("UND", width="small"),
-                "cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f", width="small"),
-                "precio": st.column_config.NumberColumn("P. Unit (S/)", format="%.2f", width="small")
+                "insumo": st.column_config.TextColumn("Insumo", width="medium"), # Cortamos nombre de columna y ancho medio
+                "und": st.column_config.TextColumn("Und", width="small"),
+                "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f", width="small"),
+                "precio": st.column_config.NumberColumn("Precio (S/)", format="%.2f", width="small")
             }
         )
         
@@ -455,7 +456,7 @@ with col_form:
                     st.success(f"¡Asistencia del {f_mo} borrada!")
                     st.rerun()
                     
-        # --- NUEVA TABLA EDITABLE DE ASISTENCIA ---
+        # --- NUEVA TABLA EDITABLE DE ASISTENCIA OPTIMIZADA ---
         st.write("---")
         st.write("📋 **Editar Registro de Asistencia**")
         df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
@@ -474,11 +475,11 @@ with col_form:
             hide_index=True,
             key="editor_tabla_asistencia",
             column_config={
-                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="medium"),
+                "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="small"),
                 "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores, width="medium"),
                 "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"], width="small"),
-                "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], width="medium"),
-                "actividad": st.column_config.TextColumn("Nota", width="large")
+                "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], width="small"),
+                "actividad": st.column_config.TextColumn("Nota", width="medium")
             }
         )
 
@@ -716,7 +717,7 @@ st.write("---")
 # ==========================================
 # 8. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
 # ==========================================
-st.markdown("<h2 style='color: #a855f7 !important;'>🗓️️ Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #a855f7 !important;'>🗓 Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
 
 first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
 if st.session_state['cal_mes'] == 12:
@@ -805,7 +806,7 @@ with tab_planilla:
                 </div>
             """, unsafe_allow_html=True)
 
-    st.markdown(f"<h2 style='color: #38bdf8; text-align: center; background-color: #1e293b; padding: 15px; border-radius: 8px;'>Total Planilla General de la Semana: S/ {gasto_semana_mo:.2f}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color: #38bdf8; text-align: center; background-color: #1e293b; padding: 15px; border-radius: 8px;'>Total Planilla General de la Semana: S/ {gasto_semana_mo:,.2f}</h2>", unsafe_allow_html=True)
 
 with tab_materiales:
     st.write("Materiales comprados **exactamente dentro del rango de fechas** de la semana seleccionada.")
@@ -843,10 +844,19 @@ with tab_materiales:
     else:
         df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit. (S/)', 'Parcial (S/)'])
         
+    # --- CAMBIADO A DATAFRAME (SOLO LECTURA) PARA EVITAR CONFUSIONES ---
     st.dataframe(
         df_mats_show,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        column_config={
+            "Fecha": st.column_config.TextColumn("Fecha", width="medium"),
+            "Insumo / Material": st.column_config.TextColumn("Insumo / Material", width="large"),
+            "UND": st.column_config.TextColumn("UND", width="small"),
+            "Cantidad": st.column_config.NumberColumn("Cantidad", format="%.2f", width="small"),
+            "Precio Unit. (S/)": st.column_config.NumberColumn("Precio Unit. (S/)", format="S/ %.2f", width="small"),
+            "Parcial (S/)": st.column_config.NumberColumn("Parcial (S/)", format="S/ %.2f", width="small")
+        }
     )
 
     gasto_semana_mat = 0.0
