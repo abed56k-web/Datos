@@ -9,6 +9,11 @@ import hashlib
 import random
 import os
 
+# ==========================================
+# CONSTANTES GLOBALES
+# ==========================================
+meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+
 # 1. CONFIGURACIÓN INICIAL
 st.set_page_config(
     page_title="Control de Obra - Nexus", 
@@ -340,7 +345,8 @@ while start_current_week_res <= last_day_month:
             df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
             c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
             c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
-            c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('No', na=False)])
+            # Identificamos si salió a comer usando la palabra clave "Sale"
+            c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('Sale', na=False)])
             
             c.execute("SELECT especialidad, jornal, almuerzo_costo FROM personal WHERE partida=? AND nombre=?", (st.session_state['partida_actual'], trab))
             p_row = c.fetchone()
@@ -366,6 +372,7 @@ while start_current_week_res <= last_day_month:
     saldo_s = round(presupuesto_actual_total - gasto_acum_temp, 2)
 
     datos_resumen_semanas.append({
+        "Mes": meses_espanol[st.session_state['cal_mes']],
         "Semana": f"Semana {semana_contador}",
         "Rango (Lunes a Sábado)": f"{start_current_week_res.strftime('%d/%m/%Y')} al {end_current_week_res.strftime('%d/%m/%Y')}",
         "Gasto Mano Obra (S/)": round(mo_sem, 2),
@@ -440,8 +447,7 @@ with tab_mat:
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
         with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
-        # Aquí permitimos step=0.01 para que deje ingresar decimales como 20.07
-        with col_m3: desc = st.number_input("Descuento (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.01)
+        with col_m3: desc = st.number_input("Desc. (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.01)
         
         calc_total_desc = cant * pre * (1 - (desc / 100.0))
         st.info(f"Total a pagar (con desc.): S/ {calc_total_desc:.2f}")
@@ -495,7 +501,6 @@ with tab_mat:
             "und": st.column_config.TextColumn("UND"),
             "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
             "precio": st.column_config.NumberColumn("Precio Unit.", format="%.2f"),
-            # Configuramos step=0.01 y formato con 2 decimales para que deje poner 20.07 sin fallar
             "descuento": st.column_config.NumberColumn("Desc. (%)", min_value=0.0, max_value=100.0, step=0.01, format="%.2f")
         }
     )
@@ -576,7 +581,7 @@ with tab_mo:
             trabajador = st.text_input("Nombre del Trabajador (Registra en la pestaña Personal primero)")
 
         estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
-        almuerzo_opc = st.radio("Almuerzo", ["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"], horizontal=True)
+        almuerzo_opc = st.radio("Almuerzo", ["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"], horizontal=True)
         actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
         
         col_fb1, col_fb2 = st.columns(2)
@@ -602,6 +607,7 @@ with tab_mo:
                 st.success(f"¡Asistencia del {f_mo} borrada!")
                 st.rerun()
                 
+    # --- NUEVA TABLA EDITABLE DE ASISTENCIA EXPANSIVA ---
     st.write("---")
     st.write("📋 **Editar Registro de Asistencia**")
     df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
@@ -623,7 +629,7 @@ with tab_mo:
             "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
             "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores),
             "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]),
-            "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Sí (Almuerza en obra / con comida de obra - S/ 0 extra)", "No (Sale a comer afuera - S/ 7 extra)"]),
+            "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"]),
             "actividad": st.column_config.TextColumn("Nota")
         }
     )
@@ -635,7 +641,7 @@ with tab_mo:
                 try:
                     f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
                     est_val = str(row["estado"]) if pd.notna(row["estado"]) else "Día Completo"
-                    alm_val = str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Sí (Almuerza en obra / con comida de obra - S/ 0 extra)"
+                    alm_val = str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Almuerza en obra / con comida de obra - S/ 0 extra"
                     act_val = str(row["actividad"]) if pd.notna(row["actividad"]) else ""
                     c.execute("INSERT INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
                               (st.session_state['partida_actual'], str(row["trabajador"]), f_val, est_val, alm_val, act_val))
@@ -652,7 +658,6 @@ st.write("---")
 # ==========================================
 st.subheader("📅 Control Mensual de Asistencia")
 
-meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
 
 with col_btn1:
@@ -795,7 +800,7 @@ with tab_planilla:
         cant_completos = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
         cant_medios = len(df_t_sem[df_t_sem['estado'] == 'Medio Día']) if not df_t_sem.empty else 0
         cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
-        cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.startswith('No', na=False)]) if not df_t_sem.empty else 0
+        cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.startswith('Sale', na=False)]) if not df_t_sem.empty else 0
 
         with st.expander(f"Obrero: {especialidad_trab} — {trabajador}", expanded=True):
             st.markdown(f"### *{especialidad_trab}* — **{trabajador}**", unsafe_allow_html=True)
@@ -899,12 +904,13 @@ st.write("---")
 # 11. TABLA RESUMEN SEMANAL (BLOQUES DE LUNES A SÁBADO)
 # ==========================================
 st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Semanal de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
-st.write(f"Desglose por semanas de trabajo (Lunes a Sábado) para el mes de **{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}**:")
+st.write("Desglose por semanas de trabajo (Lunes a Sábado):")
 
 # --- CREAMOS UNA COPIA PARA MOSTRAR LOS TOTALES SIN ROMPER LOS GRÁFICOS ---
 df_resumen_mostrar = df_resumen_final.copy()
 if not df_resumen_mostrar.empty:
     df_resumen_mostrar.loc["Total"] = {
+        "Mes": "",
         "Semana": "TOTAL",
         "Rango (Lunes a Sábado)": "",
         "Gasto Mano Obra (S/)": gasto_mo_real_total,
@@ -1075,6 +1081,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         <table>
             <thead>
                 <tr>
+                    <th>Mes</th>
                     <th>Semana</th>
                     <th>Rango (Lunes a Sábado)</th>
                     <th class="text-right">Mano Obra (S/)</th>
@@ -1090,6 +1097,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     for _, row in df_resumen_final.iterrows():
         html_reporte += f"""
                 <tr>
+                    <td>{row['Mes']}</td>
                     <td>{row['Semana']}</td>
                     <td>{row['Rango (Lunes a Sábado)']}</td>
                     <td class="text-right">S/ {row['Gasto Mano Obra (S/)']:,.2f}</td>
@@ -1102,6 +1110,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
         
     html_reporte += f"""
                 <tr>
+                    <td></td>
                     <td><b>TOTAL</b></td>
                     <td></td>
                     <td class="text-right"><b>S/ {gasto_mo_real_total:,.2f}</b></td>
@@ -1136,7 +1145,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 
             c_comp = len(df_t_s[df_t_s['estado'] == 'Día Completo']) if not df_t_s.empty else 0
             c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día']) if not df_t_s.empty else 0
-            c_alm = len(df_t_s[df_t_s['almuerzo'].str.startswith('No', na=False)]) if not df_t_s.empty else 0
+            c_alm = len(df_t_s[df_t_s['almuerzo'].str.startswith('Sale', na=False)]) if not df_t_s.empty else 0
             
             jornal_v = float(pers['jornal']) if pd.notna(pers['jornal']) else 120.0
             alm_v = float(pers['almuerzo_costo']) if pd.notna(pers['almuerzo_costo']) else 7.0
@@ -1154,7 +1163,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                         <th>Fecha</th>
                         <th>Día</th>
                         <th>Estado Asistencia</th>
-                        <th>Almuerzo Afuera</th>
+                        <th>Almuerzo</th>
                         <th>Actividad / Observación</th>
                     </tr>
                 </thead>
