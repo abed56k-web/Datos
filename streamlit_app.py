@@ -195,7 +195,7 @@ if st.session_state['partida_actual'] is None:
     with col_p1:
         st.markdown("### 📂 Entrar a Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
-        if st.button("INGRESAR AL PANEL ➡️️", use_container_width=True):
+        if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
             
@@ -385,7 +385,7 @@ gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1],
 
 
 # ==========================================
-# 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD) - ARRIBA COMO EN EL BOCETO
+# 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD)
 # ==========================================
 col_graf_circulo, col_graf_linea = st.columns(2)
 
@@ -440,9 +440,9 @@ with tab_mat:
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
         with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
-        with col_m3: desc = st.number_input("Descuento (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0)
+        with col_m3: desc = st.number_input("Descuento", min_value=0.0, max_value=100.0, value=0.0, step=1.0, help="Solo ingresa el número. Ejemplo: 20")
         
-        # Calculamos el total previsualizado restando el %
+        # Calculamos el total previsualizado restando el descuento
         calc_total_desc = cant * pre * (1 - (desc / 100.0))
         st.info(f"Total a pagar (con desc.): S/ {calc_total_desc:.2f}")
         
@@ -468,11 +468,11 @@ with tab_mat:
             st.success(f"¡Materiales del {f_mat} eliminados correctamente!")
             st.rerun()
             
-    # --- TABLA EDITABLE DE MATERIALES EXPANSIVA CON DESCUENTO ---
+    # --- TABLA EDITABLE DE MATERIALES EXPANSIVA CON DESCUENTO FORMATO NUMÉRICO ---
     st.write("---")
-    st.write("📋 **Editar Base de Materiales**")
+    st.write("📋 **Editar Base de Materiales** (Modifica y guarda)")
     
-    # Intentamos traer la columna descuento (si es una BD muy vieja y falló el ALTER, agregamos el default)
+    # Intentamos traer la columna descuento
     try:
         df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio, descuento FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
     except:
@@ -496,7 +496,8 @@ with tab_mat:
             "und": st.column_config.TextColumn("UND"),
             "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
             "precio": st.column_config.NumberColumn("Precio Unit.", format="%.2f"),
-            "descuento": st.column_config.NumberColumn("Desc. (%)", format="%.2f")
+            # Descuento definido SOLO como número para que se deje editar fácil
+            "descuento": st.column_config.NumberColumn("Descuento", min_value=0.0, max_value=100.0, step=1.0)
         }
     )
     
@@ -743,7 +744,7 @@ st.write("---")
 # ==========================================
 # 10. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
 # ==========================================
-st.markdown("<h2 style='color: #a855f7 !important;'>🗓 Cierre y Reporte Semanal</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #a855f7 !important;'>🗓 Cierre y Reporte Semanal (Solo Lectura)</h2>", unsafe_allow_html=True)
 
 first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
 if st.session_state['cal_mes'] == 12:
@@ -836,6 +837,7 @@ with tab_planilla:
 
 with tab_materiales:
     st.write("Materiales comprados **exactamente dentro del rango de fechas** de la semana seleccionada.")
+    st.caption("ℹ️ NOTA: Esta tabla es un reporte de lectura. Para editar algún dato (como cantidad o descuento), ve arriba a 'Centro de Registro'.")
     
     if not df_mat_db.empty:
         mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
@@ -862,18 +864,18 @@ with tab_materiales:
             'und': 'UND',
             'cantidad': 'Cantidad',
             'precio': 'Precio Unit.',
-            'descuento': 'Desc. (%)',
+            'descuento': 'Descuento',
             'Parcial': 'Parcial (S/)'
         })
-        # Damos formato a 2 decimales para la tabla visual (y quitamos las "S/" sobrantes como pediste)
+        # Formateamos todo como texto final para la tabla de visualización (Sin "S/" sueltos y sin el "%")
         df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
         df_mats_show['Precio Unit.'] = df_mats_show['Precio Unit.'].apply(lambda x: f"{x:,.2f}")
-        df_mats_show['Desc. (%)'] = df_mats_show['Desc. (%)'].apply(lambda x: f"{x:.0f}%" if x > 0 else "0%")
+        df_mats_show['Descuento'] = df_mats_show['Descuento'].apply(lambda x: f"{x:.0f}")
         df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
     else:
-        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit.', 'Desc. (%)', 'Parcial (S/)'])
+        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit.', 'Descuento', 'Parcial (S/)'])
         
-    # --- TABLA DE LECTURA DE SEMANA (SIN S/ EN MEDIO Y CON DESCUENTO) ---
+    # --- TABLA DE LECTURA DE SEMANA (REPORTE) ---
     st.dataframe(
         df_mats_show,
         use_container_width=True,
@@ -884,7 +886,7 @@ with tab_materiales:
             "UND": st.column_config.TextColumn("UND"),
             "Cantidad": st.column_config.TextColumn("Cantidad"),
             "Precio Unit.": st.column_config.TextColumn("Precio Unit."),
-            "Desc. (%)": st.column_config.TextColumn("Desc. (%)"),
+            "Descuento": st.column_config.TextColumn("Descuento"),
             "Parcial (S/)": st.column_config.TextColumn("Parcial (S/)")
         }
     )
@@ -1189,7 +1191,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
             """
         html_reporte += "</div>"
 
-    # 5. Control de Materiales e Insumos (ACTUALIZADO CON DESCUENTO)
+    # 5. Control de Materiales e Insumos
     html_reporte += f"""
         <div class="section-title">5. Control de Materiales e Insumos (Mes Completo)</div>
         <table>
@@ -1200,7 +1202,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <th class="text-center">UND</th>
                     <th class="text-right">Cantidad</th>
                     <th class="text-right">P. Unitario (S/)</th>
-                    <th class="text-right">Desc. (%)</th>
+                    <th class="text-right">Descuento</th>
                     <th class="text-right">Parcial (S/)</th>
                 </tr>
             </thead>
@@ -1228,7 +1230,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <td class="text-center">{r_m['und']}</td>
                     <td class="text-right">{cant_m:,.2f}</td>
                     <td class="text-right">S/ {prec_m:,.2f}</td>
-                    <td class="text-right">{desc_m:.0f}%</td>
+                    <td class="text-right">{desc_m:.0f}</td>
                     <td class="text-right">S/ {parc_m:,.2f}</td>
                 </tr>
             """
