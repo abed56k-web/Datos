@@ -385,7 +385,7 @@ gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1],
 
 
 # ==========================================
-# 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD)
+# 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD) - ARRIBA COMO EN EL BOCETO
 # ==========================================
 col_graf_circulo, col_graf_linea = st.columns(2)
 
@@ -440,9 +440,9 @@ with tab_mat:
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1: cant = st.number_input("Cantidad", min_value=0.01, value=1.0)
         with col_m2: pre = st.number_input("P. Unitario (S/)", min_value=0.0)
-        with col_m3: desc = st.number_input("Descuento", min_value=0.0, max_value=100.0, value=0.0, step=1.0, help="Solo ingresa el número. Ejemplo: 20")
+        # Aquí permitimos step=0.01 para que deje ingresar decimales como 20.07
+        with col_m3: desc = st.number_input("Descuento (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.01)
         
-        # Calculamos el total previsualizado restando el descuento
         calc_total_desc = cant * pre * (1 - (desc / 100.0))
         st.info(f"Total a pagar (con desc.): S/ {calc_total_desc:.2f}")
         
@@ -472,7 +472,6 @@ with tab_mat:
     st.write("---")
     st.write("📋 **Editar Base de Materiales** (Modifica y guarda)")
     
-    # Intentamos traer la columna descuento
     try:
         df_mat_actual = pd.read_sql(f"SELECT fecha, insumo, und, cantidad, precio, descuento FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
     except:
@@ -496,8 +495,8 @@ with tab_mat:
             "und": st.column_config.TextColumn("UND"),
             "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"),
             "precio": st.column_config.NumberColumn("Precio Unit.", format="%.2f"),
-            # Descuento definido SOLO como número para que se deje editar fácil
-            "descuento": st.column_config.NumberColumn("Descuento", min_value=0.0, max_value=100.0, step=1.0)
+            # Configuramos step=0.01 y formato con 2 decimales para que deje poner 20.07 sin fallar
+            "descuento": st.column_config.NumberColumn("Desc. (%)", min_value=0.0, max_value=100.0, step=0.01, format="%.2f")
         }
     )
     
@@ -603,7 +602,6 @@ with tab_mo:
                 st.success(f"¡Asistencia del {f_mo} borrada!")
                 st.rerun()
                 
-    # --- NUEVA TABLA EDITABLE DE ASISTENCIA EXPANSIVA ---
     st.write("---")
     st.write("📋 **Editar Registro de Asistencia**")
     df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
@@ -837,7 +835,7 @@ with tab_planilla:
 
 with tab_materiales:
     st.write("Materiales comprados **exactamente dentro del rango de fechas** de la semana seleccionada.")
-    st.caption("ℹ️ NOTA: Esta tabla es un reporte de lectura. Para editar algún dato (como cantidad o descuento), ve arriba a 'Centro de Registro'.")
+    st.caption("ℹ️ NOTA: Esta tabla es un reporte de lectura. Para editar algún dato, ve arriba a 'Centro de Registro'.")
     
     if not df_mat_db.empty:
         mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
@@ -855,7 +853,6 @@ with tab_materiales:
                 return str(f_str)
 
         df_mat_filtrado['Fecha_Formateada'] = df_mat_filtrado['fecha'].apply(formatear_fecha_mat)
-        # Aplicar el descuento al Parcial visual
         df_mat_filtrado['Parcial'] = df_mat_filtrado['cantidad'] * df_mat_filtrado['precio'] * (1 - (df_mat_filtrado['descuento'] / 100.0))
         
         df_mats_show = df_mat_filtrado[['Fecha_Formateada', 'insumo', 'und', 'cantidad', 'precio', 'descuento', 'Parcial']].rename(columns={
@@ -864,18 +861,17 @@ with tab_materiales:
             'und': 'UND',
             'cantidad': 'Cantidad',
             'precio': 'Precio Unit.',
-            'descuento': 'Descuento',
+            'descuento': 'Desc. (%)',
             'Parcial': 'Parcial (S/)'
         })
-        # Formateamos todo como texto final para la tabla de visualización (Sin "S/" sueltos y sin el "%")
+        
         df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
         df_mats_show['Precio Unit.'] = df_mats_show['Precio Unit.'].apply(lambda x: f"{x:,.2f}")
-        df_mats_show['Descuento'] = df_mats_show['Descuento'].apply(lambda x: f"{x:.0f}")
+        df_mats_show['Desc. (%)'] = df_mats_show['Desc. (%)'].apply(lambda x: f"{x:.2f}")
         df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
     else:
-        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit.', 'Descuento', 'Parcial (S/)'])
+        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit.', 'Desc. (%)', 'Parcial (S/)'])
         
-    # --- TABLA DE LECTURA DE SEMANA (REPORTE) ---
     st.dataframe(
         df_mats_show,
         use_container_width=True,
@@ -886,7 +882,7 @@ with tab_materiales:
             "UND": st.column_config.TextColumn("UND"),
             "Cantidad": st.column_config.TextColumn("Cantidad"),
             "Precio Unit.": st.column_config.TextColumn("Precio Unit."),
-            "Descuento": st.column_config.TextColumn("Descuento"),
+            "Desc. (%)": st.column_config.TextColumn("Desc. (%)"),
             "Parcial (S/)": st.column_config.TextColumn("Parcial (S/)")
         }
     )
@@ -1202,7 +1198,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <th class="text-center">UND</th>
                     <th class="text-right">Cantidad</th>
                     <th class="text-right">P. Unitario (S/)</th>
-                    <th class="text-right">Descuento</th>
+                    <th class="text-right">Desc. (%)</th>
                     <th class="text-right">Parcial (S/)</th>
                 </tr>
             </thead>
@@ -1230,7 +1226,7 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                     <td class="text-center">{r_m['und']}</td>
                     <td class="text-right">{cant_m:,.2f}</td>
                     <td class="text-right">S/ {prec_m:,.2f}</td>
-                    <td class="text-right">{desc_m:.0f}</td>
+                    <td class="text-right">{desc_m:.2f}</td>
                     <td class="text-right">S/ {parc_m:,.2f}</td>
                 </tr>
             """
