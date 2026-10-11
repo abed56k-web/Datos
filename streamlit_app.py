@@ -201,7 +201,6 @@ if st.session_state['partida_actual'] is None:
         st.markdown("### 📂 Entrar o Modificar Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
         
-        # Consultar presupuesto actual para mostrarlo y permitir editarlo aquí mismo
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
         res_p = c.fetchone()
         presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
@@ -422,7 +421,6 @@ with col_graf_circulo:
     values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
-    # Blindaje gráfico para evitar errores de renderizado si los valores son 0
     if sum(values) == 0:
         values = [0.0001, 0.0001, max(1.0, presupuesto_actual_total)]
         
@@ -1255,12 +1253,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 </tr>
             """
             
-            if gasto_mat_rep == 0.0:
-                html_reporte += """
-                        <tr>
-                            <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
-                        </tr>
-                """
+    if gasto_mat_rep == 0.0:
+        html_reporte += """
+                <tr>
+                    <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
+                </tr>
+        """
         
     html_reporte += f"""
             </tbody>
@@ -1282,8 +1280,3 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     """
     
     st.components.v1.html(html_reporte, height=800, scrolling=True)
-
-<Elicitations message="¿Qué te gustaría ajustar a continuación?">
-  <Elicitation label="Ajustar estilos del gráfico" query="¿Cómo puedo cambiar los colores de los gráficos de Plotly?"/>
-  <Elicitation label="Agregar nueva partida" query="¿Cómo creo otra partida desde cero?"/>
-</Elicitations>
