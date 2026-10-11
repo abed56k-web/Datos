@@ -279,7 +279,7 @@ if st.session_state['partida_actual'] is None:
     st.write("---")
     
     # ==========================================
-    # NUEVA SECCIÓN: CUADRO ADMINISTRADOR DE PARTIDAS CON DESCRIPCIONES
+    # NUEVA SECCIÓN: CUADRO ADMINISTRADOR DE PARTIDAS
     # ==========================================
     st.markdown("### 🛠️ Administrador de Partidas")
     st.write("Vista general detallada. Edita el nombre de tus partidas o elimínalas de la base de datos si ya no las necesitas.")
@@ -287,13 +287,19 @@ if st.session_state['partida_actual'] is None:
     if st.session_state['lista_partidas']:
         datos_admin = []
         for p in st.session_state['lista_partidas']:
-            # Obtener datos de presupuesto y fecha de creación
             c.execute("SELECT total, fecha_creacion FROM presupuestos WHERE partida=?", (p,))
             row_pres = c.fetchone()
-            presupuesto_val = float(row_pres[0]) if (row_pres and row_pres[0] is not None) else 0.0
+            
+            # --- BLINDAJE CONTRA TEXTOS VACÍOS O CORRUPTOS ---
+            presupuesto_val = 0.0
+            if row_pres and row_pres[0] is not None:
+                try:
+                    presupuesto_val = float(row_pres[0])
+                except (ValueError, TypeError):
+                    presupuesto_val = 0.0
+                    
             fecha_creacion = row_pres[1] if (row_pres and len(row_pres) > 1 and row_pres[1]) else str(date.today())
             
-            # Obtener cantidad de personal registrado
             c.execute("SELECT COUNT(*) FROM personal WHERE partida=?", (p,))
             row_pers = c.fetchone()
             cant_personal = int(row_pers[0]) if row_pers else 0
@@ -1360,12 +1366,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 </tr>
             """
             
-    if gasto_mat_rep == 0.0:
-        html_reporte += """
-                <tr>
-                    <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
-                </tr>
-        """
+            if gasto_mat_rep == 0.0:
+                html_reporte += """
+                        <tr>
+                            <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
+                        </tr>
+                """
         
     html_reporte += f"""
             </tbody>
