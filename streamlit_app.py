@@ -80,6 +80,18 @@ def verificar_usuario(email, clave):
     c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
     return c.fetchone() is not None
 
+# --- NUEVA FUNCIÓN EXPERTA PARA GUARDAR PRESUPUESTO (EVITA DUPLICADOS EN BD VIEJAS) ---
+def guardar_presupuesto_bd(partida, modo, total, mat, mo):
+    c.execute("SELECT 1 FROM presupuestos WHERE partida=?", (partida,))
+    existe = c.fetchone()
+    if existe:
+        c.execute("UPDATE presupuestos SET modo=?, total=?, materiales=?, mano_obra=? WHERE partida=?", 
+                  (modo, float(total), float(mat), float(mo), partida))
+    else:
+        c.execute("INSERT INTO presupuestos (partida, modo, total, materiales, mano_obra) VALUES (?, ?, ?, ?, ?)", 
+                  (partida, modo, float(total), float(mat), float(mo)))
+    conn.commit()
+
 if 'autenticado' not in st.session_state: st.session_state['autenticado'] = False
 if 'mostrar_registro' not in st.session_state: st.session_state['mostrar_registro'] = False
 if 'partida_actual' not in st.session_state: st.session_state['partida_actual'] = None
@@ -204,7 +216,7 @@ if st.session_state['partida_actual'] is None:
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
         res_p = c.fetchone()
         
-        # BLINDAJE TOTAL CONTRA NULOS O TEXTOS VACÍOS EN LA BASE DE DATOS
+        # BLINDAJE EXTREMO CONTRA BASES DE DATOS ANTIGUAS
         presup_actual_gestion = 0.0
         if res_p and res_p[0] is not None:
             try:
@@ -212,15 +224,16 @@ if st.session_state['partida_actual'] is None:
             except (ValueError, TypeError):
                 presup_actual_gestion = 0.0
         
-        nuevo_presupuesto_edicion = st.number_input("Modificar Presupuesto Total (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}")
-        
-        if st.button("💾 Guardar Cambios de Presupuesto", use_container_width=True):
-            c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
-                      (partida_seleccionada, "Ingreso Directo del Total", round(nuevo_presupuesto_edicion, 2), 0.0, 0.0))
-            conn.commit()
-            st.success(f"¡Presupuesto de '{partida_seleccionada}' actualizado a S/ {nuevo_presupuesto_edicion:,.2f}!")
+        # Guardado en tiempo real al presionar Enter en el recuadro
+        def auto_guardar_presup_existente():
+            nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
+            guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
 
+        nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
+        
         if st.button("INGRESAR AL PANEL DE TRABAJO ➡️", use_container_width=True):
+            # Forzamos un último guardado seguro antes de entrar
+            guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
             
@@ -234,9 +247,8 @@ if st.session_state['partida_actual'] is None:
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
                 
-                c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
-                          (nueva_partida, "Ingreso Directo del Total", round(presupuesto_inicial_crear, 2), 0.0, 0.0))
-                conn.commit()
+                # Se utiliza la nueva función blindada
+                guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
                 
                 st.session_state['partida_actual'] = nueva_partida
                 st.rerun()
@@ -256,20 +268,21 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar presupuesto de la BD con blindaje
+# Cargar el presupuesto actual desde la base de datos de manera segura
 try:
-    c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
+    c.execute("SELECT total FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
 except sqlite3.OperationalError:
     row_presupuesto = None
 
-if row_presupuesto and row_presupuesto[1] is not None:
-    try: presupuesto_actual_total = float(row_presupuesto[1])
-    except: presupuesto_actual_total = 0.0
+presupuesto_actual_total = 0.0
+if row_presupuesto and row_presupuesto[0] is not None:
+    try: 
+        presupuesto_actual_total = float(row_presupuesto[0])
+    except: 
+        presupuesto_actual_total = 0.0
 else:
-    presupuesto_actual_total = 0.0
-    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], "Ingreso Directo del Total", 0.0, 0.0, 0.0))
-    conn.commit()
+    guardar_presupuesto_bd(st.session_state['partida_actual'], "Ingreso Directo del Total", 0.0, 0.0, 0.0)
 
 with st.expander("⚙️ Renombrar Partida y Respaldo de Base de Datos"):
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'], key=f"rename_{st.session_state['partida_actual']}")
@@ -1260,12 +1273,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 </tr>
             """
             
-    if gasto_mat_rep == 0.0:
-        html_reporte += """
-                <tr>
-                    <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
-                </tr>
-        """
+            if gasto_mat_rep == 0.0:
+                html_reporte += """
+                        <tr>
+                            <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
+                        </tr>
+                """
         
     html_reporte += f"""
             </tbody>
