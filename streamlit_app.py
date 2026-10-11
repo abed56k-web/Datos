@@ -228,19 +228,24 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD (Por defecto todo limpio en 0.0)
+# Recuperar o inicializar presupuesto en la BD con blindaje a prueba de nulos
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
 except sqlite3.OperationalError:
     row_presupuesto = None
 
-if row_presupuesto:
-    modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db = row_presupuesto
+if row_presupuesto and row_presupuesto[0] is not None:
+    modo_guardado = row_presupuesto[0] or "Ingreso Directo del Total"
+    try: presupuesto_total_db = float(row_presupuesto[1]) if row_presupuesto[1] is not None else 0.0
+    except: presupuesto_total_db = 0.0
+    try: presupuesto_mat_db = float(row_presupuesto[2]) if row_presupuesto[2] is not None else 0.0
+    except: presupuesto_mat_db = 0.0
+    try: presupuesto_mo_db = float(row_presupuesto[3]) if row_presupuesto[3] is not None else 0.0
+    except: presupuesto_mo_db = 0.0
 else:
     modo_guardado = "Ingreso Directo del Total"
-    presupuesto_mat_db, presupuesto_mo_db = 0.0, 0.0
-    presupuesto_total_db = 0.0
+    presupuesto_mat_db, presupuesto_mo_db, presupuesto_total_db = 0.0, 0.0, 0.0
     c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db))
     conn.commit()
 
@@ -297,26 +302,11 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
         nuevo_mat = presupuesto_mat_db
         nuevo_mo = presupuesto_mo_db
 
-    # ==========================================
-    # AUTO-GUARDADO MÁGICO Y SILENCIOSO
-    # ==========================================
-    # Si detecta que lo que hay en pantalla es diferente a la base de datos, lo guarda al instante.
-    if (modo_ingreso != modo_guardado or 
-        round(nuevo_total, 2) != round(presupuesto_total_db, 2) or 
-        round(nuevo_mat, 2) != round(presupuesto_mat_db, 2) or 
-        round(nuevo_mo, 2) != round(presupuesto_mo_db, 2)):
-        
-        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
-                  (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
-        conn.commit()
-        
-        # Sincronizamos las variables temporalmente
-        presupuesto_total_db = nuevo_total
-        presupuesto_mat_db = nuevo_mat
-        presupuesto_mo_db = nuevo_mo
-
     if st.button("💾 Guardar Configuración de Presupuesto", use_container_width=True):
-        st.success("¡Presupuesto validado y guardado correctamente!")
+        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
+        conn.commit()
+        st.success("¡Presupuesto guardado correctamente en la base de datos!")
+        st.rerun()
 
 presupuesto_actual_total = round(nuevo_total, 2)
 st.write("---")
@@ -424,7 +414,7 @@ while start_current_week_res <= max_fecha_obra + timedelta(days=7):
 
 df_resumen_final = pd.DataFrame(datos_resumen_semanas)
 
-# --- INICIALIZACIÓN ESTRICTA A 0.0 PARA EVITAR ERRORES DE LECTURA ---
+# --- INICIALIZACIÓN ESTRICTA A 0.0 PARA EVITAR ERRORES ---
 gasto_mo_real_total = 0.0
 gasto_mat_real_total = 0.0
 gasto_total_acumulado = 0.0
