@@ -80,7 +80,7 @@ def verificar_usuario(email, clave):
     c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
     return c.fetchone() is not None
 
-# --- NUEVA FUNCIÓN EXPERTA PARA GUARDAR PRESUPUESTO (EVITA DUPLICADOS EN BD VIEJAS) ---
+# --- FUNCIÓN EXPERTA PARA GUARDAR PRESUPUESTO (EVITA DUPLICADOS EN BD VIEJAS) ---
 def guardar_presupuesto_bd(partida, modo, total, mat, mo):
     c.execute("SELECT 1 FROM presupuestos WHERE partida=?", (partida,))
     existe = c.fetchone()
@@ -201,7 +201,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (CON OPCIÓN DE MODIFICAR PRESUPUESTO Y CREAR)
+# 5. GESTOR DE PARTIDAS (MENÚ PRINCIPAL)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
@@ -216,7 +216,7 @@ if st.session_state['partida_actual'] is None:
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
         res_p = c.fetchone()
         
-        # BLINDAJE EXTREMO CONTRA BASES DE DATOS ANTIGUAS
+        # BLINDAJE CONTRA NULOS
         presup_actual_gestion = 0.0
         if res_p and res_p[0] is not None:
             try:
@@ -224,7 +224,7 @@ if st.session_state['partida_actual'] is None:
             except (ValueError, TypeError):
                 presup_actual_gestion = 0.0
         
-        # Guardado en tiempo real al presionar Enter en el recuadro
+        # Auto-guardado de presupuesto al presionar Enter
         def auto_guardar_presup_existente():
             nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
             guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
@@ -232,7 +232,6 @@ if st.session_state['partida_actual'] is None:
         nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
         
         if st.button("INGRESAR AL PANEL DE TRABAJO ➡️", use_container_width=True):
-            # Forzamos un último guardado seguro antes de entrar
             guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
@@ -247,13 +246,25 @@ if st.session_state['partida_actual'] is None:
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
                 
-                # Se utiliza la nueva función blindada
                 guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
                 
                 st.session_state['partida_actual'] = nueva_partida
                 st.rerun()
             else: 
                 st.warning("Escribe un nombre primero.")
+                
+    st.write("---")
+    st.markdown("### 💾 Respaldo y Seguridad del Proyecto")
+    st.markdown("<p style='font-size: 0.9rem; color: #94a3b8;'>Descarga la base de datos completa con todas las partidas, personal, asistencias y materiales.</p>", unsafe_allow_html=True)
+    if os.path.exists('obra_nexus.db'):
+        with open("obra_nexus.db", "rb") as file:
+            st.download_button(
+                label="📥 Descargar Base de Datos Completa (.db)",
+                data=file,
+                file_name="obra_nexus_backup.db",
+                mime="application/octet-stream"
+            )
+
     st.stop()
 
 # ==========================================
@@ -283,34 +294,6 @@ if row_presupuesto and row_presupuesto[0] is not None:
         presupuesto_actual_total = 0.0
 else:
     guardar_presupuesto_bd(st.session_state['partida_actual'], "Ingreso Directo del Total", 0.0, 0.0, 0.0)
-
-with st.expander("⚙️ Renombrar Partida y Respaldo de Base de Datos"):
-    nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'], key=f"rename_{st.session_state['partida_actual']}")
-    if st.button("Actualizar Nombre"):
-        if nuevo_nombre_partida and nuevo_nombre_partida != st.session_state['partida_actual']:
-            viejo_nombre = st.session_state['partida_actual']
-            
-            c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-            c.execute("UPDATE materiales SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-            c.execute("UPDATE personal SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-            c.execute("UPDATE asistencia SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-            conn.commit()
-            
-            idx = st.session_state['lista_partidas'].index(viejo_nombre)
-            st.session_state['lista_partidas'][idx] = nuevo_nombre_partida
-            st.session_state['partida_actual'] = nuevo_nombre_partida
-            st.success("¡Nombre y registros actualizados con éxito en la base de datos!")
-            st.rerun()
-
-    st.write("---")
-    if os.path.exists('obra_nexus.db'):
-        with open("obra_nexus.db", "rb") as file:
-            st.download_button(
-                label="📥 Descargar Respaldo de Base de Datos (Seguridad Obra)",
-                data=file,
-                file_name="obra_nexus_backup.db",
-                mime="application/octet-stream"
-            )
 
 st.write("---")
 
@@ -1273,12 +1256,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 </tr>
             """
             
-            if gasto_mat_rep == 0.0:
-                html_reporte += """
-                        <tr>
-                            <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
-                        </tr>
-                """
+    if gasto_mat_rep == 0.0:
+        html_reporte += """
+                <tr>
+                    <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
+                </tr>
+        """
         
     html_reporte += f"""
             </tbody>
