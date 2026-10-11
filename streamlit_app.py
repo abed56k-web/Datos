@@ -80,7 +80,7 @@ def verificar_usuario(email, clave):
     c.execute('SELECT * FROM usuarios WHERE email=? AND password=?', (email, encriptar_clave(clave)))
     return c.fetchone() is not None
 
-# --- FUNCIÓN EXPERTA PARA GUARDAR PRESUPUESTO (EVITA DUPLICADOS EN BD VIEJAS) ---
+# --- FUNCIÓN EXPERTA PARA GUARDAR PRESUPUESTO ---
 def guardar_presupuesto_bd(partida, modo, total, mat, mo):
     c.execute("SELECT 1 FROM presupuestos WHERE partida=?", (partida,))
     existe = c.fetchone()
@@ -95,10 +95,20 @@ def guardar_presupuesto_bd(partida, modo, total, mat, mo):
 if 'autenticado' not in st.session_state: st.session_state['autenticado'] = False
 if 'mostrar_registro' not in st.session_state: st.session_state['mostrar_registro'] = False
 if 'partida_actual' not in st.session_state: st.session_state['partida_actual'] = None
-if 'lista_partidas' not in st.session_state: 
-    st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
 if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 10 
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
+
+# ==========================================
+# SOLUCIÓN: CARGAR PARTIDAS DESDE LA BASE DE DATOS
+# ==========================================
+if 'lista_partidas' not in st.session_state: 
+    c.execute("SELECT DISTINCT partida FROM presupuestos")
+    partidas_bd = [row[0] for row in c.fetchall() if row[0] is not None and str(row[0]).strip() != ""]
+    
+    if partidas_bd:
+        st.session_state['lista_partidas'] = partidas_bd
+    else:
+        st.session_state['lista_partidas'] = ["Acabados 2do Nivel", "Tarrajeo 3er Nivel"]
 
 # ==========================================
 # 3. PANTALLA DE INICIO (LOGIN)
