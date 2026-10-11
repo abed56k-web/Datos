@@ -38,9 +38,10 @@ c.execute('CREATE TABLE IF NOT EXISTS usuarios (email TEXT UNIQUE, password TEXT
 c.execute('CREATE TABLE IF NOT EXISTS personal (partida TEXT, nombre TEXT, especialidad TEXT, jornal REAL DEFAULT 120.0, almuerzo_costo REAL DEFAULT 7.0, UNIQUE(partida, nombre))')
 c.execute('CREATE TABLE IF NOT EXISTS materiales (partida TEXT, fecha TEXT, insumo TEXT, und TEXT, cantidad REAL, precio REAL, descuento REAL DEFAULT 0.0)')
 c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT, fecha TEXT, estado TEXT, almuerzo TEXT, actividad TEXT, UNIQUE(partida, trabajador, fecha))')
-c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL)')
+c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL, fecha_creacion TEXT)')
 conn.commit()
 
+# Actualizaciones de Tablas para versiones anteriores
 try:
     c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0')
     c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0')
@@ -62,6 +63,13 @@ except sqlite3.OperationalError:
 
 try:
     c.execute('ALTER TABLE asistencia ADD COLUMN actividad TEXT')
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+
+try:
+    c.execute('ALTER TABLE presupuestos ADD COLUMN fecha_creacion TEXT')
+    c.execute('UPDATE presupuestos SET fecha_creacion = ? WHERE fecha_creacion IS NULL', (str(date.today()),))
     conn.commit()
 except sqlite3.OperationalError:
     pass
@@ -88,8 +96,9 @@ def guardar_presupuesto_bd(partida, modo, total, mat, mo):
         c.execute("UPDATE presupuestos SET modo=?, total=?, materiales=?, mano_obra=? WHERE partida=?", 
                   (modo, float(total), float(mat), float(mo), partida))
     else:
-        c.execute("INSERT INTO presupuestos (partida, modo, total, materiales, mano_obra) VALUES (?, ?, ?, ?, ?)", 
-                  (partida, modo, float(total), float(mat), float(mo)))
+        fecha_hoy = str(date.today())
+        c.execute("INSERT INTO presupuestos (partida, modo, total, materiales, mano_obra, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)", 
+                  (partida, modo, float(total), float(mat), float(mo), fecha_hoy))
     conn.commit()
 
 if 'autenticado' not in st.session_state: st.session_state['autenticado'] = False
@@ -270,27 +279,48 @@ if st.session_state['partida_actual'] is None:
     st.write("---")
     
     # ==========================================
-    # NUEVA SECCIÓN: CUADRO ADMINISTRADOR DE PARTIDAS
+    # NUEVA SECCIÓN: CUADRO ADMINISTRADOR DE PARTIDAS CON DESCRIPCIONES
     # ==========================================
     st.markdown("### 🛠️ Administrador de Partidas")
-    st.write("Edita el nombre de tus partidas o elimínalas permanentemente de la base de datos si ya no las necesitas.")
+    st.write("Vista general detallada. Edita el nombre de tus partidas o elimínalas de la base de datos si ya no las necesitas.")
     
     if st.session_state['lista_partidas']:
-        df_admin = pd.DataFrame({
-            "Partida Original": st.session_state['lista_partidas'],
-            "Nuevo Nombre": st.session_state['lista_partidas'],
-            "Eliminar": [False] * len(st.session_state['lista_partidas'])
-        })
+        datos_admin = []
+        for p in st.session_state['lista_partidas']:
+            # Obtener datos de presupuesto y fecha de creación
+            c.execute("SELECT total, fecha_creacion FROM presupuestos WHERE partida=?", (p,))
+            row_pres = c.fetchone()
+            presupuesto_val = float(row_pres[0]) if (row_pres and row_pres[0] is not None) else 0.0
+            fecha_creacion = row_pres[1] if (row_pres and len(row_pres) > 1 and row_pres[1]) else str(date.today())
+            
+            # Obtener cantidad de personal registrado
+            c.execute("SELECT COUNT(*) FROM personal WHERE partida=?", (p,))
+            row_pers = c.fetchone()
+            cant_personal = int(row_pers[0]) if row_pers else 0
+            
+            datos_admin.append({
+                "Partida Original": p,
+                "Fecha Creación": fecha_creacion,
+                "Personal Reg.": cant_personal,
+                "Presupuesto (S/)": presupuesto_val,
+                "Nuevo Nombre": p,
+                "Eliminar": False
+            })
+            
+        df_admin = pd.DataFrame(datos_admin)
         
         df_editado = st.data_editor(
             df_admin,
             hide_index=True,
             use_container_width=True,
-            disabled=["Partida Original"], 
+            disabled=["Partida Original", "Fecha Creación", "Personal Reg.", "Presupuesto (S/)"], 
             column_config={
-                "Partida Original": st.column_config.TextColumn("Partida Actual (Lectura)", disabled=True),
-                "Nuevo Nombre": st.column_config.TextColumn("✏️ Escribe aquí para renombrar"),
-                "Eliminar": st.column_config.CheckboxColumn("🗑️ ¿Borrar Partida?", default=False)
+                "Partida Original": st.column_config.TextColumn("Partida (Lectura)", disabled=True),
+                "Fecha Creación": st.column_config.TextColumn("📅 Creado el", disabled=True),
+                "Personal Reg.": st.column_config.NumberColumn("👷 Personal", disabled=True),
+                "Presupuesto (S/)": st.column_config.NumberColumn("💰 Monto Total", format="S/ %.2f", disabled=True),
+                "Nuevo Nombre": st.column_config.TextColumn("✏️ Renombrar aquí"),
+                "Eliminar": st.column_config.CheckboxColumn("🗑️ ¿Borrar?", default=False)
             },
             key="tabla_admin_partidas"
         )
@@ -299,7 +329,7 @@ if st.session_state['partida_actual'] is None:
             cambios = False
             for i, row in df_editado.iterrows():
                 v_nom = row["Partida Original"]
-                n_nom = row["Nuevo Nombre"].strip()
+                n_nom = str(row["Nuevo Nombre"]).strip()
                 borrar = row["Eliminar"]
                 
                 if borrar:
