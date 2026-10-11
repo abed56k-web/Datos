@@ -213,10 +213,29 @@ if st.session_state['partida_actual'] is None:
         st.markdown("### 📂 Entrar o Modificar Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
         
+        # Opciones para renombrar
+        nuevo_nombre_partida = st.text_input("✏️ Renombrar Partida (Opcional):", value=partida_seleccionada, key=f"rename_gestor_{partida_seleccionada}")
+        if st.button("Actualizar Nombre"):
+            if nuevo_nombre_partida and nuevo_nombre_partida != partida_seleccionada:
+                if nuevo_nombre_partida not in st.session_state['lista_partidas']:
+                    viejo_nombre = partida_seleccionada
+                    c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
+                    c.execute("UPDATE materiales SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
+                    c.execute("UPDATE personal SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
+                    c.execute("UPDATE asistencia SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
+                    conn.commit()
+                    
+                    idx = st.session_state['lista_partidas'].index(viejo_nombre)
+                    st.session_state['lista_partidas'][idx] = nuevo_nombre_partida
+                    st.success("¡Nombre actualizado correctamente!")
+                    st.rerun()
+                else:
+                    st.error("Ya existe una partida con ese nombre.")
+
+        # Obtener presupuesto para mostrar y editar
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
         res_p = c.fetchone()
         
-        # BLINDAJE CONTRA NULOS
         presup_actual_gestion = 0.0
         if res_p and res_p[0] is not None:
             try:
@@ -231,6 +250,7 @@ if st.session_state['partida_actual'] is None:
 
         nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
         
+        st.write("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL PANEL DE TRABAJO ➡️", use_container_width=True):
             guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
             st.session_state['partida_actual'] = partida_seleccionada
@@ -241,6 +261,7 @@ if st.session_state['partida_actual'] is None:
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
         presupuesto_inicial_crear = st.number_input("Presupuesto Inicial Total (S/)", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
         
+        st.write("<br><br><br><br>", unsafe_allow_html=True) # Espaciado para alinear los botones
         if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
             if nueva_partida:
                 if nueva_partida not in st.session_state['lista_partidas']:
@@ -1256,12 +1277,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 </tr>
             """
             
-    if gasto_mat_rep == 0.0:
-        html_reporte += """
-                <tr>
-                    <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
-                </tr>
-        """
+            if gasto_mat_rep == 0.0:
+                html_reporte += """
+                        <tr>
+                            <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
+                        </tr>
+                """
         
     html_reporte += f"""
             </tbody>
