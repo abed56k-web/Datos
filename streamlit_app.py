@@ -203,7 +203,14 @@ if st.session_state['partida_actual'] is None:
         
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
         res_p = c.fetchone()
-        presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
+        
+        # BLINDAJE TOTAL CONTRA NULOS O TEXTOS VACÍOS EN LA BASE DE DATOS
+        presup_actual_gestion = 0.0
+        if res_p and res_p[0] is not None:
+            try:
+                presup_actual_gestion = float(res_p[0])
+            except (ValueError, TypeError):
+                presup_actual_gestion = 0.0
         
         nuevo_presupuesto_edicion = st.number_input("Modificar Presupuesto Total (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}")
         
@@ -249,7 +256,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar presupuesto de la BD
+# Recuperar presupuesto de la BD con blindaje
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
