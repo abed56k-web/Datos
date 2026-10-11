@@ -243,14 +243,36 @@ else:
     c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db))
     conn.commit()
 
+# --- NUEVA FUNCIÓN DE AUTO-GUARDADO AL PRESIONAR ENTER ---
+def auto_guardar_presupuesto():
+    p_actual = st.session_state['partida_actual']
+    modo = st.session_state.get(f"modo_calc_{p_actual}")
+    
+    # Obtener valores base por si solo editamos el total
+    c.execute("SELECT materiales, mano_obra FROM presupuestos WHERE partida=?", (p_actual,))
+    row = c.fetchone()
+    mat_base = row[0] if row else 6000.0
+    mo_base = row[1] if row else 4000.0
+    
+    if modo == "Suma Automática (Materiales + Mano de Obra)":
+        mat = st.session_state.get(f"input_mat_{p_actual}", mat_base)
+        mo = st.session_state.get(f"input_mo_{p_actual}", mo_base)
+        tot = mat + mo
+    else:
+        tot = st.session_state.get(f"input_tot_{p_actual}", 10000.0)
+        mat = mat_base
+        mo = mo_base
+        
+    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
+              (p_actual, modo, round(tot, 2), round(mat, 2), round(mo, 2)))
+    conn.commit()
+
 with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Datos"):
-    # Añadimos la clave dinámica al input de texto
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'], key=f"rename_{st.session_state['partida_actual']}")
     if st.button("Actualizar Nombre"):
         if nuevo_nombre_partida and nuevo_nombre_partida != st.session_state['partida_actual']:
             viejo_nombre = st.session_state['partida_actual']
             
-            # Actualizamos las referencias en todas las tablas de la BD para no perder la información
             c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
             c.execute("UPDATE materiales SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
             c.execute("UPDATE personal SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
@@ -274,13 +296,15 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
             )
 
     st.write("---")
-    # Añadimos claves (keys) dinámicas únicas basadas en la partida actual a todos los inputs
+    
+    # Se inyecta el on_change en el selector y en los inputs
     modo_ingreso = st.radio(
         "Método de cálculo:", 
         ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], 
         horizontal=True, 
         index=0 if modo_guardado=="Suma Automática (Materiales + Mano de Obra)" else 1,
-        key=f"modo_calc_{st.session_state['partida_actual']}"
+        key=f"modo_calc_{st.session_state['partida_actual']}",
+        on_change=auto_guardar_presupuesto
     )
     
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
@@ -288,21 +312,22 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
         with col_b1:
             try: val_mat = float(presupuesto_mat_db)
             except (ValueError, TypeError): val_mat = 6000.0
-            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0, key=f"input_mat_{st.session_state['partida_actual']}")
+            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0, key=f"input_mat_{st.session_state['partida_actual']}", on_change=auto_guardar_presupuesto)
         with col_b2:
             try: val_mo = float(presupuesto_mo_db)
             except (ValueError, TypeError): val_mo = 4000.0
-            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0, key=f"input_mo_{st.session_state['partida_actual']}")
+            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0, key=f"input_mo_{st.session_state['partida_actual']}", on_change=auto_guardar_presupuesto)
         nuevo_total = round(nuevo_mat + nuevo_mo, 2)
         st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
     else:
         try: val_tot = float(presupuesto_total_db)
         except (ValueError, TypeError): val_tot = 10000.0
-        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0, key=f"input_tot_{st.session_state['partida_actual']}")
+        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0, key=f"input_tot_{st.session_state['partida_actual']}", on_change=auto_guardar_presupuesto)
         nuevo_mat = presupuesto_mat_db
         nuevo_mo = presupuesto_mo_db
 
-    if st.button("💾 Guardar Configuración de Presupuesto"):
+    # El botón se mantiene opcional por costumbre, pero ya no será estrictamente necesario
+    if st.button("💾 Guardar Configuración Manualmente"):
         c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
         conn.commit()
         st.success("¡Presupuesto actualizado correctamente!")
@@ -310,114 +335,6 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
 
 presupuesto_actual_total = round(nuevo_total, 2)
 st.write("---")
-
-# ==========================================
-# RECOLECCIÓN DE DATOS Y CÁLCULOS GLOBALES (SIN FILTRO DE MES)
-# ==========================================
-df_personal_db = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
-lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else ["Grover", "Juan Pérez"]
-
-df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
-if not df_mat_db.empty:
-    df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
-    df_mat_db['cantidad'] = pd.to_numeric(df_mat_db['cantidad'], errors='coerce').fillna(0.0)
-    df_mat_db['precio'] = pd.to_numeric(df_mat_db['precio'], errors='coerce').fillna(0.0)
-    if 'descuento' in df_mat_db.columns:
-        df_mat_db['descuento'] = pd.to_numeric(df_mat_db['descuento'], errors='coerce').fillna(0.0)
-    else:
-        df_mat_db['descuento'] = 0.0
-else:
-    df_mat_db['fecha_dt'] = pd.Series(dtype='object')
-    df_mat_db['cantidad'] = pd.Series(dtype='float64')
-    df_mat_db['precio'] = pd.Series(dtype='float64')
-    df_mat_db['descuento'] = pd.Series(dtype='float64')
-
-df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
-if not df_asist_db.empty:
-    df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
-else:
-    df_asist_db['fecha_dt'] = pd.Series(dtype='object')
-
-trabajadores_registrados = lista_trabajadores_db
-
-# --- DETERMINAR EL RANGO TOTAL GLOBAL DE LA OBRA ---
-todas_las_fechas = []
-if not df_mat_db.empty:
-    todas_las_fechas.extend(df_mat_db['fecha_dt'].tolist())
-if not df_asist_db.empty:
-    todas_las_fechas.extend(df_asist_db['fecha_dt'].tolist())
-
-if todas_las_fechas:
-    min_fecha_obra = min(todas_las_fechas)
-    max_fecha_obra = max(todas_las_fechas)
-else:
-    min_fecha_obra = date.today()
-    max_fecha_obra = date.today()
-
-# Ajustar al Lunes de la semana inicial de manera continua
-start_current_week_res = min_fecha_obra - timedelta(days=min_fecha_obra.weekday())
-datos_resumen_semanas = []
-gasto_acum_temp = 0.0
-semana_contador = 1
-
-while start_current_week_res <= max_fecha_obra + timedelta(days=7):
-    end_current_week_res = start_current_week_res + timedelta(days=5) # Lunes a Sábado
-    
-    mo_sem = 0.0
-    if not df_asist_db.empty:
-        mask_w = (df_asist_db['fecha_dt'] >= start_current_week_res) & (df_asist_db['fecha_dt'] <= end_current_week_res) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-        df_w_asist = df_asist_db.loc[mask_w]
-        for trab in trabajadores_registrados:
-            df_tw = df_w_asist[df_w_asist['trabajador'] == trab]
-            c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
-            c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
-            c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('Sale', na=False)])
-            
-            c.execute("SELECT especialidad, jornal, almuerzo_costo FROM personal WHERE partida=? AND nombre=?", (st.session_state['partida_actual'], trab))
-            p_row = c.fetchone()
-            if p_row:
-                esp_t, jornal_val, alm_val = p_row
-                jornal_val = float(jornal_val) if pd.notna(jornal_val) else (120.0 if esp_t in ["Operario", "Enchapador", "Oficial"] else 100.0)
-                alm_val = float(alm_val) if pd.notna(alm_val) else 7.0
-            else:
-                jornal_val, alm_val = 120.0, 7.0
-            
-            mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
-
-    mat_sem = 0.0
-    if not df_mat_db.empty:
-        mask_m = (df_mat_db['fecha_dt'] >= start_current_week_res) & (df_mat_db['fecha_dt'] <= end_current_week_res) & (df_mat_db['partida'] == st.session_state['partida_actual'])
-        df_w_mat = df_mat_db.loc[mask_m].copy()
-        df_w_mat['parcial_calc'] = df_w_mat['cantidad'] * df_w_mat['precio'] * (1 - (df_w_mat['descuento'] / 100.0))
-        mat_sem = df_w_mat['parcial_calc'].sum()
-
-    total_sem = round(mo_sem + mat_sem, 2)
-    gasto_acum_temp = round(gasto_acum_temp + total_sem, 2)
-    saldo_s = round(presupuesto_actual_total - gasto_acum_temp, 2)
-
-    mes_num = start_current_week_res.month
-    nombre_mes_es = meses_espanol[mes_num] if mes_num < len(meses_espanol) else ""
-
-    datos_resumen_semanas.append({
-        "Mes": nombre_mes_es,
-        "Semana": f"Sem {semana_contador}",
-        "Rango (Lunes a Sábado)": f"{start_current_week_res.strftime('%d/%m/%Y')} al {end_current_week_res.strftime('%d/%m/%Y')}",
-        "Gasto Mano Obra (S/)": round(mo_sem, 2),
-        "Gasto Materiales (S/)": round(mat_sem, 2),
-        "Gasto Total Semanal (S/)": total_sem,
-        "Gasto Acumulado (S/)": gasto_acum_temp,
-        "Saldo vs Presupuesto (S/)": saldo_s
-    })
-
-    semana_contador += 1
-    start_current_week_res += timedelta(days=7)
-
-df_resumen_final = pd.DataFrame(datos_resumen_semanas)
-gasto_mo_real_total = round(df_resumen_final["Gasto Mano Obra (S/)"].sum(), 2) if not df_resumen_final.empty else 0.0
-gasto_mat_real_total = round(df_resumen_final["Gasto Materiales (S/)"].sum(), 2) if not df_resumen_final.empty else 0.0
-gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1], 2) if not df_resumen_final.empty else 0.0
-
-
 # ==========================================
 # 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD) - ARRIBA COMO EN EL BOCETO
 # ==========================================
