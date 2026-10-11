@@ -249,6 +249,24 @@ else:
     c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db))
     conn.commit()
 
+# --- FUNCIÓN EXPERTA DE AUTO-GUARDADO AL PRESIONAR ENTER ---
+def callback_guardar_presupuesto():
+    p_actual = st.session_state['partida_actual']
+    modo = st.session_state.get(f"modo_calc_{p_actual}", "Ingreso Directo del Total")
+    
+    if modo == "Suma Automática (Materiales + Mano de Obra)":
+        mat = float(st.session_state.get(f"input_mat_{p_actual}", 0.0))
+        mo = float(st.session_state.get(f"input_mo_{p_actual}", 0.0))
+        tot = round(mat + mo, 2)
+    else:
+        tot = float(st.session_state.get(f"input_tot_{p_actual}", 0.0))
+        mat = 0.0
+        mo = 0.0
+        
+    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
+              (p_actual, modo, round(tot, 2), round(mat, 2), round(mo, 2)))
+    conn.commit()
+
 with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Datos"):
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'], key=f"rename_{st.session_state['partida_actual']}")
     if st.button("Actualizar Nombre"):
@@ -283,30 +301,25 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
         ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], 
         horizontal=True, 
         index=0 if modo_guardado=="Suma Automática (Materiales + Mano de Obra)" else 1,
-        key=f"modo_calc_{st.session_state['partida_actual']}"
+        key=f"modo_calc_{st.session_state['partida_actual']}",
+        on_change=callback_guardar_presupuesto
     )
     
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
         col_b1, col_b2 = st.columns(2)
         with col_b1:
             val_mat = float(presupuesto_mat_db) if pd.notna(presupuesto_mat_db) else 0.0
-            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0, key=f"input_mat_{st.session_state['partida_actual']}")
+            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0, key=f"input_mat_{st.session_state['partida_actual']}", on_change=callback_guardar_presupuesto)
         with col_b2:
             val_mo = float(presupuesto_mo_db) if pd.notna(presupuesto_mo_db) else 0.0
-            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0, key=f"input_mo_{st.session_state['partida_actual']}")
+            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0, key=f"input_mo_{st.session_state['partida_actual']}", on_change=callback_guardar_presupuesto)
         nuevo_total = round(nuevo_mat + nuevo_mo, 2)
         st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
     else:
         val_tot = float(presupuesto_total_db) if pd.notna(presupuesto_total_db) else 0.0
-        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0, key=f"input_tot_{st.session_state['partida_actual']}")
+        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0, key=f"input_tot_{st.session_state['partida_actual']}", on_change=callback_guardar_presupuesto)
         nuevo_mat = presupuesto_mat_db
         nuevo_mo = presupuesto_mo_db
-
-    if st.button("💾 Guardar Configuración de Presupuesto", use_container_width=True):
-        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
-        conn.commit()
-        st.success("¡Presupuesto guardado correctamente en la base de datos!")
-        st.rerun()
 
 presupuesto_actual_total = round(nuevo_total, 2)
 st.write("---")
