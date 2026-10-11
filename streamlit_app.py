@@ -189,32 +189,45 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (CON CAMPO DE PRESUPUESTO INICIAL)
+# 5. GESTOR DE PARTIDAS (CON OPCIÓN DE MODIFICAR PRESUPUESTO Y CREAR)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy o crea una nueva partida.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Selecciona, modifica o crea nuevas partidas de obra.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
     
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        st.markdown("### 📂 Entrar a Partida Existente")
+        st.markdown("### 📂 Entrar o Modificar Partida Existente")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
-        if st.button("INGRESAR AL PANEL ➡️", use_container_width=True):
+        
+        # Consultar presupuesto actual para mostrarlo y permitir editarlo aquí mismo
+        c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
+        res_p = c.fetchone()
+        presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
+        
+        nuevo_presupuesto_edicion = st.number_input("Modificar Presupuesto Total (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}")
+        
+        if st.button("💾 Guardar Cambios de Presupuesto", use_container_width=True):
+            c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
+                      (partida_seleccionada, "Ingreso Directo del Total", round(nuevo_presupuesto_edicion, 2), 0.0, 0.0))
+            conn.commit()
+            st.success(f"¡Presupuesto de '{partida_seleccionada}' actualizado a S/ {nuevo_presupuesto_edicion:,.2f}!")
+
+        if st.button("INGRESAR AL PANEL DE TRABAJO ➡️", use_container_width=True):
             st.session_state['partida_actual'] = partida_seleccionada
             st.rerun()
             
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
-        presupuesto_inicial_crear = st.number_input("Presupuesto Inicial Total (S/)", min_value=0.0, value=0.0, step=500.0)
+        presupuesto_inicial_crear = st.number_input("Presupuesto Inicial Total (S/)", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
         
         if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
             if nueva_partida:
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
                 
-                # Guardar el presupuesto inicial limpio en la BD
                 c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
                           (nueva_partida, "Ingreso Directo del Total", round(presupuesto_inicial_crear, 2), 0.0, 0.0))
                 conn.commit()
@@ -237,7 +250,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD con blindaje a prueba de nulos
+# Recuperar presupuesto de la BD
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
@@ -409,6 +422,10 @@ with col_graf_circulo:
     values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
     colores = ['#06b6d4', '#f59e0b', '#10b981']
     
+    # Blindaje gráfico para evitar errores de renderizado si los valores son 0
+    if sum(values) == 0:
+        values = [0.0001, 0.0001, max(1.0, presupuesto_actual_total)]
+        
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores)])
     fig_dona.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=10, b=10, l=0, r=0),
@@ -1238,12 +1255,12 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
                 </tr>
             """
             
-    if gasto_mat_rep == 0.0:
-        html_reporte += """
-                <tr>
-                    <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
-                </tr>
-        """
+            if gasto_mat_rep == 0.0:
+                html_reporte += """
+                        <tr>
+                            <td colspan="7" class="text-center"><i>No se registraron materiales en el historial.</i></td>
+                        </tr>
+                """
         
     html_reporte += f"""
             </tbody>
@@ -1265,3 +1282,8 @@ if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_w
     """
     
     st.components.v1.html(html_reporte, height=800, scrolling=True)
+
+<Elicitations message="¿Qué te gustaría ajustar a continuación?">
+  <Elicitation label="Ajustar estilos del gráfico" query="¿Cómo puedo cambiar los colores de los gráficos de Plotly?"/>
+  <Elicitation label="Agregar nueva partida" query="¿Cómo creo otra partida desde cero?"/>
+</Elicitations>
