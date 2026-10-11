@@ -189,11 +189,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS
+# 5. GESTOR DE PARTIDAS (CON CAMPO DE PRESUPUESTO INICIAL)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy o crea una nueva partida con su presupuesto.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
     
     col_p1, col_p2 = st.columns(2)
@@ -207,13 +207,22 @@ if st.session_state['partida_actual'] is None:
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
+        presupuesto_inicial = st.number_input("Presupuesto Inicial (S/)", min_value=0.0, value=0.0, step=500.0)
+        
         if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
             if nueva_partida:
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
+                
+                # Guardamos el presupuesto inicial directamente en la BD
+                c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
+                          (nueva_partida, "Ingreso Directo del Total", round(presupuesto_inicial, 2), 0.0, 0.0))
+                conn.commit()
+                
                 st.session_state['partida_actual'] = nueva_partida
                 st.rerun()
-            else: st.warning("Escribe un nombre primero.")
+            else: 
+                st.warning("Escribe un nombre primero.")
     st.stop()
 
 # ==========================================
@@ -228,7 +237,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD con blindaje a prueba de nulos
+# Recuperar presupuesto de la BD con validación estricta
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
