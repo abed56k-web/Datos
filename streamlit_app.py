@@ -193,7 +193,7 @@ st.markdown("""
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy o crea una nueva partida con su presupuesto.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Selecciona en qué área de la obra vas a trabajar hoy o crea una nueva partida.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
     
     col_p1, col_p2 = st.columns(2)
@@ -207,16 +207,16 @@ if st.session_state['partida_actual'] is None:
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
-        presupuesto_inicial = st.number_input("Presupuesto Inicial (S/)", min_value=0.0, value=0.0, step=500.0)
+        presupuesto_inicial_crear = st.number_input("Presupuesto Inicial Total (S/)", min_value=0.0, value=0.0, step=500.0)
         
         if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
             if nueva_partida:
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
                 
-                # Guardamos el presupuesto inicial directamente en la BD
+                # Guardar el presupuesto inicial limpio en la BD
                 c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
-                          (nueva_partida, "Ingreso Directo del Total", round(presupuesto_inicial, 2), 0.0, 0.0))
+                          (nueva_partida, "Ingreso Directo del Total", round(presupuesto_inicial_crear, 2), 0.0, 0.0))
                 conn.commit()
                 
                 st.session_state['partida_actual'] = nueva_partida
@@ -237,46 +237,22 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar presupuesto de la BD con validación estricta
+# Recuperar o inicializar presupuesto en la BD con blindaje a prueba de nulos
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
 except sqlite3.OperationalError:
     row_presupuesto = None
 
-if row_presupuesto and row_presupuesto[0] is not None:
-    modo_guardado = row_presupuesto[0] or "Ingreso Directo del Total"
-    try: presupuesto_total_db = float(row_presupuesto[1]) if row_presupuesto[1] is not None else 0.0
-    except: presupuesto_total_db = 0.0
-    try: presupuesto_mat_db = float(row_presupuesto[2]) if row_presupuesto[2] is not None else 0.0
-    except: presupuesto_mat_db = 0.0
-    try: presupuesto_mo_db = float(row_presupuesto[3]) if row_presupuesto[3] is not None else 0.0
-    except: presupuesto_mo_db = 0.0
+if row_presupuesto and row_presupuesto[1] is not None:
+    try: presupuesto_actual_total = float(row_presupuesto[1])
+    except: presupuesto_actual_total = 0.0
 else:
-    modo_guardado = "Ingreso Directo del Total"
-    presupuesto_mat_db, presupuesto_mo_db, presupuesto_total_db = 0.0, 0.0, 0.0
-    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_guardado, presupuesto_total_db, presupuesto_mat_db, presupuesto_mo_db))
+    presupuesto_actual_total = 0.0
+    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], "Ingreso Directo del Total", 0.0, 0.0, 0.0))
     conn.commit()
 
-# --- FUNCIÓN EXPERTA DE AUTO-GUARDADO AL PRESIONAR ENTER ---
-def callback_guardar_presupuesto():
-    p_actual = st.session_state['partida_actual']
-    modo = st.session_state.get(f"modo_calc_{p_actual}", "Ingreso Directo del Total")
-    
-    if modo == "Suma Automática (Materiales + Mano de Obra)":
-        mat = float(st.session_state.get(f"input_mat_{p_actual}", 0.0))
-        mo = float(st.session_state.get(f"input_mo_{p_actual}", 0.0))
-        tot = round(mat + mo, 2)
-    else:
-        tot = float(st.session_state.get(f"input_tot_{p_actual}", 0.0))
-        mat = 0.0
-        mo = 0.0
-        
-    c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
-              (p_actual, modo, round(tot, 2), round(mat, 2), round(mo, 2)))
-    conn.commit()
-
-with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Datos"):
+with st.expander("⚙️ Renombrar Partida y Respaldo de Base de Datos"):
     nuevo_nombre_partida = st.text_input("Renombrar esta Partida:", value=st.session_state['partida_actual'], key=f"rename_{st.session_state['partida_actual']}")
     if st.button("Actualizar Nombre"):
         if nuevo_nombre_partida and nuevo_nombre_partida != st.session_state['partida_actual']:
@@ -304,33 +280,6 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
                 mime="application/octet-stream"
             )
 
-    st.write("---")
-    modo_ingreso = st.radio(
-        "Método de cálculo:", 
-        ["Suma Automática (Materiales + Mano de Obra)", "Ingreso Directo del Total"], 
-        horizontal=True, 
-        index=0 if modo_guardado=="Suma Automática (Materiales + Mano de Obra)" else 1,
-        key=f"modo_calc_{st.session_state['partida_actual']}",
-        on_change=callback_guardar_presupuesto
-    )
-    
-    if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
-        col_b1, col_b2 = st.columns(2)
-        with col_b1:
-            val_mat = float(presupuesto_mat_db) if pd.notna(presupuesto_mat_db) else 0.0
-            nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0, key=f"input_mat_{st.session_state['partida_actual']}", on_change=callback_guardar_presupuesto)
-        with col_b2:
-            val_mo = float(presupuesto_mo_db) if pd.notna(presupuesto_mo_db) else 0.0
-            nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0, key=f"input_mo_{st.session_state['partida_actual']}", on_change=callback_guardar_presupuesto)
-        nuevo_total = round(nuevo_mat + nuevo_mo, 2)
-        st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
-    else:
-        val_tot = float(presupuesto_total_db) if pd.notna(presupuesto_total_db) else 0.0
-        nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0, key=f"input_tot_{st.session_state['partida_actual']}", on_change=callback_guardar_presupuesto)
-        nuevo_mat = presupuesto_mat_db
-        nuevo_mo = presupuesto_mo_db
-
-presupuesto_actual_total = round(nuevo_total, 2)
 st.write("---")
 
 # ==========================================
