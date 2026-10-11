@@ -228,7 +228,7 @@ with col_top2:
         st.session_state['partida_actual'] = None
         st.rerun()
 
-# Recuperar o inicializar presupuesto en la BD (Por defecto 0.0, nunca más 10000)
+# Recuperar o inicializar presupuesto en la BD (Por defecto todo limpio en 0.0)
 try:
     c.execute("SELECT modo, total, materiales, mano_obra FROM presupuestos WHERE partida=?", (st.session_state['partida_actual'],))
     row_presupuesto = c.fetchone()
@@ -284,27 +284,39 @@ with st.expander("⚙️ Configurar, Renombrar Partida y Respaldo de Base de Dat
     if modo_ingreso == "Suma Automática (Materiales + Mano de Obra)":
         col_b1, col_b2 = st.columns(2)
         with col_b1:
-            try: val_mat = float(presupuesto_mat_db)
-            except (ValueError, TypeError): val_mat = 0.0
+            val_mat = float(presupuesto_mat_db) if pd.notna(presupuesto_mat_db) else 0.0
             nuevo_mat = st.number_input("Presupuesto Materiales (S/)", value=val_mat, step=500.0, key=f"input_mat_{st.session_state['partida_actual']}")
         with col_b2:
-            try: val_mo = float(presupuesto_mo_db)
-            except (ValueError, TypeError): val_mo = 0.0
+            val_mo = float(presupuesto_mo_db) if pd.notna(presupuesto_mo_db) else 0.0
             nuevo_mo = st.number_input("Presupuesto Mano de Obra (S/)", value=val_mo, step=500.0, key=f"input_mo_{st.session_state['partida_actual']}")
         nuevo_total = round(nuevo_mat + nuevo_mo, 2)
         st.markdown(f"### 💡 Presupuesto Total Calculado: <span style='color:#38bdf8;'>S/ {nuevo_total:,.2f}</span>", unsafe_allow_html=True)
     else:
-        try: val_tot = float(presupuesto_total_db)
-        except (ValueError, TypeError): val_tot = 0.0
+        val_tot = float(presupuesto_total_db) if pd.notna(presupuesto_total_db) else 0.0
         nuevo_total = st.number_input("Presupuesto Total Directo (S/)", value=val_tot, step=1000.0, key=f"input_tot_{st.session_state['partida_actual']}")
-        nuevo_mat = 0.0
-        nuevo_mo = 0.0
+        nuevo_mat = presupuesto_mat_db
+        nuevo_mo = presupuesto_mo_db
+
+    # ==========================================
+    # AUTO-GUARDADO MÁGICO Y SILENCIOSO
+    # ==========================================
+    # Si detecta que lo que hay en pantalla es diferente a la base de datos, lo guarda al instante.
+    if (modo_ingreso != modo_guardado or 
+        round(nuevo_total, 2) != round(presupuesto_total_db, 2) or 
+        round(nuevo_mat, 2) != round(presupuesto_mat_db, 2) or 
+        round(nuevo_mo, 2) != round(presupuesto_mo_db, 2)):
+        
+        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", 
+                  (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
+        conn.commit()
+        
+        # Sincronizamos las variables temporalmente
+        presupuesto_total_db = nuevo_total
+        presupuesto_mat_db = nuevo_mat
+        presupuesto_mo_db = nuevo_mo
 
     if st.button("💾 Guardar Configuración de Presupuesto", use_container_width=True):
-        c.execute("INSERT OR REPLACE INTO presupuestos VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], modo_ingreso, round(nuevo_total, 2), round(nuevo_mat, 2), round(nuevo_mo, 2)))
-        conn.commit()
-        st.success("¡Presupuesto guardado correctamente en la base de datos!")
-        st.rerun()
+        st.success("¡Presupuesto validado y guardado correctamente!")
 
 presupuesto_actual_total = round(nuevo_total, 2)
 st.write("---")
@@ -412,7 +424,7 @@ while start_current_week_res <= max_fecha_obra + timedelta(days=7):
 
 df_resumen_final = pd.DataFrame(datos_resumen_semanas)
 
-# --- INICIALIZACIÓN ESTRICTA A 0.0 PARA EVITAR EL "NameError" ---
+# --- INICIALIZACIÓN ESTRICTA A 0.0 PARA EVITAR ERRORES DE LECTURA ---
 gasto_mo_real_total = 0.0
 gasto_mat_real_total = 0.0
 gasto_total_acumulado = 0.0
@@ -424,7 +436,6 @@ if not df_resumen_final.empty:
         gasto_mat_real_total = round(df_resumen_final["Gasto Materiales (S/)"].sum(), 2)
     if "Gasto Acumulado (S/)" in df_resumen_final.columns:
         gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1], 2)
-
 
 # ==========================================
 # 7. GRÁFICOS DINÁMICOS SUPERIORES (UI DASHBOARD) - ARRIBA COMO EN EL BOCETO
