@@ -99,7 +99,7 @@ if 'cal_mes' not in st.session_state: st.session_state['cal_mes'] = 10
 if 'cal_ano' not in st.session_state: st.session_state['cal_ano'] = 2026
 
 # ==========================================
-# SOLUCIÓN: CARGAR PARTIDAS DESDE LA BASE DE DATOS
+# CARGAR PARTIDAS DESDE LA BASE DE DATOS
 # ==========================================
 if 'lista_partidas' not in st.session_state: 
     c.execute("SELECT DISTINCT partida FROM presupuestos")
@@ -215,75 +215,121 @@ st.markdown("""
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown("<h1 style='text-align: center; color: #38bdf8 !important;'>🌌 Gestor de Proyectos</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Selecciona, modifica o crea nuevas partidas de obra.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Selecciona, configura o crea nuevas partidas de obra.</p>", unsafe_allow_html=True)
     st.write("<br>", unsafe_allow_html=True)
     
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        st.markdown("### 📂 Entrar o Modificar Partida Existente")
+        st.markdown("### 📂 Entrar y Configurar Partida")
         partida_seleccionada = st.selectbox("Mis Partidas Activas:", st.session_state['lista_partidas'])
         
-        # Opciones para renombrar
-        nuevo_nombre_partida = st.text_input("✏️ Renombrar Partida (Opcional):", value=partida_seleccionada, key=f"rename_gestor_{partida_seleccionada}")
-        if st.button("Actualizar Nombre"):
-            if nuevo_nombre_partida and nuevo_nombre_partida != partida_seleccionada:
-                if nuevo_nombre_partida not in st.session_state['lista_partidas']:
-                    viejo_nombre = partida_seleccionada
-                    c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-                    c.execute("UPDATE materiales SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-                    c.execute("UPDATE personal SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-                    c.execute("UPDATE asistencia SET partida=? WHERE partida=?", (nuevo_nombre_partida, viejo_nombre))
-                    conn.commit()
-                    
-                    idx = st.session_state['lista_partidas'].index(viejo_nombre)
-                    st.session_state['lista_partidas'][idx] = nuevo_nombre_partida
-                    st.success("¡Nombre actualizado correctamente!")
-                    st.rerun()
-                else:
-                    st.error("Ya existe una partida con ese nombre.")
+        if partida_seleccionada:
+            c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
+            res_p = c.fetchone()
+            
+            # BLINDAJE CONTRA NULOS
+            presup_actual_gestion = 0.0
+            if res_p and res_p[0] is not None:
+                try:
+                    presup_actual_gestion = float(res_p[0])
+                except (ValueError, TypeError):
+                    presup_actual_gestion = 0.0
+            
+            # Auto-guardado de presupuesto al presionar Enter
+            def auto_guardar_presup_existente():
+                nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
+                guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
 
-        # Obtener presupuesto para mostrar y editar
-        c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
-        res_p = c.fetchone()
-        
-        presup_actual_gestion = 0.0
-        if res_p and res_p[0] is not None:
-            try:
-                presup_actual_gestion = float(res_p[0])
-            except (ValueError, TypeError):
-                presup_actual_gestion = 0.0
-        
-        # Auto-guardado de presupuesto al presionar Enter
-        def auto_guardar_presup_existente():
-            nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
-            guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
-
-        nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
-        
-        st.write("<br>", unsafe_allow_html=True)
-        if st.button("INGRESAR AL PANEL DE TRABAJO ➡️", use_container_width=True):
-            guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
-            st.session_state['partida_actual'] = partida_seleccionada
-            st.rerun()
+            nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
+            
+            st.write("<br>", unsafe_allow_html=True)
+            if st.button("INGRESAR AL PANEL DE TRABAJO ➡️", use_container_width=True):
+                guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
+                st.session_state['partida_actual'] = partida_seleccionada
+                st.rerun()
+        else:
+            st.info("No hay partidas. Crea una a la derecha 👉")
             
     with col_p2:
         st.markdown("### ➕ Crear Nueva Partida")
         nueva_partida = st.text_input("Nombre de la nueva partida (Ej. Enchapado Baños)")
         presupuesto_inicial_crear = st.number_input("Presupuesto Inicial Total (S/)", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
         
-        st.write("<br><br><br><br>", unsafe_allow_html=True) # Espaciado para alinear los botones
+        st.write("<br><br>", unsafe_allow_html=True) 
         if st.button("CREAR Y ENTRAR ⚡", use_container_width=True):
             if nueva_partida:
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
                 
                 guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
-                
                 st.session_state['partida_actual'] = nueva_partida
                 st.rerun()
             else: 
                 st.warning("Escribe un nombre primero.")
                 
+    st.write("---")
+    
+    # ==========================================
+    # NUEVA SECCIÓN: CUADRO ADMINISTRADOR DE PARTIDAS
+    # ==========================================
+    st.markdown("### 🛠️ Administrador de Partidas")
+    st.write("Edita el nombre de tus partidas o elimínalas permanentemente de la base de datos si ya no las necesitas.")
+    
+    if st.session_state['lista_partidas']:
+        df_admin = pd.DataFrame({
+            "Partida Original": st.session_state['lista_partidas'],
+            "Nuevo Nombre": st.session_state['lista_partidas'],
+            "Eliminar": [False] * len(st.session_state['lista_partidas'])
+        })
+        
+        df_editado = st.data_editor(
+            df_admin,
+            hide_index=True,
+            use_container_width=True,
+            disabled=["Partida Original"], 
+            column_config={
+                "Partida Original": st.column_config.TextColumn("Partida Actual (Lectura)", disabled=True),
+                "Nuevo Nombre": st.column_config.TextColumn("✏️ Escribe aquí para renombrar"),
+                "Eliminar": st.column_config.CheckboxColumn("🗑️ ¿Borrar Partida?", default=False)
+            },
+            key="tabla_admin_partidas"
+        )
+        
+        if st.button("💾 Aplicar Cambios en Partidas", use_container_width=True):
+            cambios = False
+            for i, row in df_editado.iterrows():
+                v_nom = row["Partida Original"]
+                n_nom = row["Nuevo Nombre"].strip()
+                borrar = row["Eliminar"]
+                
+                if borrar:
+                    # Borrar todo rastro de esta partida
+                    c.execute("DELETE FROM presupuestos WHERE partida=?", (v_nom,))
+                    c.execute("DELETE FROM materiales WHERE partida=?", (v_nom,))
+                    c.execute("DELETE FROM personal WHERE partida=?", (v_nom,))
+                    c.execute("DELETE FROM asistencia WHERE partida=?", (v_nom,))
+                    cambios = True
+                elif n_nom and n_nom != v_nom:
+                    # Verificar que el nombre no exista para evitar choques
+                    c.execute("SELECT 1 FROM presupuestos WHERE partida=?", (n_nom,))
+                    if not c.fetchone():
+                        c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (n_nom, v_nom))
+                        c.execute("UPDATE materiales SET partida=? WHERE partida=?", (n_nom, v_nom))
+                        c.execute("UPDATE personal SET partida=? WHERE partida=?", (n_nom, v_nom))
+                        c.execute("UPDATE asistencia SET partida=? WHERE partida=?", (n_nom, v_nom))
+                        cambios = True
+            
+            if cambios:
+                conn.commit()
+                # Refrescar la lista de la memoria leyendo la base de datos actualizada
+                c.execute("SELECT DISTINCT partida FROM presupuestos")
+                nuevas_partidas = [r[0] for r in c.fetchall() if r[0] and str(r[0]).strip() != ""]
+                st.session_state['lista_partidas'] = nuevas_partidas
+                st.success("¡Partidas actualizadas y limpiadas correctamente!")
+                st.rerun()
+    else:
+        st.info("No hay partidas registradas en el sistema.")
+
     st.write("---")
     st.markdown("### 💾 Respaldo y Seguridad del Proyecto")
     st.markdown("<p style='font-size: 0.9rem; color: #94a3b8;'>Descarga la base de datos completa con todas las partidas, personal, asistencias y materiales.</p>", unsafe_allow_html=True)
@@ -586,602 +632,7 @@ with tab_pers:
         with col_np2: nueva_esp = st.selectbox("Espec.", ["Operario", "Enchapador", "Oficial", "Ayudante / Peón", "Pintor", "Electricista", "Plomero"])
         
         col_np3, col_np4 = st.columns(2)
-        default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in nueva_esp else 120.0)
-        with col_np3: def_jornal = st.number_input("Jornal Base (S/)", value=default_jornal_init, step=10.0)
-        with col_np4: def_alm = st.number_input("Costo Almuerzo (S/)", value=7.0, step=1.0)
-
-        if st.form_submit_button("➕ Agregar Trabajador", use_container_width=True):
-            if nuevo_nombre:
-                try:
-                    c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
-                              (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm))
-                    conn.commit()
-                    st.success(f"¡{nuevo_nombre} agregado!")
-                    st.rerun()
-                except:
-                    st.warning("El trabajador ya existe.")
-            else:
-                st.warning("Escribe un nombre.")
-
-    st.write("---")
-    df_pers_actual = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
-    if df_pers_actual.empty:
-        df_pers_actual = pd.DataFrame(columns=["nombre", "especialidad", "jornal", "almuerzo_costo"])
-        
-    df_pers_editado = st.data_editor(
-        df_pers_actual, 
-        num_rows="dynamic", 
-        use_container_width=True, 
-        hide_index=True, 
-        key=f"editor_tabla_personal_{st.session_state['partida_actual']}"
-    )
-    
-    if st.button("💾 Guardar Cambios en Personal", use_container_width=True):
-        c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
-        for _, row in df_pers_editado.iterrows():
-            if row["nombre"] and str(row["nombre"]).strip() != "":
-                try:
-                    esp_w = row["especialidad"]
-                    j_default = 120.0 if esp_w in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
-                    j_val = float(row["jornal"]) if "jornal" in row and pd.notna(row["jornal"]) else j_default
-                    a_val = float(row["almuerzo_costo"]) if "almuerzo_costo" in row and pd.notna(row["almuerzo_costo"]) else 7.0
-                    c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", 
-                              (st.session_state['partida_actual'], row["nombre"].strip(), esp_w, j_val, a_val))
-                except:
-                    pass
-        conn.commit()
-        st.success("¡Lista de personal actualizada con éxito!")
-        st.rerun()
-
-with tab_mo:
-    with st.form("form_mano_obra"):
-        f_mo = st.date_input("Fecha", date.today(), key="f2")
-        
-        if lista_trabajadores_db:
-            trabajador = st.selectbox("Seleccione Trabajador", lista_trabajadores_db)
-        else:
-            trabajador = st.text_input("Nombre del Trabajador (Registra en la pestaña Personal primero)")
-
-        estado_asis = st.selectbox("Estado de Asistencia", ["Día Completo", "Medio Día", "Falta / Emergencia"])
-        almuerzo_opc = st.radio("Almuerzo", ["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"], horizontal=True)
-        actividad = st.text_area("Actividad / Observaciones", placeholder="Ej. Tarrajeo de muro norte.")
-        
-        col_fb1, col_fb2 = st.columns(2)
-        with col_fb1:
-            btn_guardar = st.form_submit_button("Guardar Asistencia", use_container_width=True)
-        with col_fb2:
-            btn_limpiar_dia = st.form_submit_button("🧹 Limpiar Día", use_container_width=True)
-
-        if btn_guardar:
-            if trabajador:
-                c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
-                          (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
-                conn.commit()
-                st.success("¡Asistencia guardada!")
-                st.rerun()
-            else:
-                st.warning("Selecciona un trabajador.")
-
-        if btn_limpiar_dia:
-            if trabajador:
-                c.execute("DELETE FROM asistencia WHERE partida=? AND trabajador=? AND fecha=?", (st.session_state['partida_actual'], trabajador, str(f_mo)))
-                conn.commit()
-                st.success(f"¡Asistencia del {f_mo} borrada!")
-                st.rerun()
-                
-    # --- NUEVA TABLA EDITABLE DE ASISTENCIA EXPANSIVA ---
-    st.write("---")
-    st.write("📋 **Editar Registro de Asistencia**")
-    df_asist_edit_db = pd.read_sql(f"SELECT fecha, trabajador, estado, almuerzo, actividad FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
-    
-    if not df_asist_edit_db.empty:
-        df_asist_edit_db['fecha'] = pd.to_datetime(df_asist_edit_db['fecha']).dt.date
-    else:
-        df_asist_edit_db = pd.DataFrame(columns=["fecha", "trabajador", "estado", "almuerzo", "actividad"])
-
-    lista_opciones_trabajadores = lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]
-    
-    df_asist_editado = st.data_editor(
-        df_asist_edit_db,
-        num_rows="dynamic",
-        use_container_width=True,
-        hide_index=True,
-        key=f"editor_tabla_asistencia_{st.session_state['partida_actual']}",
-        column_config={
-            "fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-            "trabajador": st.column_config.SelectboxColumn("Trabajador", options=lista_opciones_trabajadores),
-            "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]),
-            "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"]),
-            "actividad": st.column_config.TextColumn("Nota")
-        }
-    )
-
-    if st.button("💾 Guardar Cambios en Asistencia", use_container_width=True):
-        c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
-        for _, row in df_asist_editado.iterrows():
-            if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
-                try:
-                    f_val = str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today())
-                    est_val = str(row["estado"]) if pd.notna(row["estado"]) else "Día Completo"
-                    alm_val = str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Almuerza en obra / con comida de obra - S/ 0 extra"
-                    act_val = str(row["actividad"]) if pd.notna(row["actividad"]) else ""
-                    c.execute("INSERT INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", 
-                              (st.session_state['partida_actual'], str(row["trabajador"]), f_val, est_val, alm_val, act_val))
-                except:
-                    pass
-        conn.commit()
-        st.success("¡Registro de asistencia actualizado con éxito!")
-        st.rerun()
-
-st.write("---")
-
-# ==========================================
-# 9. ALMANAQUE INTERACTIVO CON TOOLTIP DE COMENTARIO
-# ==========================================
-st.subheader("📅 Control Mensual de Asistencia")
-
-col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
-
-with col_btn1:
-    if st.button("◀ Mes Anterior", key="btn_ant", use_container_width=True):
-        if st.session_state['cal_mes'] == 1: st.session_state['cal_mes'] = 12; st.session_state['cal_ano'] -= 1
-        else: st.session_state['cal_mes'] -= 1
-        st.rerun()
-with col_tit:
-    st.markdown(f"<h3 style='text-align: center; color: #38bdf8 !important; margin: 0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
-with col_btn2:
-    if st.button("Mes Siguiente ▶", key="btn_sig", use_container_width=True):
-        if st.session_state['cal_mes'] == 12: st.session_state['cal_mes'] = 1; st.session_state['cal_ano'] += 1
-        else: st.session_state['cal_mes'] += 1
-        st.rerun()
-
-st.write("<br>", unsafe_allow_html=True)
-if trabajadores_registrados:
-    trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", trabajadores_registrados)
-else:
-    trabajador_seleccionado = st.selectbox("Seleccione Trabajador para ver su Almanaque:", ["Sin registros"])
-
-col_cal, col_leyenda = st.columns([2.5, 1])
-
-with col_cal:
-    calendar.setfirstweekday(calendar.SUNDAY)
-    mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
-
-    asistencia_trabajador = {}
-    comentarios_trabajador = {}
-    if not df_asist_db.empty and trabajador_seleccionado != "Sin registros":
-        df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
-        for _, row in df_t.iterrows():
-            try:
-                f_reg = date.fromisoformat(str(row['fecha_dt']))
-                if f_reg.year == st.session_state['cal_ano'] and f_reg.month == st.session_state['cal_mes']:
-                    asistencia_trabajador[f_reg.day] = row['estado']
-                    comentarios_trabajador[f_reg.day] = row['actividad'] if row['actividad'] else "Sin observaciones"
-            except:
-                pass
-
-    html_cal = """
-    <style>
-    .cal-wrapper { background-color: #1e293b; border-radius: 12px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; padding: clamp(10px, 3vw, 20px); width: 100%; box-sizing: border-box; overflow: hidden;}
-    .cal-table { width: 100%; border-collapse: separate; border-spacing: clamp(2px, 1vw, 4px); text-align: center; font-family: sans-serif; table-layout: fixed;}
-    .cal-table th { padding: clamp(5px, 1.5vw, 10px) 0; color: #94a3b8; font-weight: bold; font-size: clamp(0.8rem, 2.5vw, 1.1rem); }
-    .cal-table td { padding: clamp(8px, 2vw, 15px) 0; border-radius: 4px; font-size: clamp(0.9rem, 3vw, 1.2rem); font-weight: bold; border: 1px solid #334155; position: relative; cursor: pointer; }
-    .cal-vacio { background-color: #1e293b; color: transparent !important; border: none !important; cursor: default !important; }
-    .cal-futuro { background-color: #0f172a; color: #475569; }
-    .cal-verde { background-color: #10b981; color: white !important; }
-    .cal-amarillo { background-color: #f59e0b; color: white !important; }
-    .cal-rojo { background-color: #ef4444; color: white !important; }
-    </style>
-    <div class="cal-wrapper"><table class="cal-table"><tr><th>D</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th></tr>
-    """
-    for semana in mes_cal:
-        html_cal += "<tr>"
-        for dia in semana:
-            if dia == 0: html_cal += "<td class='cal-vacio'>0</td>"
-            else:
-                clase = "cal-futuro"
-                tooltip = "Sin registro"
-                if dia in asistencia_trabajador:
-                    est = asistencia_trabajador[dia]
-                    tooltip = f"Actividad: {comentarios_trabajador.get(dia, '')}"
-                    if "Completo" in est: clase = "cal-verde"
-                    elif "Medio" in est: clase = "cal-amarillo"
-                    else: clase = "cal-rojo"
-                html_cal += f"<td class='{clase}' title='{tooltip}'>{dia}</td>"
-        html_cal += "</tr>"
-    html_cal += "</table></div>"
-    st.markdown(html_cal, unsafe_allow_html=True)
-
-with col_leyenda:
-    st.markdown("""
-        <div style="background-color: #1e293b; padding: 25px; border-radius: 12px; border: 1px solid #475569; height: 100%;">
-            <h4 style="color: #e2e8f0; margin-top: 0; margin-bottom: 20px;">🎨 Leyenda</h4>
-            <p><span style="display:inline-block; width:20px; height:20px; background-color:#10b981; border-radius:4px; margin-right:10px; vertical-align: middle;"></span> <b>Día Completo</b><br><span style="color:#94a3b8; font-size:0.9rem;">Asistencia normal.</span></p>
-            <br>
-            <p><span style="display:inline-block; width:20px; height:20px; background-color:#f59e0b; border-radius:4px; margin-right:10px; vertical-align: middle;"></span> <b>Medio Día / Tarde</b><br><span style="color:#94a3b8; font-size:0.9rem;">Asistencia parcial.</span></p>
-            <br>
-            <p><span style="display:inline-block; width:20px; height:20px; background-color:#ef4444; border-radius:4px; margin-right:10px; vertical-align: middle;"></span> <b>Emergencia / Falta</b><br><span style="color:#94a3b8; font-size:0.9rem;">Inasistencia.</span></p>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.write("---")
-
-# ==========================================
-# 10. MÓDULOS SEMANALES CON SELECTOR DE SEMANA (LUNES A SÁBADO)
-# ==========================================
-st.markdown("<h2 style='color: #a855f7 !important;'>🗓 Cierre y Reporte Semanal (Solo Lectura)</h2>", unsafe_allow_html=True)
-
-first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
-if st.session_state['cal_mes'] == 12:
-    last_day_month_sel = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
-else:
-    last_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
-
-start_current_week_sel = first_day_month_sel - timedelta(days=first_day_month_sel.weekday())
-semanas_opciones = []
-semana_map = {}
-idx = 1
-
-while start_current_week_sel <= last_day_month_sel:
-    end_current_week_sel = start_current_week_sel + timedelta(days=5) # Lunes a Sábado
-    label = f"Semana {idx}: {start_current_week_sel.strftime('%d/%m/%Y')} al {end_current_week_sel.strftime('%d/%m/%Y')}"
-    semanas_opciones.append(label)
-    semana_map[label] = (start_current_week_sel, end_current_week_sel)
-    idx += 1
-    start_current_week_sel += timedelta(days=7)
-
-semana_seleccionada = st.selectbox("Seleccione la Semana de Trabajo (Lunes a Sábado):", semanas_opciones)
-fecha_inicio, fecha_fin = semana_map[semana_seleccionada]
-
-st.markdown(f"**Calculando gastos para la {semana_seleccionada}**")
-
-tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Mano de Obra (Semanal)", "📦 Control de Materiales (Semanal)"])
-
-with tab_planilla:
-    st.write("Cálculo automático de jornales basados estrictamente en el calendario registrado.")
-
-    gasto_semana_mo = 0
-
-    if not df_asist_db.empty:
-        mask_asis = (df_asist_db['fecha_dt'] >= fecha_inicio) & (df_asist_db['fecha_dt'] <= fecha_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-        df_asist_semana = df_asist_db.loc[mask_asis]
-    else:
-        df_asist_semana = pd.DataFrame(columns=['trabajador', 'fecha', 'estado', 'almuerzo'])
-
-    for trabajador in trabajadores_registrados:
-        df_esp = df_pers_actual[df_pers_actual['nombre'] == trabajador]
-        especialidad_trab = df_esp['especialidad'].values[0] if not df_esp.empty else "Obrero"
-        
-        esp_w = especialidad_trab
-        jornal_default_reg = 120.0 if esp_w in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in esp_w or "Ayudante" in esp_w else 120.0)
-        jornal_bd_val = float(df_esp['jornal'].values[0]) if not df_esp.empty and pd.notna(df_esp['jornal'].values[0]) else jornal_default_reg
-        alm_bd_val = float(df_esp['almuerzo_costo'].values[0]) if not df_esp.empty and pd.notna(df_esp['almuerzo_costo'].values[0]) else 7.0
-
-        df_t_sem = df_asist_semana[df_asist_semana['trabajador'] == trabajador] if not df_asist_semana.empty else pd.DataFrame()
-        
-        cant_completos = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
-        cant_medios = len(df_t_sem[df_t_sem['estado'] == 'Medio Día']) if not df_t_sem.empty else 0
-        cant_faltas = len(df_t_sem[df_t_sem['estado'].str.contains('Falta|Emergencia', na=False)]) if not df_t_sem.empty else 0
-        cant_almuerzos = len(df_t_sem[df_t_sem['almuerzo'].str.startswith('Sale', na=False)]) if not df_t_sem.empty else 0
-
-        with st.expander(f"Obrero: {especialidad_trab} — {trabajador}", expanded=True):
-            st.markdown(f"### *{especialidad_trab}* — **{trabajador}**", unsafe_allow_html=True)
-            
-            col_w1, col_w2, col_w3 = st.columns(3)
-            with col_w1:
-                jornal_dia = st.number_input(f"Jornal Diario (S/)", value=jornal_bd_val, step=10.0, key=f"jornal_{trabajador}")
-                costo_almuerzo = st.number_input(f"Costo Almuerzo (S/)", value=alm_bd_val, step=1.0, key=f"alm_costo_{trabajador}")
-            with col_w2:
-                comentario_nota = st.text_input(f"Cuadro Comentario (Ej. Adelanto / Arreglado)", value="", key=f"comentario_{trabajador}")
-            with col_w3:
-                monto_extra = st.number_input(f"Monto (Opcional)", value=0.0, step=10.0, key=f"monto_{trabajador}")
-
-            pago_completos = cant_completos * jornal_dia
-            pago_medios = cant_medios * (jornal_dia / 2.0)
-            total_almuerzos = cant_almuerzos * costo_almuerzo
-            
-            total_trabajador = pago_completos + pago_medios + total_almuerzos
-            gasto_semana_mo += total_trabajador
-
-            st.markdown(f"""
-                <div style="background-color: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-top: 10px; margin-bottom: 10px;">
-                    <table style="width:100%; color: #e2e8f0; text-align: left; font-size: 1.05rem;">
-                        <tr><th>Concepto</th><th>Cantidad</th><th>Jornal / Costo</th><th>Parcial (S/)</th></tr>
-                        <tr><td>Días Completos</td><td><b>{cant_completos}</b></td><td>S/ {jornal_dia:.2f}</td><td>S/ {pago_completos:.2f}</td></tr>
-                        <tr><td>Medios Días</td><td><b>{cant_medios}</b></td><td>S/ {jornal_dia/2:.2f}</td><td>S/ {pago_medios:.2f}</td></tr>
-                        <tr><td>Inasistencias</td><td><b>{cant_faltas}</b></td><td>S/ 0.00</td><td>S/ 0.00</td></tr>
-                        <tr><td>Almuerzos Afuera (S/ 7 extra)</td><td><b>{cant_almuerzos}</b></td><td>S/ {costo_almuerzo:.2f}</td><td>S/ {total_almuerzos:.2f}</td></tr>
-                        <tr><td><b>Nota / Comentario:</b></td><td colspan="3"><i>{comentario_nota if comentario_nota else 'Sin comentarios'} (Monto ref: S/ {monto_extra:.2f})</i></td></tr>
-                    </table>
-                    <hr style="border-color: #334155;">
-                    <h3 style="color: #10b981; text-align: right; margin: 0;">TOTAL A PAGAR: S/ {total_trabajador:.2f}</h3>
-                </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown(f"<h2 style='color: #38bdf8; text-align: center; background-color: #1e293b; padding: 15px; border-radius: 8px;'>Total Planilla General de la Semana: S/ {gasto_semana_mo:,.2f}</h2>", unsafe_allow_html=True)
-
-with tab_materiales:
-    st.write("Materiales comprados **exactamente dentro del rango de fechas** de la semana seleccionada.")
-    st.caption("ℹ️ NOTA: Esta tabla es un reporte de lectura. Para editar algún dato, ve arriba a 'Centro de Registro'.")
-    
-    if not df_mat_db.empty:
-        mask = (df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])
-        df_mat_filtrado = df_mat_db.loc[mask].copy()
-    else:
-        df_mat_filtrado = pd.DataFrame(columns=['partida', 'fecha', 'insumo', 'und', 'cantidad', 'precio', 'descuento', 'fecha_dt'])
-
-    if not df_mat_filtrado.empty:
-        dias_es_map = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
-        def formatear_fecha_mat(f_str):
-            try:
-                dt = date.fromisoformat(str(f_str))
-                return f"{dt.strftime('%d/%m/%Y')} ({dias_es_map[dt.weekday()]})"
-            except:
-                return str(f_str)
-
-        df_mat_filtrado['Fecha_Formateada'] = df_mat_filtrado['fecha'].apply(formatear_fecha_mat)
-        df_mat_filtrado['Parcial'] = df_mat_filtrado['cantidad'] * df_mat_filtrado['precio'] * (1 - (df_mat_filtrado['descuento'] / 100.0))
-        
-        df_mats_show = df_mat_filtrado[['Fecha_Formateada', 'insumo', 'und', 'cantidad', 'precio', 'descuento', 'Parcial']].rename(columns={
-            'Fecha_Formateada': 'Fecha',
-            'insumo': 'Insumo / Material',
-            'und': 'UND',
-            'cantidad': 'Cantidad',
-            'precio': 'Precio Unit.',
-            'descuento': 'Desc. (%)',
-            'Parcial': 'Parcial (S/)'
-        })
-        
-        df_mats_show['Cantidad'] = df_mats_show['Cantidad'].apply(lambda x: f"{x:.2f}")
-        df_mats_show['Precio Unit.'] = df_mats_show['Precio Unit.'].apply(lambda x: f"{x:,.2f}")
-        df_mats_show['Desc. (%)'] = df_mats_show['Desc. (%)'].apply(lambda x: f"{x:.2f}")
-        df_mats_show['Parcial (S/)'] = df_mats_show['Parcial (S/)'].apply(lambda x: f"{x:,.2f}")
-    else:
-        df_mats_show = pd.DataFrame(columns=['Fecha', 'Insumo / Material', 'UND', 'Cantidad', 'Precio Unit.', 'Desc. (%)', 'Parcial (S/)'])
-        
-    st.dataframe(
-        df_mats_show,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Fecha": st.column_config.TextColumn("Fecha"),
-            "Insumo / Material": st.column_config.TextColumn("Insumo / Material"),
-            "UND": st.column_config.TextColumn("UND"),
-            "Cantidad": st.column_config.TextColumn("Cantidad"),
-            "Precio Unit.": st.column_config.TextColumn("Precio Unit."),
-            "Desc. (%)": st.column_config.TextColumn("Desc. (%)"),
-            "Parcial (S/)": st.column_config.TextColumn("Parcial (S/)")
-        }
-    )
-
-    gasto_semana_mat = 0.0
-    if not df_mat_filtrado.empty:
-        gasto_semana_mat = df_mat_filtrado['Parcial'].sum()
-            
-    st.markdown(f"<h3 style='color: #38bdf8; text-align: right;'>Total Materiales Semana: S/ {gasto_semana_mat:,.2f}</h3>", unsafe_allow_html=True)
-
-st.write("---")
-
-# ==========================================
-# 11. TABLA RESUMEN SEMANAL (BLOQUES DE LUNES A SÁBADO)
-# ==========================================
-st.markdown("<h2 style='color: #10b981 !important;'>📊 Tabla Resumen Global de Gastos (Semanas de Lunes a Sábado)</h2>", unsafe_allow_html=True)
-st.write("Desglose histórico por semanas de trabajo (Lunes a Sábado) de toda la obra:")
-
-# --- CREAMOS UNA COPIA PARA MOSTRAR LOS TOTALES SIN ROMPER LOS GRÁFICOS ---
-df_resumen_mostrar = df_resumen_final.copy()
-if not df_resumen_mostrar.empty:
-    df_resumen_mostrar.loc["Total"] = {
-        "Mes": "",
-        "Semana": "TOTAL",
-        "Rango (Lunes a Sábado)": "",
-        "Gasto Mano Obra (S/)": gasto_mo_real_total,
-        "Gasto Materiales (S/)": gasto_mat_real_total,
-        "Gasto Total Semanal (S/)": round(gasto_mo_real_total + gasto_mat_real_total, 2),
-        "Gasto Acumulado (S/)": "",
-        "Saldo vs Presupuesto (S/)": ""
-    }
-    
-    for col in ["Gasto Mano Obra (S/)", "Gasto Materiales (S/)", "Gasto Total Semanal (S/)", "Gasto Acumulado (S/)", "Saldo vs Presupuesto (S/)"]:
-        df_resumen_mostrar[col] = df_resumen_mostrar[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
-
-st.dataframe(df_resumen_mostrar, use_container_width=True, hide_index=True)
-
-saldo_final = round(presupuesto_actual_total - gasto_total_acumulado, 2)
-
-col_res1, col_res2, col_res3 = st.columns(3)
-with col_res1:
-    st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; text-align: center;'>
-            <h4 style='margin:0; color:#94a3b8;'>Presupuesto Asignado</h4>
-            <h2 style='margin:0; color:#38bdf8;'>S/ {presupuesto_actual_total:,.2f}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-with col_res2:
-    st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #f59e0b; text-align: center;'>
-            <h4 style='margin:0; color:#94a3b8;'>Gasto Acumulado Global</h4>
-            <h2 style='margin:0; color:#f59e0b;'>S/ {gasto_total_acumulado:,.2f}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-with col_res3:
-    color_saldo = "#10b981" if saldo_final >= 0 else "#ef4444"
-    estado_saldo = "Saldo a Favor" if saldo_final >= 0 else "Sobregiro"
-    st.markdown(f"""
-        <div style='background-color: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid {color_saldo}; text-align: center;'>
-            <h4 style='margin:0; color:#94a3b8;'>Estado: {estado_saldo}</h4>
-            <h2 style='margin:0; color:{color_saldo};'>S/ {abs(saldo_final):,.2f}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.write("---")
-
-# ==========================================
-# 12. GENERADOR DE REPORTE PROFESIONAL PARA IMPRESIÓN / PDF
-# ==========================================
-st.markdown("<h2 style='color: #38bdf8 !important;'>📥 Exportar Informe Ejecutivo de Obra</h2>", unsafe_allow_html=True)
-st.write("Haz clic en el botón para abrir la vista de impresión formal con membrete de ingeniería. Podrás guardarlo directamente como **PDF** usando tu navegador.")
-
-if st.button("🖨️ Generar e Imprimir / Guardar Reporte PDF", use_container_width=True):
-    dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
-    fecha_impresion_str = date.today().strftime('%d/%m/%Y')
-    
-    first_m = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
-    if st.session_state['cal_mes'] == 12:
-        last_m = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
-    else:
-        last_m = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
-    
-    curr_w = first_m - timedelta(days=first_m.weekday())
-    semanas_mes_lista = []
-    idx_s = 1
-    while curr_w <= last_m:
-        end_w = curr_w + timedelta(days=5)
-        semanas_mes_lista.append((f"Semana {idx_s}", curr_w, end_w))
-        idx_s += 1
-        curr_w += timedelta(days=7)
-
-    labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
-    values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
-    colores_print = ['#06b6d4', '#f59e0b', '#10b981']
-
-    fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_print)])
-    fig_dona_print.update_layout(
-        title=dict(text="Distribución Global de Costos", font=dict(color="#0f172a", size=13)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
-        width=480, height=280
-    )
-    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont=dict(size=9.5, color='white'), insidetextorientation='horizontal')
-
-    semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
-    pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
-    gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
-
-    fig_linea_print = go.Figure()
-    fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=pres_total_linea_p, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash', width=2)))
-    fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
-    fig_linea_print.update_layout(
-        title=dict(text="Curva Histórica Presupuesto vs Gasto Acumulado", font=dict(color="#0f172a", size=13)),
-        paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=40, l=70, r=20),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(color="#0f172a", size=9)),
-        font=dict(color="#0f172a"),
-        xaxis=dict(tickangle=0, gridcolor="#e2e8f0"),
-        yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0", dtick=2000),
-        width=480, height=280
-    )
-
-    html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
-    html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
-
-    html_reporte = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Informe Técnico - Nexus Obra</title>
-        <style>
-            @page {{ size: A4; margin: 10mm; }}
-            body {{ font-family: Arial, sans-serif; color: #000; margin: 0; padding: 0; font-size: 8.5pt; line-height: 1.15; background: #fff; }}
-            .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 8px; }}
-            .header h1 {{ font-size: 12pt; margin: 0 0 2px 0; color: #0f172a; text-transform: uppercase; }}
-            .header h2 {{ font-size: 8.5pt; margin: 0; color: #334155; font-weight: normal; }}
-            .info-box {{ background: #f8fafc; border: 1px solid #cbd5e1; padding: 5px 7px; margin-bottom: 8px; font-size: 8pt; }}
-            .section-title {{ font-size: 9.5pt; font-weight: bold; color: #0284c7; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #0284c7; padding-bottom: 1px; page-break-after: avoid; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 4px; font-size: 7.5pt; page-break-inside: avoid; }}
-            th, td {{ border: 1px solid #94a3b8; padding: 2px 3px; text-align: left; }}
-            th {{ background: #1e293b; color: white; }}
-            .text-right {{ text-align: right; }}
-            .text-center {{ text-align: center; }}
-            .grafico-center {{ text-align: center; margin: 6px auto; page-break-inside: avoid; display: flex; justify-content: center; }}
-            .worker-section {{ page-break-inside: avoid; }}
-            @media print {{
-                button {{ display: none; }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
-            <h2>Informe Técnico de Control Presupuestal y Mano de Obra (Histórico Global)</h2>
-        </div>
-        
-        <div class="info-box">
-            <b>Proyecto / Descripción:</b> Trabajo en el tercer nivel vivienda unifamiliar en ADCIDEPATA Mz. E Lt. 3<br>
-            <b>Ubicación:</b> Distrito Ayacucho, Provincia Huamanga, Departamento Ayacucho<br>
-            <b>Partida Evaluada:</b> {st.session_state['partida_actual']}<br>
-            <b>Cliente:</b> Cliente X<br>
-            <b>Costo al:</b> {date.today().strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Fecha de Impresión:</b> {fecha_impresion_str}
-        </div>
-
-        <div class="section-title">1. Análisis Financiero y Resumen Global</div>
-        <p style="margin: 2px 0 4px 0;">
-            El presente informe detalla el estado económico y operativo histórico de la partida <b>{st.session_state['partida_actual']}</b>. 
-            Se ha asignado un presupuesto total de <b>S/ {presupuesto_actual_total:,.2f}</b>, 
-            registrando un gasto acumulado global de <b>S/ {gasto_total_acumulado:,.2f}</b>. 
-            Esto representa un estado financiero de <b>{"SALDO A FAVOR" if (presupuesto_actual_total - gasto_total_acumulado) >= 0 else "SOBREGIRO"}</b> 
-            por un monto de <b>S/ {abs(presupuesto_actual_total - gasto_total_acumulado):,.2f}</b>.
-        </p>
-
-        <div class="section-title">2. Análisis Gráfico de Ejecución Global (Distribución y Tendencia)</div>
-        <div class="grafico-center">{html_dona_str}</div>
-        <div class="grafico-center">{html_linea_str}</div>
-
-        <div class="section-title">3. Resumen Global por Semanas de Trabajo (Lunes a Sábado)</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Mes</th>
-                    <th>Semana</th>
-                    <th>Rango (Lunes a Sábado)</th>
-                    <th class="text-right">Mano Obra (S/)</th>
-                    <th class="text-right">Materiales (S/)</th>
-                    <th class="text-right">Total Semanal (S/)</th>
-                    <th class="text-right">Acumulado (S/)</th>
-                    <th class="text-right">Saldo (S/)</th>
-                </tr>
-            </thead>
-            <tbody>
-    """
-    
-    for _, row in df_resumen_final.iterrows():
-        html_reporte += f"""
-                <tr>
-                    <td>{row['Mes']}</td>
-                    <td>{row['Semana']}</td>
-                    <td>{row['Rango (Lunes a Sábado)']}</td>
-                    <td class="text-right">S/ {row['Gasto Mano Obra (S/)']:,.2f}</td>
-                    <td class="text-right">S/ {row['Gasto Materiales (S/)']:,.2f}</td>
-                    <td class="text-right">S/ {row['Gasto Total Semanal (S/)']:,.2f}</td>
-                    <td class="text-right">S/ {row['Gasto Acumulado (S/)']:,.2f}</td>
-                    <td class="text-right">S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td>
-                </tr>
-        """
-        
-    html_reporte += f"""
-                <tr>
-                    <td></td>
-                    <td><b>TOTAL</b></td>
-                    <td></td>
-                    <td class="text-right"><b>S/ {gasto_mo_real_total:,.2f}</b></td>
-                    <td class="text-right"><b>S/ {gasto_mat_real_total:,.2f}</b></td>
-                    <td class="text-right"><b>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</b></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="section-title">4. Detalle de Planilla por Trabajador</div>
-    """
-    
-    for _, pers in df_pers_actual.iterrows():
-        t_nombre = pers['nombre']
-        t_esp = pers['especialidad']
-        
-        html_reporte += f"""
-        <div class="worker-section">
-            <div style="background: #e2e8f0; padding: 3px 6px; font-weight: bold; margin-top: 6px; margin-bottom: 2px; font-size: 8.5pt;">
+        default_jornal_init = 120.0 if nueva_esp in ["Operario", "Enchapador", "Oficial"] else (100.0 if "Peón" in nueva_esp or "Ayudante" in margin_bottom: 2px; font-size: 8.5pt;">
                 👷 Obrero: <i>{t_esp}</i> — <b>{t_nombre}</b>
             </div>
         """
