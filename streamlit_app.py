@@ -22,7 +22,7 @@ st.set_page_config(
 # CONSTANTES GLOBALES Y COLORES
 # ==========================================
 meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
-COLOR_CELESTE = "#0284c7" # Celeste Profesional (IncoPres Style)
+COLOR_CELESTE = "#0284c7" # Celeste Profesional
 COLOR_VERDOSO = "#059669" # Verde Técnico
 COLOR_TEXTO = "#0f172a"   # Negro/Gris muy oscuro y fuerte
 
@@ -102,7 +102,7 @@ st.markdown(f"""
     h1, h2, h3, h4, h5, h6, p, span, div {{ color: {COLOR_TEXTO} !important; }}
     label {{ font-weight: 800 !important; font-size: 0.9rem !important; color: #000000 !important; }}
     
-    /* BOTONES AZUL/CELESTE COMPACTOS */
+    /* BOTONES CELESTES COMPACTOS */
     div[data-testid="stButton"] > button {{
         background-color: {COLOR_CELESTE} !important;
         color: #ffffff !important;
@@ -210,7 +210,7 @@ if st.session_state['partida_actual'] is None:
         </div>
     """, unsafe_allow_html=True)
     
-    col_p1, col_space, col_p2 = st.columns([1, 0.05, 1])
+    col_p1, col_space, col_p2 = st.columns([1, 0.1, 1])
     
     with col_p1:
         st.markdown("<div style='background:#f8fafc; padding:15px; border-radius:6px; border:1px solid #cbd5e1;'>", unsafe_allow_html=True)
@@ -434,7 +434,6 @@ with tab_mat:
             c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio, descuento) VALUES (?, ?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre, desc))
             conn.commit(); st.rerun()
 
-    # BLINDAJE DE FECHAS PARA DATA_EDITOR MATERIALES
     df_mat_edit_show = pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio", "descuento"])
     if not df_mat_db.empty:
         df_mat_edit_show = df_mat_db[['fecha', 'insumo', 'und', 'cantidad', 'precio', 'descuento']].copy()
@@ -499,7 +498,6 @@ with tab_mo:
         if btn_guardar and trabajador:
             c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad)); conn.commit(); st.rerun()
 
-    # BLINDAJE DE FECHAS PARA DATA_EDITOR ASISTENCIA
     df_asist_edit_show = pd.DataFrame(columns=["fecha", "trabajador", "estado", "almuerzo", "actividad"])
     if not df_asist_db.empty:
         df_asist_edit_show = df_asist_db[['fecha', 'trabajador', 'estado', 'almuerzo', 'actividad']].copy()
@@ -717,7 +715,6 @@ if st.button("GENERAR INFORME PDF"):
     pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
     gasto_acumulado_graf_p = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
     
-    # IDÉNTICO A TU PDF: Línea roja sólida, Verde punteada[cite: 7]
     fig_linea_print = go.Figure()
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=pres_total_linea_p, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash', width=2)))
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
@@ -741,10 +738,10 @@ if st.button("GENERAR INFORME PDF"):
             .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8pt; }}
             .info-table td {{ border: 1px solid #000; padding: 5px; }}
             .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; }}
-            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_AZUL_ELECTRICO}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_CELESTE}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; color: #000; font-weight:bold; }}
-            .data-table th {{ background: #f1f5f9; font-weight: 900; text-align: center; color: {COLOR_AZUL_ELECTRICO}; text-transform: uppercase; }}
+            .data-table th {{ background: #f1f5f9; font-weight: 900; text-align: center; color: {COLOR_CELESTE}; text-transform: uppercase; }}
             .text-right {{ text-align: right; }} .text-center {{ text-align: center; }}
             .grafico-center {{ text-align: center; margin: 5px auto; page-break-inside: avoid; display: flex; justify-content: center; }}
         </style>
@@ -753,7 +750,7 @@ if st.button("GENERAR INFORME PDF"):
         <table class="membrete-table">
             <tr>
                 <td style="width: 65%; background-color: #f8fafc;">
-                    <h1 style="font-size: 14pt; margin: 0; color: {COLOR_AZUL_ELECTRICO}; font-weight:900;">SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
+                    <h1 style="font-size: 14pt; margin: 0; color: {COLOR_CELESTE}; font-weight:900;">SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
                     <h2 style="font-size: 10pt; margin: 5px 0 0 0; color: #000;">INFORME TÉCNICO DE CONTROL PRESUPUESTAL Y MANO DE OBRA</h2>
                 </td>
                 <td style="width: 35%; font-size: 8pt;">
@@ -807,7 +804,7 @@ if st.button("GENERAR INFORME PDF"):
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']; t_esp = pers['especialidad']
-        html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_AZUL_ELECTRICO}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
+        html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_CELESTE}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
         
         for s_nombre, s_ini, s_fin in semanas_mes_lista:
             df_t_s = pd.DataFrame()
@@ -855,7 +852,7 @@ if st.button("GENERAR INFORME PDF"):
     html_reporte += f"""
             </tbody>
         </table>
-        <div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_AZUL_ELECTRICO};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
+        <div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_CELESTE};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
         <script> setTimeout(function() {{ window.print(); }}, 1500); </script>
     </body>
     </html>
