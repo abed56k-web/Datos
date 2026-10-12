@@ -30,7 +30,7 @@ COLOR_FONDO_CLARO = "#F1F5F9"   # Gris muy claro
 COLOR_TITULOS = "#DC2626"       # Rojo para alertas/secundarios
 COLOR_TEXTO = "#0f172a"         # Texto oscuro general
 
-# Nuevos colores exactos para el gráfico de Dona (extraídos de la captura)
+# Colores exactos para el gráfico de Dona (extraídos de la captura)
 COLOR_DONA_1 = "#224e6e"        # Azul acero/medio (Derecha)
 COLOR_DONA_2 = "#1d2b43"        # Azul marino oscuro (Arriba izquierda)
 COLOR_DONA_3 = "#99c488"        # Verde salvia/limón apagado (Abajo izquierda)
@@ -137,7 +137,7 @@ st.markdown(f"""
         background-color: #f8fafc !important;
         color: #000000 !important;
         border: 1px solid #cbd5e1 !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
         font-weight: 600 !important;
         padding: 0.4rem !important;
     }}
@@ -210,11 +210,11 @@ if not st.session_state['autenticado']:
     st.stop()
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS)
+# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 15px 25px; border-radius: 8px; border-left: 8px solid {COLOR_PRIMARIO}; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; margin-bottom: 20px;">
+        <div style="background-color: #ffffff; padding: 15px 25px; border-radius: 8px; border-left: 8px solid {COLOR_PRIMARIO}; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; margin-bottom: 25px;">
             <h1 style="color: {COLOR_PRIMARIO} !important; margin: 0; font-size: 1.8rem; font-weight: 900;">🗂️ PORTAFOLIO DE PROYECTOS</h1>
             <p style="color: {COLOR_TEXTO} !important; margin: 2px 0 0 0; font-weight: bold; font-size: 0.9rem;">Gestión centralizada de expedientes de obra.</p>
         </div>
@@ -223,47 +223,58 @@ if st.session_state['partida_actual'] is None:
     col_p1, col_space, col_p2 = st.columns([1, 0.05, 1])
     
     with col_p1:
-        st.markdown(f"<div style='background:#ffffff; padding:15px; border-radius:8px; border:1px solid #cbd5e1; border-top: 4px solid {COLOR_SECUNDARIO};'>", unsafe_allow_html=True)
-        st.markdown(f"<h4 style='color:{COLOR_PRIMARIO} !important; margin-top:0; font-size:1.1rem; font-weight:800;'>📂 ABRIR PARTIDA EXISTENTE</h4>", unsafe_allow_html=True)
-        partida_seleccionada = st.selectbox("Seleccionar partida:", st.session_state['lista_partidas'])
+        # Usamos st.container nativo para la caja blanca perfecta
+        try: box_abrir = st.container(border=True)
+        except TypeError: box_abrir = st.container()
         
-        c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
-        res_p = c.fetchone()
-        presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
+        with box_abrir:
+            # Listón superior de color primario
+            st.markdown(f"<div style='border-top: 4px solid {COLOR_PRIMARIO}; padding-top: 10px; margin-bottom: 15px;'><h4 style='color:{COLOR_PRIMARIO} !important; margin:0; font-size:1.1rem; font-weight:800;'>📂 ABRIR PARTIDA EXISTENTE</h4></div>", unsafe_allow_html=True)
             
-        def auto_guardar_presup_existente():
-            nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
-            guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
+            partida_seleccionada = st.selectbox("Seleccionar partida:", st.session_state['lista_partidas'])
+            
+            c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
+            res_p = c.fetchone()
+            presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
+                
+            def auto_guardar_presup_existente():
+                nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
+                guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
 
-        c1, c2 = st.columns([1.2, 1])
-        with c1: nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Ingresar ➡️"):
-            if partida_seleccionada:
-                guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
-                st.session_state['partida_actual'] = partida_seleccionada
-                st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+            c1, c2 = st.columns([1.2, 1])
+            with c1: 
+                nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
+            
+            st.write("") # Espaciador
+            if st.button("Ingresar ➡️"):
+                if partida_seleccionada:
+                    guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
+                    st.session_state['partida_actual'] = partida_seleccionada
+                    st.rerun()
             
     with col_p2:
-        st.markdown(f"<div style='background:#ffffff; padding:15px; border-radius:8px; border:1px solid #cbd5e1; border-top: 4px solid {COLOR_PRIMARIO};'>", unsafe_allow_html=True)
-        st.markdown(f"<h4 style='color:{COLOR_PRIMARIO} !important; margin-top:0; font-size:1.1rem; font-weight:800;'>➕ CREAR NUEVA PARTIDA</h4>", unsafe_allow_html=True)
-        nueva_partida = st.text_input("Nombre de la nueva partida:")
+        try: box_crear = st.container(border=True)
+        except TypeError: box_crear = st.container()
         
-        c3, c4 = st.columns([1.2, 1])
-        with c3: presupuesto_inicial_crear = st.number_input("Presupuesto Inicial (S/):", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Crear ⚡"):
-            if nueva_partida.strip():
-                if nueva_partida not in st.session_state['lista_partidas']:
-                    st.session_state['lista_partidas'].append(nueva_partida)
-                guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
-                st.session_state['partida_actual'] = nueva_partida
-                st.rerun()
-            else: st.error("Ingrese nombre válido.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with box_crear:
+            # Listón superior de color primario
+            st.markdown(f"<div style='border-top: 4px solid {COLOR_PRIMARIO}; padding-top: 10px; margin-bottom: 15px;'><h4 style='color:{COLOR_PRIMARIO} !important; margin:0; font-size:1.1rem; font-weight:800;'>➕ CREAR NUEVA PARTIDA</h4></div>", unsafe_allow_html=True)
+            
+            nueva_partida = st.text_input("Nombre de la nueva partida:")
+            
+            c3, c4 = st.columns([1.2, 1])
+            with c3: 
+                presupuesto_inicial_crear = st.number_input("Presupuesto Inicial (S/):", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
+            
+            st.write("") # Espaciador
+            if st.button("Crear ⚡"):
+                if nueva_partida.strip():
+                    if nueva_partida not in st.session_state['lista_partidas']:
+                        st.session_state['lista_partidas'].append(nueva_partida)
+                    guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
+                    st.session_state['partida_actual'] = nueva_partida
+                    st.rerun()
+                else: st.error("Ingrese nombre válido.")
                 
     st.markdown("<div class='section-header'>⚙️ ADMINISTRADOR DE EXPEDIENTES</div>", unsafe_allow_html=True)
     
@@ -301,7 +312,7 @@ if st.session_state['partida_actual'] is None:
     st.write("---")
     if os.path.exists('obra_nexus.db'):
         with open("obra_nexus.db", "rb") as file:
-            st.download_button(label="Descargar DB (.db)", data=file, file_name="proyecto_nexus.db", mime="application/octet-stream")
+            st.download_button(label="Descargar Base de Datos (.db)", data=file, file_name="proyecto_nexus.db", mime="application/octet-stream")
     st.stop()
 
 # ==========================================
@@ -669,8 +680,7 @@ with tab_planilla:
                 </table>
             """, unsafe_allow_html=True)
 
-    # CUADRO BLANCO CON TEXTO OSCURO
-    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 20px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: {COLOR_PRIMARIO}; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 20px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
 
 with tab_materiales:
     df_mat_filtrado = df_mat_db.loc[(df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])].copy() if not df_mat_db.empty else pd.DataFrame()
@@ -685,8 +695,7 @@ with tab_materiales:
     st.dataframe(df_mats_show, use_container_width=True, hide_index=True)
     gasto_semana_mat = df_mat_filtrado['Parcial'].sum() if not df_mat_filtrado.empty else 0.0
     
-    # CUADRO BLANCO CON TEXTO OSCURO
-    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 10px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: {COLOR_PRIMARIO}; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 10px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 11. TABLA RESUMEN FINANCIERO
@@ -709,9 +718,9 @@ saldo_final = round(presupuesto_actual_total - gasto_total_acumulado, 2)
 color_saldo = COLOR_DONA_3 if saldo_final >= 0 else "#ef4444"
 
 col_res1, col_res2, col_res3 = st.columns(3)
-with col_res1: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #cbd5e1; border-top:5px solid #0f172a; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Pto. Aprobado</h4><h2 style='margin:10px 0 0 0; color:#0f172a; font-weight:900;'>S/ {presupuesto_actual_total:,.2f}</h2></div>", unsafe_allow_html=True)
-with col_res2: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #cbd5e1; border-top:5px solid {COLOR_DONA_1}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Costo Real Acumulado</h4><h2 style='margin:10px 0 0 0; color:{COLOR_DONA_1}; font-weight:900;'>S/ {gasto_total_acumulado:,.2f}</h2></div>", unsafe_allow_html=True)
-with col_res3: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #cbd5e1; border-top:5px solid {color_saldo}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>{'Saldo a Favor' if saldo_final>=0 else 'Sobregiro'}</h4><h2 style='margin:10px 0 0 0; color:{color_saldo}; font-weight:900;'>S/ {abs(saldo_final):,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res1: st.markdown(f"<div style='background:white; padding:20px; border-radius:4px; border:1px solid #cbd5e1; border-top:5px solid #0f172a; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Pto. Aprobado</h4><h2 style='margin:10px 0 0 0; color:#0f172a; font-weight:900;'>S/ {presupuesto_actual_total:,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res2: st.markdown(f"<div style='background:white; padding:20px; border-radius:4px; border:1px solid #cbd5e1; border-top:5px solid {COLOR_DONA_1}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Costo Real Acumulado</h4><h2 style='margin:10px 0 0 0; color:{COLOR_DONA_1}; font-weight:900;'>S/ {gasto_total_acumulado:,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res3: st.markdown(f"<div style='background:white; padding:20px; border-radius:4px; border:1px solid #cbd5e1; border-top:5px solid {color_saldo}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>{'Saldo a Favor' if saldo_final>=0 else 'Sobregiro'}</h4><h2 style='margin:10px 0 0 0; color:{color_saldo}; font-weight:900;'>S/ {abs(saldo_final):,.2f}</h2></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 12. GENERADOR PDF
