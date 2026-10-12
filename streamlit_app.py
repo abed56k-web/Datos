@@ -19,20 +19,15 @@ st.set_page_config(
 )
 
 # ==========================================
-# CONSTANTES GLOBALES Y COLORES
+# CONSTANTES GLOBALES Y COLORES ORIGINALES
 # ==========================================
 meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 
-# Colores para gráficos (Metrados)
-COLOR_AMARILLO = "#eab308"      
-COLOR_CELESTE = "#00b0f0"       
-COLOR_VERDE_FUERTE = "#00b050"  
-COLOR_VERDE_LIMON = "#92d050"   
-
-# Colores de Interfaz
-COLOR_PRIMARIO = "#2C3E50"      # Azul Pizarra Oscuro
-COLOR_TITULOS = "#DC2626"       # Rojo
-COLOR_TEXTO = "#0f172a"         # Texto oscuro general
+# Paleta original basada en la captura ACU y requerimientos
+COLOR_CELESTE = "#0084ff"       # Celeste/Azul del botón "ACU"
+COLOR_VERDE_LIMON = "#a3e635"   # Verde limón para Saldo Disponible
+COLOR_AMARILLO = "#facc15"      # Amarillo para Mano de Obra
+COLOR_TEXTO = "#0f172a"         # Negro/Gris oscuro para textos generales
 
 # ==========================================
 # 2. BASE DE DATOS PERMANENTE Y TABLAS
@@ -99,27 +94,27 @@ if 'lista_partidas' not in st.session_state:
     st.session_state['lista_partidas'] = partidas_bd if partidas_bd else ["Obras Provisionales"]
 
 # ==========================================
-# 3. DISEÑO DE INTERFAZ PROFESIONAL 
+# 3. DISEÑO DE INTERFAZ PROFESIONAL (BLANCO Y CELESTE)
 # ==========================================
 st.markdown(f"""
     <style>
     /* Forzar fondo blanco absoluto y fuente Arial/Segoe UI */
     .stApp, .main {{ background-color: #FFFFFF !important; color: {COLOR_TEXTO} !important; font-family: 'Segoe UI', Arial, sans-serif !important; }}
     
-    /* Textos oscuros base */
+    /* Textos oscuros y negritos */
     h1, h2, h3, h4, h5, h6, p, span, div {{ color: {COLOR_TEXTO} !important; }}
     label {{ font-weight: 800 !important; font-size: 0.9rem !important; color: #000000 !important; }}
     
-    /* BOTONES ESTILO OUTLINE (TIPO IMAGEN) */
+    /* BOTONES ESTILO OUTLINE LIMPIO */
     div[data-testid="stButton"] > button {{
         background-color: #ffffff !important;
-        color: {COLOR_PRIMARIO} !important;
-        border: 1px solid {COLOR_PRIMARIO} !important;
+        color: {COLOR_CELESTE} !important;
+        border: 1px solid {COLOR_CELESTE} !important;
         border-radius: 6px !important;
         padding: 0.4rem 1.2rem !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
-        text-transform: none !important; /* Mantiene minúsculas si así se escribe */
+        text-transform: none !important; /* Respeta mayúsculas/minúsculas */
         width: auto !important; 
         box-shadow: none !important;
         transition: all 0.2s;
@@ -141,8 +136,8 @@ st.markdown(f"""
         padding: 0.4rem !important;
     }}
     .stTextInput input:focus, .stNumberInput input:focus {{
-        border-color: {COLOR_PRIMARIO} !important;
-        box-shadow: 0 0 0 1px {COLOR_PRIMARIO} !important;
+        border-color: {COLOR_CELESTE} !important;
+        box-shadow: 0 0 0 1px {COLOR_CELESTE} !important;
     }}
     
     /* Contenedores y Cajas: UNIFICADOS Y BLANCOS */
@@ -154,14 +149,14 @@ st.markdown(f"""
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }}
     
-    /* Títulos de sección */
+    /* Títulos de sección con color Celeste original */
     .section-header {{
-        border-bottom: 2px solid {COLOR_TITULOS};
+        border-bottom: 2px solid {COLOR_CELESTE};
         padding-bottom: 5px;
         margin: 25px 0 15px 0;
         font-weight: 900;
         font-size: 1.1rem;
-        color: {COLOR_TITULOS} !important;
+        color: {COLOR_CELESTE} !important;
         text-transform: uppercase;
     }}
     
@@ -176,10 +171,10 @@ st.markdown(f"""
 if not st.session_state['autenticado']:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown(f"<div style='text-align: center; margin-top: 10vh; margin-bottom: 20px;'><h1 style='color:{COLOR_PRIMARIO} !important; font-size:3rem; font-weight:900;'>NEXUS OBRA</h1><p style='font-weight:800; font-size:1.1rem; color:{COLOR_TEXTO};'>SISTEMA DE CONTROL Y ALMACÉN</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; margin-top: 10vh; margin-bottom: 20px;'><h1 style='color:{COLOR_CELESTE} !important; font-size:3rem; font-weight:900;'>NEXUS OBRA</h1><p style='font-weight:800; font-size:1.1rem; color:{COLOR_TEXTO};'>SISTEMA DE CONTROL Y ALMACÉN</p></div>", unsafe_allow_html=True)
         if not st.session_state['mostrar_registro']:
             with st.form("form_login"):
-                st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; font-weight:800; color:{COLOR_PRIMARIO} !important;'>ACCESO</h3>", unsafe_allow_html=True)
+                st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; font-weight:800; color:{COLOR_CELESTE} !important;'>ACCESO</h3>", unsafe_allow_html=True)
                 email_login = st.text_input("Usuario")
                 clave_login = st.text_input("Contraseña", type="password")
                 btn_login = st.form_submit_button("Ingresar")
@@ -194,7 +189,7 @@ if not st.session_state['autenticado']:
                 st.rerun()
         else:
             with st.form("form_registro"):
-                st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; font-weight:800; color:{COLOR_PRIMARIO} !important;'>NUEVO USUARIO</h3>", unsafe_allow_html=True)
+                st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; font-weight:800; color:{COLOR_CELESTE} !important;'>NUEVO USUARIO</h3>", unsafe_allow_html=True)
                 email_reg = st.text_input("Correo")
                 clave_reg = st.text_input("Contraseña", type="password")
                 btn_reg = st.form_submit_button("Crear Cuenta")
@@ -203,7 +198,7 @@ if not st.session_state['autenticado']:
                         st.success("Cuenta creada.")
                         st.session_state['mostrar_registro'] = False
                         st.rerun()
-            if st.button("Volver"):
+            if st.button("Volver al Login"):
                 st.session_state['mostrar_registro'] = False
                 st.rerun()
     st.stop()
@@ -213,8 +208,8 @@ if not st.session_state['autenticado']:
 # ==========================================
 if st.session_state['partida_actual'] is None:
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 15px 25px; border-radius: 8px; border-left: 8px solid {COLOR_PRIMARIO}; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; margin-bottom: 20px;">
-            <h1 style="color: {COLOR_PRIMARIO} !important; margin: 0; font-size: 1.8rem; font-weight: 900;">🗂️ PORTAFOLIO DE PROYECTOS</h1>
+        <div style="background-color: #ffffff; padding: 15px 25px; border-radius: 8px; border-left: 8px solid {COLOR_CELESTE}; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; margin-bottom: 20px;">
+            <h1 style="color: {COLOR_CELESTE} !important; margin: 0; font-size: 1.8rem; font-weight: 900;">🗂️ PORTAFOLIO DE PROYECTOS</h1>
             <p style="color: {COLOR_TEXTO} !important; margin: 2px 0 0 0; font-weight: bold; font-size: 0.9rem;">Gestión centralizada de expedientes de obra.</p>
         </div>
     """, unsafe_allow_html=True)
@@ -223,7 +218,7 @@ if st.session_state['partida_actual'] is None:
     
     with col_p1:
         st.markdown("<div style='background:#ffffff; padding:15px; border-radius:8px; border:1px solid #cbd5e1;'>", unsafe_allow_html=True)
-        st.markdown(f"<h4 style='color:{COLOR_PRIMARIO} !important; margin-top:0; font-size:1.1rem; font-weight:800;'>📂 ABRIR PARTIDA EXISTENTE</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color:{COLOR_CELESTE} !important; margin-top:0; font-size:1.1rem; font-weight:800;'>📂 ABRIR PARTIDA EXISTENTE</h4>", unsafe_allow_html=True)
         partida_seleccionada = st.selectbox("Seleccionar partida:", st.session_state['lista_partidas'])
         
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
@@ -247,7 +242,7 @@ if st.session_state['partida_actual'] is None:
             
     with col_p2:
         st.markdown("<div style='background:#ffffff; padding:15px; border-radius:8px; border:1px solid #cbd5e1;'>", unsafe_allow_html=True)
-        st.markdown(f"<h4 style='color:{COLOR_VERDE_FUERTE} !important; margin-top:0; font-size:1.1rem; font-weight:800;'>➕ CREAR NUEVA PARTIDA</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color:#10b981 !important; margin-top:0; font-size:1.1rem; font-weight:800;'>➕ CREAR NUEVA PARTIDA</h4>", unsafe_allow_html=True)
         nueva_partida = st.text_input("Nombre de la nueva partida:")
         
         c3, c4 = st.columns([1.2, 1])
@@ -307,8 +302,8 @@ if st.session_state['partida_actual'] is None:
 # 6. MÓDULO DE TRABAJO (DENTRO DE LA PARTIDA)
 # ==========================================
 st.markdown(f"""
-    <div style="background-color: #ffffff; border-left: 6px solid {COLOR_PRIMARIO}; padding: 12px 20px; border-radius: 6px; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h2 style="color: {COLOR_PRIMARIO} !important; margin: 0; font-size: 1.4rem; font-weight:900; text-transform:uppercase;">MÓDULO ACTIVO: {st.session_state['partida_actual']}</h2>
+    <div style="background-color: #ffffff; border-left: 6px solid {COLOR_CELESTE}; padding: 12px 20px; border-radius: 6px; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="color: {COLOR_CELESTE} !important; margin: 0; font-size: 1.4rem; font-weight:900; text-transform:uppercase;">MÓDULO ACTIVO: {st.session_state['partida_actual']}</h2>
     </div>
 """, unsafe_allow_html=True)
 
@@ -401,7 +396,7 @@ gasto_mat_real_total = round(df_resumen_final["Gasto Materiales (S/)"].sum(), 2)
 gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1], 2) if not df_resumen_final.empty else 0.0
 
 # ==========================================
-# 7. GRÁFICOS DINÁMICOS FINANCIEROS (CON COLORES APLICADOS)
+# 7. GRÁFICOS DINÁMICOS FINANCIEROS
 # ==========================================
 st.markdown("<div class='section-header'>📊 DASHBOARD FINANCIERO</div>", unsafe_allow_html=True)
 col_graf_circulo, col_graf_linea = st.columns([1, 1.5])
@@ -409,7 +404,6 @@ col_graf_circulo, col_graf_linea = st.columns([1, 1.5])
 with col_graf_circulo:
     labels = ['Materiales', 'Mano de Obra', 'Saldo Disponible']
     values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
-    # COLORES EXACTOS: Celeste, Amarillo, Verde Limón
     colores_dona = [COLOR_CELESTE, COLOR_AMARILLO, COLOR_VERDE_LIMON] 
     
     if sum(values) == 0: values = [0.0001, 0.0001, max(1.0, presupuesto_actual_total)]
@@ -423,8 +417,8 @@ with col_graf_linea:
     pres_total_linea = [presupuesto_actual_total] * len(semanas_graf)
     gasto_acumulado_graf = df_resumen_final['Gasto Acumulado (S/)'].tolist() if not df_resumen_final.empty else [0]
     fig_linea = go.Figure()
-    # Curva con Verde Fuerte y Celeste
-    fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto', line=dict(color=COLOR_VERDE_FUERTE, dash='dash', width=2)))
+    # Presupuesto en Verde, Ejecutado en Celeste
+    fig_linea.add_trace(go.Scatter(x=semanas_graf, y=pres_total_linea, mode='lines', name='Presupuesto', line=dict(color='#10b981', dash='dash', width=2)))
     fig_linea.add_trace(go.Scatter(x=semanas_graf, y=gasto_acumulado_graf, mode='lines+markers', name='Ejecutado', line=dict(color=COLOR_CELESTE, width=3)))
     fig_linea.update_layout(title=dict(text="Curva Presupuesto vs Gasto", font=dict(color=COLOR_TEXTO, size=14, weight='bold')), paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", margin=dict(t=40, b=10, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5), xaxis=dict(gridcolor="#e2e8f0"), yaxis=dict(tickprefix="S/ ", gridcolor="#e2e8f0"))
     st.plotly_chart(fig_linea, use_container_width=True)
@@ -527,7 +521,7 @@ with tab_mo:
         df_asist_edit_show, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_asistencia_{st.session_state['partida_actual']}",
         column_config={"fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"), "trabajador": st.column_config.SelectboxColumn("Personal", options=lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]), "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]), "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"]), "actividad": st.column_config.TextColumn("Nota")}
     )
-    if st.button("Actualizar Registro Diario"):
+    if st.button("Actualizar Asistencia"):
         c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
         for _, row in df_asist_editado.iterrows():
             if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
@@ -545,7 +539,7 @@ with col_btn1:
         if st.session_state['cal_mes'] == 1: st.session_state['cal_mes'] = 12; st.session_state['cal_ano'] -= 1
         else: st.session_state['cal_mes'] -= 1
         st.rerun()
-with col_tit: st.markdown(f"<h3 style='text-align: center; font-weight:900; color:{COLOR_PRIMARIO} !important; margin:0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
+with col_tit: st.markdown(f"<h3 style='text-align: center; font-weight:900; color:{COLOR_CELESTE} !important; margin:0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
 with col_btn2:
     if st.button("Mes Siguiente ▶"):
         if st.session_state['cal_mes'] == 12: st.session_state['cal_mes'] = 1; st.session_state['cal_ano'] += 1
@@ -576,7 +570,7 @@ with col_cal:
     .cal-table td {{ padding: 15px; border: 1px solid #e2e8f0; font-weight: 800; color: #000; font-size:1.1rem; }}
     .cal-vacio {{ background-color: #f1f5f9; color: transparent !important; border:none; }}
     .cal-futuro {{ color: #94a3b8 !important; }}
-    .cal-verde {{ background-color: {COLOR_VERDE_FUERTE}; color: white !important; border: 1px solid #000 !important; box-shadow:inset 0 0 5px rgba(0,0,0,0.2);}}
+    .cal-verde {{ background-color: {COLOR_VERDE_FUERTE}; color: white !important; border: 1px solid #000 !important; }}
     .cal-amarillo {{ background-color: {COLOR_AMARILLO}; color: black !important; border: 1px solid #000 !important; }}
     .cal-rojo {{ background-color: #ef4444; color: white !important; border: 1px solid #000 !important; }}
     </style>
@@ -601,8 +595,8 @@ with col_cal:
 
 with col_leyenda:
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; height: 100%;">
-            <h4 style="margin-top:0; border-bottom:2px solid {COLOR_PRIMARIO}; padding-bottom:5px; color:{COLOR_PRIMARIO}; font-weight:900;">LEYENDA</h4>
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #cbd5e1; height: 100%;">
+            <h4 style="margin-top:0; border-bottom:2px solid {COLOR_CELESTE}; padding-bottom:5px; color:{COLOR_CELESTE}; font-weight:900;">LEYENDA</h4>
             <p><span style="display:inline-block; width:15px; height:15px; background:{COLOR_VERDE_FUERTE}; margin-right:8px; border:1px solid #000;"></span> <b>Día Completo</b></p>
             <p><span style="display:inline-block; width:15px; height:15px; background:{COLOR_AMARILLO}; margin-right:8px; border:1px solid #000;"></span> <b>Medio Día</b></p>
             <p><span style="display:inline-block; width:15px; height:15px; background:#ef4444; margin-right:8px; border:1px solid #000;"></span> <b>Inasistencia</b></p>
@@ -660,16 +654,16 @@ with tab_planilla:
 
             st.markdown(f"""
                 <table style="width:100%; text-align: left; border-collapse: collapse; margin-top:10px; border:1px solid #cbd5e1;">
-                    <tr style='border-bottom: 1px solid #cbd5e1; background:#f8fafc;'><th style='padding:5px; color:{COLOR_PRIMARIO};'>Concepto</th><th style='color:{COLOR_PRIMARIO};'>Cant.</th><th style='color:{COLOR_PRIMARIO};'>Tasa (S/)</th><th style='color:{COLOR_PRIMARIO};'>Parcial (S/)</th></tr>
+                    <tr style='border-bottom: 1px solid #cbd5e1; background:#f8fafc;'><th style='padding:5px; color:{COLOR_CELESTE};'>Concepto</th><th style='color:{COLOR_CELESTE};'>Cant.</th><th style='color:{COLOR_CELESTE};'>Tasa (S/)</th><th style='color:{COLOR_CELESTE};'>Parcial (S/)</th></tr>
                     <tr><td style='padding:5px; font-weight:bold;'>Días Completos</td><td><b>{c_comp}</b></td><td><b>{jornal_dia:.2f}</b></td><td><b>{pago_completos:.2f}</b></td></tr>
                     <tr><td style='padding:5px; font-weight:bold;'>Medios Días</td><td><b>{c_med}</b></td><td><b>{jornal_dia/2:.2f}</b></td><td><b>{pago_medios:.2f}</b></td></tr>
                     <tr><td style='padding:5px; font-weight:bold;'>Almuerzos Extra</td><td><b>{c_alm}</b></td><td><b>{costo_almuerzo:.2f}</b></td><td><b>{total_almuerzos:.2f}</b></td></tr>
-                    <tr style='background-color:#f1f5f9; border-top:2px solid #cbd5e1;'><td style='padding:8px;'><b>TOTAL PAGO:</b></td><td colspan="3" style='text-align:right;'><h4 style="color: {COLOR_PRIMARIO}; margin: 0; font-weight:900;">S/ {total_trabajador:.2f}</h4></td></tr>
+                    <tr style='background-color:#f1f5f9; border-top:2px solid #cbd5e1;'><td style='padding:8px;'><b>TOTAL PAGO:</b></td><td colspan="3" style='text-align:right;'><h4 style="color: {COLOR_CELESTE}; margin: 0; font-weight:900;">S/ {total_trabajador:.2f}</h4></td></tr>
                 </table>
             """, unsafe_allow_html=True)
 
-    # TEXTO DE SUBTOTAL PLANILLA AHORA ES BLANCO
-    st.markdown(f"<div style='background-color: {COLOR_PRIMARIO}; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 20px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
+    # AQUÍ ESTÁ LA CORRECCIÓN: Fondo oscuro con TEXTO BLANCO IMPERATIVO
+    st.markdown(f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; text-align: right; margin-top: 20px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
 
 with tab_materiales:
     df_mat_filtrado = df_mat_db.loc[(df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])].copy() if not df_mat_db.empty else pd.DataFrame()
@@ -684,8 +678,8 @@ with tab_materiales:
     st.dataframe(df_mats_show, use_container_width=True, hide_index=True)
     gasto_semana_mat = df_mat_filtrado['Parcial'].sum() if not df_mat_filtrado.empty else 0.0
     
-    # TEXTO DE SUBTOTAL MATERIALES AHORA ES BLANCO
-    st.markdown(f"<div style='background-color: {COLOR_PRIMARIO}; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 10px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
+    # AQUÍ ESTÁ LA CORRECCIÓN: Fondo oscuro con TEXTO BLANCO IMPERATIVO
+    st.markdown(f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; text-align: right; margin-top: 10px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 11. TABLA RESUMEN FINANCIERO
@@ -749,6 +743,7 @@ if st.button("GENERAR INFORME PDF"):
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
+    # PDF IDÉNTICO AL ORIGINAL 
     html_reporte = f"""
     <!DOCTYPE html>
     <html>
@@ -762,11 +757,11 @@ if st.button("GENERAR INFORME PDF"):
             .membrete-table td {{ border: 1px solid #000; padding: 8px; vertical-align: top; }}
             .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8pt; }}
             .info-table td {{ border: 1px solid #000; padding: 5px; }}
-            .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; color: {COLOR_PRIMARIO}; }}
-            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_TITULOS}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
+            .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; color: {COLOR_CELESTE}; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_CELESTE}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; color: #000; font-weight:bold; }}
-            .data-table th {{ background: {COLOR_PRIMARIO}; font-weight: 900; text-align: center; color: #ffffff; text-transform: uppercase; }}
+            .data-table th {{ background: #f1f5f9; font-weight: 900; text-align: center; color: {COLOR_CELESTE}; text-transform: uppercase; }}
             .text-right {{ text-align: right; }} .text-center {{ text-align: center; }}
             .grafico-center {{ text-align: center; margin: 5px auto; page-break-inside: avoid; display: flex; justify-content: center; }}
         </style>
@@ -775,7 +770,7 @@ if st.button("GENERAR INFORME PDF"):
         <table class="membrete-table">
             <tr>
                 <td style="width: 65%; background-color: #f8fafc;">
-                    <h1 style="font-size: 14pt; margin: 0; color: {COLOR_PRIMARIO}; font-weight:900;">SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
+                    <h1 style="font-size: 14pt; margin: 0; color: {COLOR_CELESTE}; font-weight:900;">SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
                     <h2 style="font-size: 10pt; margin: 5px 0 0 0; color: #000;">INFORME TÉCNICO DE CONTROL PRESUPUESTAL Y MANO DE OBRA</h2>
                 </td>
                 <td style="width: 35%; font-size: 8pt;">
@@ -824,12 +819,12 @@ if st.button("GENERAR INFORME PDF"):
     for _, row in df_resumen_final.iterrows():
         html_reporte += f"<tr><td class='text-center'>{row['Mes']}</td><td class='text-center'>{row['Semana']}</td><td class='text-center'>{row['Rango (Lunes a Sábado)']}</td><td class='text-right'>S/ {row['Gasto Mano Obra (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Materiales (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Total Semanal (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Acumulado (S/)']:,.2f}</td><td class='text-right'>S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td></tr>"
         
-    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_TITULOS};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
+    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_CELESTE};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
 
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']; t_esp = pers['especialidad']
-        html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_PRIMARIO}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
+        html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_CELESTE}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
         
         for s_nombre, s_ini, s_fin in semanas_mes_lista:
             df_t_s = pd.DataFrame()
@@ -877,7 +872,7 @@ if st.button("GENERAR INFORME PDF"):
     html_reporte += f"""
             </tbody>
         </table>
-        <div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_PRIMARIO};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
+        <div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_CELESTE};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
         <script> setTimeout(function() {{ window.print(); }}, 1500); </script>
     </body>
     </html>
