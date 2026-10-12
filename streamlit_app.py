@@ -22,8 +22,9 @@ st.set_page_config(
 # CONSTANTES GLOBALES Y COLORES
 # ==========================================
 meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
-COLOR_AZUL_ELECTRICO = "#005af0" 
-COLOR_TEXTO = "#1e293b"
+COLOR_CELESTE = "#0284c7" # Celeste Profesional
+COLOR_VERDOSO = "#059669" # Verde Técnico
+COLOR_TEXTO = "#1e293b"   # Oscuro de alta legibilidad
 
 # ==========================================
 # 2. BASE DE DATOS PERMANENTE Y TABLAS
@@ -38,7 +39,7 @@ c.execute('CREATE TABLE IF NOT EXISTS asistencia (partida TEXT, trabajador TEXT,
 c.execute('CREATE TABLE IF NOT EXISTS presupuestos (partida TEXT PRIMARY KEY, modo TEXT, total REAL, materiales REAL, mano_obra REAL, fecha_creacion TEXT)')
 conn.commit()
 
-# Actualizaciones estructurales
+# Actualizaciones estructurales de seguridad
 try: c.execute('ALTER TABLE personal ADD COLUMN jornal REAL DEFAULT 120.0'); conn.commit()
 except: pass
 try: c.execute('ALTER TABLE personal ADD COLUMN almuerzo_costo REAL DEFAULT 7.0'); conn.commit()
@@ -100,9 +101,9 @@ st.markdown(f"""
     h1, h2, h3, h4, h5, h6, p, label, span, div {{ color: {COLOR_TEXTO} !important; }}
     label {{ font-weight: 600 !important; font-size: 0.9rem !important; margin-bottom: 2px !important; }}
     
-    /* BOTONES AZUL ELÉCTRICO COMPACTOS */
+    /* BOTONES CELESTES COMPACTOS */
     div[data-testid="stButton"] > button {{
-        background-color: {COLOR_AZUL_ELECTRICO} !important;
+        background-color: {COLOR_CELESTE} !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 4px !important;
@@ -110,12 +111,12 @@ st.markdown(f"""
         font-weight: bold !important;
         font-size: 0.85rem !important;
         text-transform: uppercase;
-        width: auto !important; /* REDUCE EL TAMAÑO A LO ESTRICTAMENTE NECESARIO */
-        box-shadow: 0 2px 4px rgba(0, 90, 240, 0.3) !important;
+        width: auto !important; 
+        box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3) !important;
         transition: all 0.2s;
     }}
     div[data-testid="stButton"] > button:hover {{
-        background-color: #0046cc !important;
+        background-color: #0369a1 !important;
         transform: translateY(-1px);
     }}
     
@@ -137,12 +138,12 @@ st.markdown(f"""
     
     /* Encabezados de sección limpios */
     .section-header {{
-        border-bottom: 2px solid {COLOR_AZUL_ELECTRICO};
+        border-bottom: 2px solid {COLOR_CELESTE};
         padding-bottom: 5px;
         margin: 20px 0 15px 0;
         font-weight: 800;
         font-size: 1.1rem;
-        color: {COLOR_AZUL_ELECTRICO} !important;
+        color: {COLOR_CELESTE} !important;
         text-transform: uppercase;
     }}
     </style>
@@ -154,7 +155,7 @@ st.markdown(f"""
 if not st.session_state['autenticado']:
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown(f"<div style='text-align: center; margin-top: 5vh; margin-bottom: 20px;'><h1 style='color:{COLOR_AZUL_ELECTRICO} !important; font-size:3rem; font-weight:900;'>NEXUS OBRA</h1><p style='font-weight:bold;'>SISTEMA DE CONTROL Y PRESUPUESTOS</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; margin-top: 5vh; margin-bottom: 20px;'><h1 style='color:{COLOR_CELESTE} !important; font-size:3rem; font-weight:900;'>NEXUS OBRA</h1><p style='font-weight:bold;'>SISTEMA DE CONTROL Y PRESUPUESTOS</p></div>", unsafe_allow_html=True)
         if not st.session_state['mostrar_registro']:
             with st.form("form_login"):
                 st.markdown("<h3 style='text-align: center; font-size: 1.1rem; margin-bottom:15px;'>ACCESO</h3>", unsafe_allow_html=True)
@@ -191,9 +192,8 @@ if not st.session_state['autenticado']:
 # 5. GESTOR DE PARTIDAS (PORTAFOLIO MEJORADO)
 # ==========================================
 if st.session_state['partida_actual'] is None:
-    # Encabezado estilo FOLIO COLORIDO
-    st.markdown("""
-        <div style="background: linear-gradient(135deg, #005af0, #00b4d8); padding: 15px 25px; border-radius: 10px 10px 0 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-bottom: 4px solid #f59e0b; margin-bottom: 20px;">
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, {COLOR_CELESTE}, #38bdf8); padding: 15px 25px; border-radius: 10px 10px 0 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-bottom: 4px solid #f59e0b; margin-bottom: 20px;">
             <h1 style="color: #ffffff !important; margin: 0; font-size: 1.8rem; font-weight: 800; display:flex; align-items:center; gap:10px;">
                 🗂️ PORTAFOLIO DE PROYECTOS
             </h1>
@@ -205,7 +205,7 @@ if st.session_state['partida_actual'] is None:
     
     with col_p1:
         st.markdown("<div style='background:#ffffff; padding:15px; border-radius:6px; border:1px solid #e2e8f0;'>", unsafe_allow_html=True)
-        st.markdown("<h4 style='color:#005af0 !important; margin-top:0; font-size:1.1rem;'>📂 ABRIR PARTIDA EXISTENTE</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color:{COLOR_CELESTE} !important; margin-top:0; font-size:1.1rem;'>📂 ABRIR PARTIDA EXISTENTE</h4>", unsafe_allow_html=True)
         partida_seleccionada = st.selectbox("Seleccionar partida:", st.session_state['lista_partidas'])
         
         c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
@@ -219,11 +219,9 @@ if st.session_state['partida_actual'] is None:
             nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
             guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
 
-        # Cajas reducidas solo a lo necesario usando columnas internas
         c1, c2 = st.columns([1.5, 1])
         with c1: nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
         
-        # Botón compacto sin width 100%
         if st.button("INGRESAR A LA PARTIDA ➡️", use_container_width=False):
             if partida_seleccionada:
                 guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
@@ -234,13 +232,12 @@ if st.session_state['partida_actual'] is None:
             
     with col_p2:
         st.markdown("<div style='background:#ffffff; padding:15px; border-radius:6px; border:1px solid #e2e8f0;'>", unsafe_allow_html=True)
-        st.markdown("<h4 style='color:#10b981 !important; margin-top:0; font-size:1.1rem;'>➕ CREAR NUEVA PARTIDA</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color:{COLOR_VERDOSO} !important; margin-top:0; font-size:1.1rem;'>➕ CREAR NUEVA PARTIDA</h4>", unsafe_allow_html=True)
         nueva_partida = st.text_input("Nombre de la nueva partida:")
         
         c3, c4 = st.columns([1.5, 1])
         with c3: presupuesto_inicial_crear = st.number_input("Presupuesto Inicial (S/):", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
         
-        # Botón compacto
         if st.button("CREAR Y ENTRAR ⚡", use_container_width=False):
             if nueva_partida.strip():
                 if nueva_partida not in st.session_state['lista_partidas']:
@@ -291,11 +288,11 @@ if st.session_state['partida_actual'] is None:
     st.stop()
 
 # ==========================================
-# 6. DASHBOARD DE LA PARTIDA Y PRESUPUESTO
+# 6. MÓDULO DE TRABAJO
 # ==========================================
 st.markdown(f"""
-    <div style="background-color: #ffffff; border-left: 5px solid {COLOR_AZUL_ELECTRICO}; padding: 10px 20px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;">
-        <h2 style="color: {COLOR_AZUL_ELECTRICO} !important; margin: 0; font-size: 1.5rem; font-weight:bold; text-transform:uppercase;">MÓDULO: {st.session_state['partida_actual']}</h2>
+    <div style="background-color: #ffffff; border-left: 5px solid {COLOR_CELESTE}; padding: 10px 20px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;">
+        <h2 style="color: {COLOR_CELESTE} !important; margin: 0; font-size: 1.5rem; font-weight:bold; text-transform:uppercase;">MÓDULO: {st.session_state['partida_actual']}</h2>
     </div>
 """, unsafe_allow_html=True)
 
@@ -309,21 +306,27 @@ except: row_presupuesto = None
 presupuesto_actual_total = float(row_presupuesto[0]) if row_presupuesto and row_presupuesto[0] is not None else 0.0
 
 # ==========================================
-# RECOLECCIÓN DE DATOS Y CÁLCULOS GLOBALES
+# RECOLECCIÓN DE DATOS Y CÁLCULOS GLOBALES (BLINDADO)
 # ==========================================
-df_personal_db = pd.read_sql(f"SELECT nombre, especialidad, jornal, almuerzo_costo FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
-lista_trabajadores_db = df_personal_db['nombre'].tolist() if not df_personal_db.empty else []
+df_pers_actual = pd.read_sql(f"SELECT * FROM personal WHERE partida='{st.session_state['partida_actual']}'", conn)
+if 'jornal' not in df_pers_actual.columns: df_pers_actual['jornal'] = 120.0
+if 'almuerzo_costo' not in df_pers_actual.columns: df_pers_actual['almuerzo_costo'] = 7.0
+if 'especialidad' not in df_pers_actual.columns: df_pers_actual['especialidad'] = 'Obrero'
+lista_trabajadores_db = df_pers_actual['nombre'].tolist() if not df_pers_actual.empty else []
 
-df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}'", conn)
-if not df_mat_db.empty:
+df_mat_db = pd.read_sql(f"SELECT * FROM materiales WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+if 'descuento' not in df_mat_db.columns: df_mat_db['descuento'] = 0.0
+if 'und' not in df_mat_db.columns: df_mat_db['und'] = "und"
+if not df_mat_db.empty: 
     df_mat_db['fecha_dt'] = pd.to_datetime(df_mat_db['fecha']).dt.date
     df_mat_db['cantidad'] = pd.to_numeric(df_mat_db['cantidad'], errors='coerce').fillna(0.0)
     df_mat_db['precio'] = pd.to_numeric(df_mat_db['precio'], errors='coerce').fillna(0.0)
-    df_mat_db['descuento'] = pd.to_numeric(df_mat_db['descuento'], errors='coerce').fillna(0.0) if 'descuento' in df_mat_db.columns else 0.0
+    df_mat_db['descuento'] = pd.to_numeric(df_mat_db['descuento'], errors='coerce').fillna(0.0)
 else:
     df_mat_db['fecha_dt'] = pd.Series(dtype='object'); df_mat_db['cantidad'] = pd.Series(dtype='float64'); df_mat_db['precio'] = pd.Series(dtype='float64'); df_mat_db['descuento'] = pd.Series(dtype='float64')
 
-df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}'", conn)
+df_asist_db = pd.read_sql(f"SELECT * FROM asistencia WHERE partida='{st.session_state['partida_actual']}' ORDER BY fecha DESC", conn)
+if 'actividad' not in df_asist_db.columns: df_asist_db['actividad'] = ""
 if not df_asist_db.empty: df_asist_db['fecha_dt'] = pd.to_datetime(df_asist_db['fecha']).dt.date
 else: df_asist_db['fecha_dt'] = pd.Series(dtype='object')
 
@@ -349,10 +352,11 @@ while start_current_week_res <= max_fecha_obra + timedelta(days=7):
             c_comp = len(df_tw[df_tw['estado'] == 'Día Completo'])
             c_med = len(df_tw[df_tw['estado'] == 'Medio Día'])
             c_alm = len(df_tw[df_tw['almuerzo'].str.startswith('Sale', na=False)])
-            c.execute("SELECT jornal, almuerzo_costo FROM personal WHERE partida=? AND nombre=?", (st.session_state['partida_actual'], trab))
-            p_row = c.fetchone()
-            jornal_val = float(p_row[0]) if p_row and pd.notna(p_row[0]) else 120.0
-            alm_val = float(p_row[1]) if p_row and pd.notna(p_row[1]) else 7.0
+            
+            df_esp = df_pers_actual[df_pers_actual['nombre'] == trab]
+            jornal_val = float(df_esp['jornal'].values[0]) if not df_esp.empty and pd.notna(df_esp['jornal'].values[0]) else 120.0
+            alm_val = float(df_esp['almuerzo_costo'].values[0]) if not df_esp.empty and pd.notna(df_esp['almuerzo_costo'].values[0]) else 7.0
+            
             mo_sem += (c_comp * jornal_val) + (c_med * (jornal_val / 2.0)) + (c_alm * alm_val)
 
     mat_sem = 0.0
@@ -389,7 +393,7 @@ col_graf_circulo, col_graf_linea = st.columns([1, 1.5])
 with col_graf_circulo:
     labels = ['Materiales', 'Mano de Obra', 'Saldo Disponible']
     values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
-    colores = [COLOR_AZUL_ELECTRICO, '#ea580c', '#e2e8f0'] 
+    colores = [COLOR_CELESTE, '#ea580c', '#e2e8f0'] 
     if sum(values) == 0: values = [0.0001, 0.0001, max(1.0, presupuesto_actual_total)]
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores, hole=0.5)])
     fig_dona.update_layout(title=dict(text="Distribución de Costos", font=dict(color=COLOR_TEXTO, size=14)), paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", margin=dict(t=40, b=10, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
@@ -423,12 +427,27 @@ with tab_mat:
         with col_m3: desc = st.number_input("Desc. (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.01)
         
         col_mb1, col_mb2 = st.columns(2)
-        with col_mb1: btn_guardar_mat = st.form_submit_button("GUARDAR", use_container_width=False)
-        with col_mb2: btn_limpiar_mat = st.form_submit_button("LIMPIAR", use_container_width=False)
+        with col_mb1: btn_guardar_mat = st.form_submit_button("GUARDAR MATERIAL", use_container_width=False)
+        with col_mb2: btn_limpiar_mat = st.form_submit_button("LIMPIAR REGISTROS", use_container_width=False)
 
         if btn_guardar_mat and mat_nom and und_final:
             c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio, descuento) VALUES (?, ?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre, desc))
             conn.commit(); st.rerun()
+
+    df_mat_editado = st.data_editor(
+        df_mat_db[['fecha', 'insumo', 'und', 'cantidad', 'precio', 'descuento']] if not df_mat_db.empty else pd.DataFrame(columns=["fecha", "insumo", "und", "cantidad", "precio", "descuento"]), 
+        num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_materiales_{st.session_state['partida_actual']}",
+        column_config={"fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"), "insumo": st.column_config.TextColumn("Insumo"), "und": st.column_config.TextColumn("U.M."), "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"), "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"), "descuento": st.column_config.NumberColumn("Desc.%", format="%.2f")}
+    )
+    if st.button("ACTUALIZAR TABLA MATERIALES", use_container_width=False):
+        c.execute("DELETE FROM materiales WHERE partida=?", (st.session_state['partida_actual'],))
+        for _, row in df_mat_editado.iterrows():
+            if pd.notna(row["insumo"]) and str(row["insumo"]).strip() != "":
+                try: c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio, descuento) VALUES (?, ?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today()), str(row["insumo"]).strip(), str(row["und"]).strip() if pd.notna(row["und"]) else "und", float(row["cantidad"]) if pd.notna(row["cantidad"]) else 1.0, float(row["precio"]) if pd.notna(row["precio"]) else 0.0, float(row["descuento"]) if "descuento" in row and pd.notna(row["descuento"]) else 0.0))
+                except: pass
+        conn.commit()
+        st.success("Actualizado.")
+        st.rerun()
 
 with tab_pers:
     with st.form("form_nuevo_personal"):
@@ -438,9 +457,23 @@ with tab_pers:
         col_np3, col_np4 = st.columns(2)
         with col_np3: def_jornal = st.number_input("Jornal (S/)", value=120.0, step=10.0)
         with col_np4: def_alm = st.number_input("Almuerzo (S/)", value=7.0, step=1.0)
-        if st.form_submit_button("REGISTRAR", use_container_width=False) and nuevo_nombre:
-            try: c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm)); conn.commit(); st.rerun()
-            except: st.warning("Ya existe.")
+        if st.form_submit_button("REGISTRAR PERSONAL", use_container_width=False):
+            if nuevo_nombre:
+                try: c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm)); conn.commit(); st.rerun()
+                except: st.warning("Ya existe.")
+
+    df_pers_editado = st.data_editor(
+        df_pers_actual[['nombre', 'especialidad', 'jornal', 'almuerzo_costo']] if not df_pers_actual.empty else pd.DataFrame(columns=["nombre", "especialidad", "jornal", "almuerzo_costo"]), 
+        num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_personal_{st.session_state['partida_actual']}",
+        column_config={"nombre": st.column_config.TextColumn("Trabajador"), "especialidad": st.column_config.TextColumn("Categoría"), "jornal": st.column_config.NumberColumn("Jornal", format="S/ %.2f"), "almuerzo_costo": st.column_config.NumberColumn("Almuerzo", format="S/ %.2f")}
+    )
+    if st.button("ACTUALIZAR PERSONAL", use_container_width=False):
+        c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
+        for _, row in df_pers_editado.iterrows():
+            if row["nombre"] and str(row["nombre"]).strip() != "":
+                try: c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], row["nombre"].strip(), row["especialidad"], float(row["jornal"]) if pd.notna(row["jornal"]) else 120.0, float(row["almuerzo_costo"]) if pd.notna(row["almuerzo_costo"]) else 7.0))
+                except: pass
+        conn.commit(); st.success("Actualizado."); st.rerun()
 
 with tab_mo:
     with st.form("form_mano_obra"):
@@ -454,8 +487,169 @@ with tab_mo:
         with col_fb2: btn_limpiar_dia = st.form_submit_button("BORRAR DÍA", use_container_width=False)
 
         if btn_guardar and trabajador:
-            c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad))
-            conn.commit(); st.rerun()
+            c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad)); conn.commit(); st.rerun()
+
+    df_asist_editado = st.data_editor(
+        df_asist_db[['fecha', 'trabajador', 'estado', 'almuerzo', 'actividad']] if not df_asist_db.empty else pd.DataFrame(columns=["fecha", "trabajador", "estado", "almuerzo", "actividad"]), 
+        num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_asistencia_{st.session_state['partida_actual']}",
+        column_config={"fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"), "trabajador": st.column_config.SelectboxColumn("Personal", options=lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]), "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]), "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"]), "actividad": st.column_config.TextColumn("Nota")}
+    )
+    if st.button("ACTUALIZAR ASISTENCIA", use_container_width=False):
+        c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
+        for _, row in df_asist_editado.iterrows():
+            if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
+                try: c.execute("INSERT INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(row["trabajador"]), str(row["fecha"]).strip() if pd.notna(row["fecha"]) else str(date.today()), str(row["estado"]) if pd.notna(row["estado"]) else "Día Completo", str(row["almuerzo"]) if pd.notna(row["almuerzo"]) else "Almuerza en obra / con comida de obra - S/ 0 extra", str(row["actividad"]) if pd.notna(row["actividad"]) else ""))
+                except: pass
+        conn.commit(); st.success("Actualizado."); st.rerun()
+
+# ==========================================
+# 9. ALMANAQUE
+# ==========================================
+st.markdown("<div class='section-header'>📅 CALENDARIO DE ASISTENCIA</div>", unsafe_allow_html=True)
+col_btn1, col_tit, col_btn2 = st.columns([1, 2, 1])
+with col_btn1:
+    if st.button("◀ Mes Anterior", use_container_width=True):
+        if st.session_state['cal_mes'] == 1: st.session_state['cal_mes'] = 12; st.session_state['cal_ano'] -= 1
+        else: st.session_state['cal_mes'] -= 1
+        st.rerun()
+with col_tit: st.markdown(f"<h3 style='text-align: center; font-weight:800; color:{COLOR_TEXTO} !important; margin:0;'>{meses_espanol[st.session_state['cal_mes']]} {st.session_state['cal_ano']}</h3>", unsafe_allow_html=True)
+with col_btn2:
+    if st.button("Mes Siguiente ▶", use_container_width=True):
+        if st.session_state['cal_mes'] == 12: st.session_state['cal_mes'] = 1; st.session_state['cal_ano'] += 1
+        else: st.session_state['cal_mes'] += 1
+        st.rerun()
+
+trabajador_seleccionado = st.selectbox("Personal:", trabajadores_registrados if trabajadores_registrados else ["Sin registros"])
+col_cal, col_leyenda = st.columns([2.5, 1])
+
+with col_cal:
+    calendar.setfirstweekday(calendar.SUNDAY)
+    mes_cal = calendar.monthcalendar(st.session_state['cal_ano'], st.session_state['cal_mes'])
+    asistencia_trabajador = {}; comentarios_trabajador = {}
+    if not df_asist_db.empty and trabajador_seleccionado != "Sin registros":
+        df_t = df_asist_db[(df_asist_db['trabajador'] == trabajador_seleccionado)]
+        for _, row in df_t.iterrows():
+            try:
+                f_reg = date.fromisoformat(str(row['fecha_dt']))
+                if f_reg.year == st.session_state['cal_ano'] and f_reg.month == st.session_state['cal_mes']:
+                    asistencia_trabajador[f_reg.day] = row['estado']
+                    comentarios_trabajador[f_reg.day] = row['actividad'] if row['actividad'] else "Sin observaciones"
+            except: pass
+
+    html_cal = f"""
+    <style>
+    .cal-table {{ width: 100%; border-collapse: collapse; text-align: center; background: #fff; border: 1px solid #e2e8f0; border-radius:8px; }}
+    .cal-table th {{ padding: 10px; background: #f8fafc; color: {COLOR_CELESTE}; border-bottom: 2px solid #cbd5e1; font-weight:900; }}
+    .cal-table td {{ padding: 15px; border: 1px solid #e2e8f0; font-weight: 800; color: #000; }}
+    .cal-vacio {{ background-color: #f1f5f9; color: transparent !important; border:none; }}
+    .cal-futuro {{ color: #94a3b8 !important; }}
+    .cal-verde {{ background-color: {COLOR_VERDOSO}; color: white !important; border: 1px solid #000 !important; }}
+    .cal-amarillo {{ background-color: #f59e0b; color: white !important; border: 1px solid #000 !important; }}
+    .cal-rojo {{ background-color: #ef4444; color: white !important; border: 1px solid #000 !important; }}
+    </style>
+    <table class="cal-table"><tr><th>DOM</th><th>LUN</th><th>MAR</th><th>MIE</th><th>JUE</th><th>VIE</th><th>SAB</th></tr>
+    """
+    for semana in mes_cal:
+        html_cal += "<tr>"
+        for dia in semana:
+            if dia == 0: html_cal += "<td class='cal-vacio'>0</td>"
+            else:
+                clase = "cal-futuro"; tooltip = "Sin registro"
+                if dia in asistencia_trabajador:
+                    est = asistencia_trabajador[dia]
+                    tooltip = f"Actividad: {comentarios_trabajador.get(dia, '')}"
+                    if "Completo" in est: clase = "cal-verde"
+                    elif "Medio" in est: clase = "cal-amarillo"
+                    else: clase = "cal-rojo"
+                html_cal += f"<td class='{clase}' title='{tooltip}'>{dia}</td>"
+        html_cal += "</tr>"
+    html_cal += "</table>"
+    st.markdown(html_cal, unsafe_allow_html=True)
+
+with col_leyenda:
+    st.markdown(f"""
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; height: 100%;">
+            <h4 style="margin-top:0; border-bottom:1px solid #e2e8f0; padding-bottom:10px; color:{COLOR_CELESTE};">Leyenda</h4>
+            <p><span style="display:inline-block; width:15px; height:15px; background:{COLOR_VERDOSO}; margin-right:8px; border:1px solid #000;"></span> <b>Completo</b></p>
+            <p><span style="display:inline-block; width:15px; height:15px; background:#f59e0b; margin-right:8px; border:1px solid #000;"></span> <b>Medio Día</b></p>
+            <p><span style="display:inline-block; width:15px; height:15px; background:#ef4444; margin-right:8px; border:1px solid #000;"></span> <b>Falta</b></p>
+        </div>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 10. MÓDULOS SEMANALES
+# ==========================================
+st.markdown("<div class='section-header'>🧾 VALORIZACIONES SEMANALES</div>", unsafe_allow_html=True)
+first_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'], 1)
+if st.session_state['cal_mes'] == 12: last_day_month_sel = date(st.session_state['cal_ano'] + 1, 1, 1) - timedelta(days=1)
+else: last_day_month_sel = date(st.session_state['cal_ano'], st.session_state['cal_mes'] + 1, 1) - timedelta(days=1)
+
+start_current_week_sel = first_day_month_sel - timedelta(days=first_day_month_sel.weekday())
+semanas_opciones = []; semana_map = {}; idx = 1
+while start_current_week_sel <= last_day_month_sel:
+    end_current_week_sel = start_current_week_sel + timedelta(days=5)
+    label = f"Valorización {idx}: {start_current_week_sel.strftime('%d/%m/%Y')} al {end_current_week_sel.strftime('%d/%m/%Y')}"
+    semanas_opciones.append(label); semana_map[label] = (start_current_week_sel, end_current_week_sel)
+    idx += 1; start_current_week_sel += timedelta(days=7)
+
+semana_seleccionada = st.selectbox("Seleccione el Periodo:", semanas_opciones)
+fecha_inicio, fecha_fin = semana_map[semana_seleccionada]
+
+tab_planilla, tab_materiales = st.tabs(["👷 Planilla de Personal", "📦 Relación de Materiales"])
+with tab_planilla:
+    gasto_semana_mo = 0
+    df_asist_semana = df_asist_db.loc[(df_asist_db['fecha_dt'] >= fecha_inicio) & (df_asist_db['fecha_dt'] <= fecha_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])] if not df_asist_db.empty else pd.DataFrame()
+
+    for trabajador in trabajadores_registrados:
+        df_esp = df_pers_actual[df_pers_actual['nombre'] == trabajador]
+        especialidad_trab = df_esp['especialidad'].values[0] if not df_esp.empty else "Obrero"
+        jornal_bd_val = float(df_esp['jornal'].values[0]) if not df_esp.empty and pd.notna(df_esp['jornal'].values[0]) else 120.0
+        alm_bd_val = float(df_esp['almuerzo_costo'].values[0]) if not df_esp.empty and pd.notna(df_esp['almuerzo_costo'].values[0]) else 7.0
+
+        df_t_sem = df_asist_semana[df_asist_semana['trabajador'] == trabajador] if not df_asist_semana.empty else pd.DataFrame()
+        c_comp = len(df_t_sem[df_t_sem['estado'] == 'Día Completo']) if not df_t_sem.empty else 0
+        c_med = len(df_t_sem[df_t_sem['estado'] == 'Medio Día']) if not df_t_sem.empty else 0
+        c_alm = len(df_t_sem[df_t_sem['almuerzo'].str.startswith('Sale', na=False)]) if not df_t_sem.empty else 0
+
+        with st.expander(f"👷 {especialidad_trab} — {trabajador}", expanded=True):
+            col_w1, col_w2, col_w3 = st.columns(3)
+            with col_w1:
+                jornal_dia = st.number_input("Jornal (S/)", value=jornal_bd_val, step=10.0, key=f"jornal_{trabajador}")
+                costo_almuerzo = st.number_input("Almuerzo (S/)", value=alm_bd_val, step=1.0, key=f"alm_costo_{trabajador}")
+            with col_w2:
+                comentario_nota = st.text_input("Anotaciones", value="", key=f"comentario_{trabajador}")
+            with col_w3:
+                monto_extra = st.number_input("Ajuste (S/)", value=0.0, step=10.0, key=f"monto_{trabajador}")
+
+            pago_completos = c_comp * jornal_dia; pago_medios = c_med * (jornal_dia / 2.0); total_almuerzos = c_alm * costo_almuerzo
+            total_trabajador = pago_completos + pago_medios + total_almuerzos + monto_extra
+            gasto_semana_mo += total_trabajador
+
+            st.markdown(f"""
+                <table style="width:100%; text-align: left; border-collapse: collapse; margin-top:10px; border:1px solid #000;">
+                    <tr style='border-bottom: 2px solid #000; background:#f8fafc;'><th style='padding:5px; color:{COLOR_CELESTE};'>Concepto</th><th style='color:{COLOR_CELESTE};'>Cant.</th><th style='color:{COLOR_CELESTE};'>Tasa (S/)</th><th style='color:{COLOR_CELESTE};'>Parcial (S/)</th></tr>
+                    <tr><td style='padding:5px; font-weight:bold;'>Días Completos</td><td><b>{c_comp}</b></td><td><b>{jornal_dia:.2f}</b></td><td><b>{pago_completos:.2f}</b></td></tr>
+                    <tr><td style='padding:5px; font-weight:bold;'>Medios Días</td><td><b>{c_med}</b></td><td><b>{jornal_dia/2:.2f}</b></td><td><b>{pago_medios:.2f}</b></td></tr>
+                    <tr><td style='padding:5px; font-weight:bold;'>Almuerzos Extra</td><td><b>{c_alm}</b></td><td><b>{costo_almuerzo:.2f}</b></td><td><b>{total_almuerzos:.2f}</b></td></tr>
+                    <tr style='background-color:#f1f5f9; border-top:2px solid #000;'><td style='padding:8px;'><b>TOTAL PAGO:</b></td><td colspan="3" style='text-align:right;'><h4 style="color: {COLOR_CELESTE}; margin: 0; font-weight:900;">S/ {total_trabajador:.2f}</h4></td></tr>
+                </table>
+            """, unsafe_allow_html=True)
+
+    st.markdown(f"<div style='background-color: {COLOR_CELESTE}; padding: 15px; border-radius: 8px; text-align: right; color: white; margin-top: 20px;'><h3 style='margin:0; color:white !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
+
+with tab_materiales:
+    df_mat_filtrado = df_mat_db.loc[(df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])].copy() if not df_mat_db.empty else pd.DataFrame()
+    if not df_mat_filtrado.empty:
+        df_mat_filtrado['Parcial'] = df_mat_filtrado['cantidad'] * df_mat_filtrado['precio'] * (1 - (df_mat_filtrado['descuento'] / 100.0))
+        df_mats_show = df_mat_filtrado[['fecha', 'insumo', 'und', 'cantidad', 'precio', 'descuento', 'Parcial']].rename(columns={'fecha':'Fecha', 'insumo':'Descripción', 'und':'Und', 'cantidad':'Cant.', 'precio':'P.U.', 'descuento':'Desc.%', 'Parcial':'Monto (S/)'})
+        df_mats_show['Cant.'] = df_mats_show['Cant.'].apply(lambda x: f"{x:.2f}")
+        df_mats_show['P.U.'] = df_mats_show['P.U.'].apply(lambda x: f"{x:,.2f}")
+        df_mats_show['Monto (S/)'] = df_mats_show['Monto (S/)'].apply(lambda x: f"{x:,.2f}")
+    else: df_mats_show = pd.DataFrame(columns=['Fecha', 'Descripción', 'Und', 'Cant.', 'P.U.', 'Desc.%', 'Monto (S/)'])
+        
+    st.dataframe(df_mats_show, use_container_width=True, hide_index=True)
+    gasto_semana_mat = df_mat_filtrado['Parcial'].sum() if not df_mat_filtrado.empty else 0.0
+    st.markdown(f"<div style='background-color: {COLOR_CELESTE}; padding: 15px; border-radius: 8px; text-align: right; color: white; margin-top: 10px;'><h3 style='margin:0; color:white !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 11. TABLA RESUMEN FINANCIERO
@@ -463,21 +657,29 @@ with tab_mo:
 st.markdown("<div class='section-header'>📈 CONSOLIDADO FINANCIERO</div>", unsafe_allow_html=True)
 df_resumen_mostrar = df_resumen_final.copy()
 if not df_resumen_mostrar.empty:
-    df_resumen_mostrar.loc["Total"] = {"Mes": "", "Semana": "TOTAL", "Rango (Lunes a Sábado)": "", "Gasto Mano Obra (S/)": gasto_mo_real_total, "Gasto Materiales (S/)": gasto_mat_real_total, "Gasto Total Semanal (S/)": round(gasto_mo_real_total + gasto_mat_real_total, 2), "Gasto Acumulado (S/)": "", "Saldo vs Presupuesto (S/)": ""}
+    df_resumen_mostrar.loc["Total"] = {
+        "Mes": "", "Semana": "TOTAL", "Rango (Lunes a Sábado)": "",
+        "Gasto Mano Obra (S/)": gasto_mo_real_total, "Gasto Materiales (S/)": gasto_mat_real_total,
+        "Gasto Total Semanal (S/)": round(gasto_mo_real_total + gasto_mat_real_total, 2),
+        "Gasto Acumulado (S/)": "", "Saldo vs Presupuesto (S/)": ""
+    }
     for col in ["Gasto Mano Obra (S/)", "Gasto Materiales (S/)", "Gasto Total Semanal (S/)", "Gasto Acumulado (S/)", "Saldo vs Presupuesto (S/)"]:
         df_resumen_mostrar[col] = df_resumen_mostrar[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
+
 st.dataframe(df_resumen_mostrar, use_container_width=True, hide_index=True)
 
 saldo_final = round(presupuesto_actual_total - gasto_total_acumulado, 2)
+color_saldo = COLOR_VERDOSO if saldo_final >= 0 else "#ef4444"
+
 col_res1, col_res2, col_res3 = st.columns(3)
-with col_res1: st.markdown(f"<div style='background:white; padding:15px; border-radius:4px; border:1px solid #e2e8f0; text-align:center;'><h4 style='margin:0; font-size:0.9rem;'>Presupuesto Base</h4><h2 style='margin:5px 0 0 0; color:#1e293b;'>S/ {presupuesto_actual_total:,.2f}</h2></div>", unsafe_allow_html=True)
-with col_res2: st.markdown(f"<div style='background:white; padding:15px; border-radius:4px; border:1px solid #e2e8f0; text-align:center;'><h4 style='margin:0; font-size:0.9rem;'>Costo Ejecutado</h4><h2 style='margin:5px 0 0 0; color:{COLOR_AZUL_ELECTRICO};'>S/ {gasto_total_acumulado:,.2f}</h2></div>", unsafe_allow_html=True)
-with col_res3: st.markdown(f"<div style='background:white; padding:15px; border-radius:4px; border:1px solid #e2e8f0; text-align:center;'><h4 style='margin:0; font-size:0.9rem;'>Saldo Total</h4><h2 style='margin:5px 0 0 0; color:#10b981;'>S/ {abs(saldo_final):,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res1: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #e2e8f0; border-top:5px solid #0f172a; text-align:center;'><h4 style='margin:0; color:#475569;'>Pto. Aprobado</h4><h2 style='margin:10px 0 0 0; color:#0f172a; font-weight:900;'>S/ {presupuesto_actual_total:,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res2: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #e2e8f0; border-top:5px solid {COLOR_CELESTE}; text-align:center;'><h4 style='margin:0; color:#475569;'>Costo Real Acumulado</h4><h2 style='margin:10px 0 0 0; color:{COLOR_CELESTE}; font-weight:900;'>S/ {gasto_total_acumulado:,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res3: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #e2e8f0; border-top:5px solid {color_saldo}; text-align:center;'><h4 style='margin:0; color:#475569;'>{'Saldo a Favor' if saldo_final>=0 else 'Sobregiro'}</h4><h2 style='margin:10px 0 0 0; color:{color_saldo}; font-weight:900;'>S/ {abs(saldo_final):,.2f}</h2></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 12. GENERADOR PDF (DISEÑO MEMBRETE CAJAS)
+# 12. GENERADOR PDF MODO PROFESIONAL BLANCO
 # ==========================================
-st.markdown("<div class='section-header'>🖨️ EXPORTAR PDF OFICIAL</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-header'>🖨️ EMISIÓN DE EXPEDIENTE (PDF OFICIAL)</div>", unsafe_allow_html=True)
 if st.button("GENERAR INFORME PDF", use_container_width=False):
     dias_es_map_rep = {0: 'Lunes', 1: 'Martes', 2: 'Miércoles', 3: 'Jueves', 4: 'Viernes', 5: 'Sábado', 6: 'Domingo'}
     fecha_impresion_str = date.today().strftime('%d/%m/%Y')
@@ -492,9 +694,9 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
 
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
-    fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=[COLOR_AZUL_ELECTRICO, '#ea580c', '#e2e8f0'])])
-    fig_dona_print.update_layout(title=dict(text="Distribución de Costos", font=dict(color="#000", size=13, weight="bold")), paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#000", size=9)), width=480, height=280)
-    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont=dict(size=9.5, color='black'))
+    fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=[COLOR_CELESTE, '#ea580c', '#cbd5e1'])])
+    fig_dona_print.update_layout(title=dict(text="Distribución de Costos", font=dict(color="#000", size=13, weight="bold")), paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=10, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#000", size=9, weight="bold")), width=480, height=280)
+    fig_dona_print.update_traces(texttemplate='%{percent}<br>S/ %{value:,.2f}', textposition='inside', textfont=dict(size=9.5, color='black', weight='bold'))
 
     semanas_graf_p = df_resumen_final['Semana'].tolist() if not df_resumen_final.empty else ['Sem 1']
     pres_total_linea_p = [presupuesto_actual_total] * len(semanas_graf_p)
@@ -504,12 +706,12 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
     fig_linea_print = go.Figure()
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=pres_total_linea_p, mode='lines', name='Presupuesto Total', line=dict(color='#10b981', dash='dash', width=2)))
     fig_linea_print.add_trace(go.Scatter(x=semanas_graf_p, y=gasto_acumulado_graf_p, mode='lines+markers', name='Gasto Acumulado', line=dict(color='#ef4444', width=3)))
-    fig_linea_print.update_layout(title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#000", size=13, weight="bold")), paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=40, l=70, r=20), legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(color="#000", size=9)), xaxis=dict(tickangle=0, gridcolor="#e2e8f0", showline=True, linecolor='#000'), yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0", showline=True, linecolor='#000'), width=480, height=280)
+    fig_linea_print.update_layout(title=dict(text="Curva Presupuesto vs Gasto Acumulado", font=dict(color="#000", size=13, weight="bold")), paper_bgcolor="white", plot_bgcolor="white", margin=dict(t=30, b=40, l=70, r=20), legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, font=dict(color="#000", size=9, weight="bold")), font=dict(color="#000", weight="bold"), xaxis=dict(tickangle=0, gridcolor="#e2e8f0", showline=True, linecolor='#000'), yaxis=dict(tickprefix="S/ ", tickformat=",.0f", gridcolor="#e2e8f0", showline=True, linecolor='#000'), width=480, height=280)
 
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
-    # ESTILO MEMBRETE CUADROS
+    # ESTILO MEMBRETE CUADROS (IDÉNTICO A LA CAPTURA)
     html_reporte = f"""
     <!DOCTYPE html>
     <html>
@@ -524,10 +726,10 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
             .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8pt; }}
             .info-table td {{ border: 1px solid #000; padding: 5px; }}
             .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; }}
-            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_AZUL_ELECTRICO}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_CELESTE}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; }}
-            .data-table th {{ background: #f1f5f9; font-weight: bold; text-align: center; }}
+            .data-table th {{ background: #f1f5f9; font-weight: bold; text-align: center; color: {COLOR_CELESTE}; text-transform: uppercase; }}
             .text-right {{ text-align: right; }} .text-center {{ text-align: center; }}
             .grafico-center {{ text-align: center; margin: 5px auto; page-break-inside: avoid; display: flex; justify-content: center; }}
             @media print {{ button {{ display: none; }} }}
@@ -537,7 +739,7 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
         <table class="membrete-table">
             <tr>
                 <td style="width: 65%; background-color: #f8fafc;">
-                    <h1 style="font-size: 14pt; margin: 0; color: {COLOR_AZUL_ELECTRICO}; font-weight:900;">SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
+                    <h1 style="font-size: 14pt; margin: 0; color: {COLOR_CELESTE}; font-weight:900;">SISTEMA DE CONTROL DE PROYECTOS - NEXUS OBRA</h1>
                     <h2 style="font-size: 10pt; margin: 5px 0 0 0; color: #000;">INFORME TÉCNICO DE CONTROL PRESUPUESTAL Y MANO DE OBRA</h2>
                 </td>
                 <td style="width: 35%; font-size: 8pt;">
@@ -566,7 +768,7 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
         </table>
 
         <div class="section-title">1. Análisis Financiero y Resumen Global</div>
-        <p style="margin: 0 0 10px 0;">El presente informe detalla el estado económico de la partida <b>{st.session_state['partida_actual']}</b>. Se ha asignado un presupuesto total de <b>S/ {presupuesto_actual_total:,.2f}</b>, registrando un gasto acumulado de <b>S/ {gasto_total_acumulado:,.2f}</b>. Esto representa un estado financiero de <b>{'SALDO A FAVOR' if saldo_final >= 0 else 'SOBREGIRO'}</b> por un monto de <b>S/ {abs(saldo_final):,.2f}</b>.</p>
+        <p style="margin: 0 0 10px 0; font-weight:bold;">El presente informe detalla el estado económico de la partida <b>{st.session_state['partida_actual']}</b>. Se ha asignado un presupuesto total de <b>S/ {presupuesto_actual_total:,.2f}</b>, registrando un gasto acumulado de <b>S/ {gasto_total_acumulado:,.2f}</b>. Esto representa un estado financiero de <b>{'SALDO A FAVOR' if saldo_final >= 0 else 'SOBREGIRO'}</b> por un monto de <b>S/ {abs(saldo_final):,.2f}</b>.</p>
 
         <div class="section-title">2. Análisis Gráfico de Ejecución</div>
         <div class="grafico-center">{html_dona_str}</div>
@@ -591,7 +793,7 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']; t_esp = pers['especialidad']
-        html_reporte += f"<div style='font-weight:bold; margin: 10px 0 5px 0; border-bottom: 1px dashed #000;'>Obrero: {t_esp} - {t_nombre}</div>"
+        html_reporte += f"<div style='font-weight:bold; margin: 10px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_CELESTE};'>Obrero: {t_esp} - {t_nombre}</div>"
         
         for s_nombre, s_ini, s_fin in semanas_mes_lista:
             df_t_s = pd.DataFrame()
@@ -639,7 +841,7 @@ if st.button("GENERAR INFORME PDF", use_container_width=False):
     html_reporte += f"""
             </tbody>
         </table>
-        <div style='text-align:right; font-weight:bold; font-size:9pt;'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
+        <div style='text-align:right; font-weight:bold; font-size:9pt; color:{COLOR_CELESTE};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
         <script> setTimeout(function() {{ window.print(); }}, 1500); </script>
     </body>
     </html>
