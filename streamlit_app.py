@@ -24,7 +24,7 @@ st.set_page_config(
 meses_espanol = ["", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
 
 # Colores extraídos de la barra de tu captura para textos y gráficos
-COLOR_AMARILLO = "#eab308"      # Amarillo adaptado para legibilidad en texto
+COLOR_AMARILLO = "#FFFF00"      # Amarillo adaptado para legibilidad en texto
 COLOR_CELESTE = "#00b0f0"       # Celeste vibrante
 COLOR_VERDE_FUERTE = "#00b050"  # Verde fuerte
 COLOR_VERDE_LIMON = "#92d050"   # Verde claro / limón
