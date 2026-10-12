@@ -111,25 +111,25 @@ st.markdown(f"""
     h1, h2, h3, h4, h5, h6, p, span, div {{ color: {COLOR_TEXTO} !important; }}
     label {{ font-weight: 800 !important; font-size: 0.9rem !important; color: #000000 !important; }}
     
-    /* BOTONES CELESTES REDONDEADOS */
+    /* BOTONES ESTILO OUTLINE (Fondo Blanco, Borde Oscuro) */
     div[data-testid="stButton"] > button {{
-        background-color: {COLOR_SECUNDARIO} !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 12px !important;
+        background-color: #ffffff !important;
+        color: {COLOR_PRIMARIO} !important;
+        border: 1px solid {COLOR_PRIMARIO} !important;
+        border-radius: 6px !important;
         padding: 0.4rem 1.2rem !important;
-        font-weight: 800 !important;
-        font-size: 0.85rem !important;
-        text-transform: uppercase;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        text-transform: none !important; 
         width: auto !important; 
-        box-shadow: 0 4px 6px rgba(74, 134, 232, 0.2) !important;
+        box-shadow: none !important;
         transition: all 0.2s;
         min-width: 120px;
     }}
     div[data-testid="stButton"] > button:hover {{
-        background-color: #3b73c4 !important;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 8px rgba(74, 134, 232, 0.3) !important;
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        border-color: #0f172a !important;
     }}
     
     /* Inputs de texto y números compactos y limpios */
@@ -183,7 +183,7 @@ if not st.session_state['autenticado']:
                 st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; font-weight:800; color:{COLOR_PRIMARIO} !important;'>ACCESO</h3>", unsafe_allow_html=True)
                 email_login = st.text_input("Usuario")
                 clave_login = st.text_input("Contraseña", type="password")
-                btn_login = st.form_submit_button("INGRESAR")
+                btn_login = st.form_submit_button("Ingresar")
                 if btn_login:
                     if verificar_usuario(email_login, clave_login):
                         st.session_state['autenticado'] = True
@@ -198,7 +198,7 @@ if not st.session_state['autenticado']:
                 st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; font-weight:800; color:{COLOR_PRIMARIO} !important;'>NUEVO USUARIO</h3>", unsafe_allow_html=True)
                 email_reg = st.text_input("Correo")
                 clave_reg = st.text_input("Contraseña", type="password")
-                btn_reg = st.form_submit_button("CREAR CUENTA")
+                btn_reg = st.form_submit_button("Crear Cuenta")
                 if btn_reg:
                     if agregar_usuario(email_reg, clave_reg):
                         st.success("Cuenta creada.")
@@ -239,7 +239,7 @@ if st.session_state['partida_actual'] is None:
         with c1: nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("INGRESAR ➡️"):
+        if st.button("Ingresar ➡️"):
             if partida_seleccionada:
                 guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
                 st.session_state['partida_actual'] = partida_seleccionada
@@ -255,7 +255,7 @@ if st.session_state['partida_actual'] is None:
         with c3: presupuesto_inicial_crear = st.number_input("Presupuesto Inicial (S/):", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("CREAR ⚡"):
+        if st.button("Crear ⚡"):
             if nueva_partida.strip():
                 if nueva_partida not in st.session_state['lista_partidas']:
                     st.session_state['lista_partidas'].append(nueva_partida)
@@ -280,7 +280,7 @@ if st.session_state['partida_actual'] is None:
             
         df_editado = st.data_editor(pd.DataFrame(datos_admin), hide_index=True, use_container_width=True, disabled=["Partida Original", "Fecha Creación", "Personal Reg.", "Presupuesto (S/)"], column_config={"Partida Original": st.column_config.TextColumn("Código de Partida"), "Nuevo Nombre": st.column_config.TextColumn("✏️ Renombrar"), "Eliminar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False)}, key="tabla_admin_partidas")
         
-        if st.button("GUARDAR CAMBIOS EN ADMINISTRADOR"):
+        if st.button("Guardar cambios"):
             cambios = False
             for i, row in df_editado.iterrows():
                 v_nom = row["Partida Original"]; n_nom = str(row["Nuevo Nombre"]).strip(); borrar = row["Eliminar"]
@@ -301,7 +301,7 @@ if st.session_state['partida_actual'] is None:
     st.write("---")
     if os.path.exists('obra_nexus.db'):
         with open("obra_nexus.db", "rb") as file:
-            st.download_button(label="📥 DESCARGAR BASE DE DATOS LOCAL (.DB)", data=file, file_name="proyecto_nexus.db", mime="application/octet-stream")
+            st.download_button(label="Descargar DB (.db)", data=file, file_name="proyecto_nexus.db", mime="application/octet-stream")
     st.stop()
 
 # ==========================================
@@ -313,7 +313,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-if st.button("⬅️ VOLVER AL PORTAFOLIO"):
+if st.button("← Volver al portafolio"):
     st.session_state['partida_actual'] = None
     st.rerun()
 
@@ -402,7 +402,7 @@ gasto_mat_real_total = round(df_resumen_final["Gasto Materiales (S/)"].sum(), 2)
 gasto_total_acumulado = round(df_resumen_final["Gasto Acumulado (S/)"].iloc[-1], 2) if not df_resumen_final.empty else 0.0
 
 # ==========================================
-# 7. GRÁFICOS DINÁMICOS (CON PALETA EXACTA DE LA IMAGEN)
+# 7. GRÁFICOS DINÁMICOS
 # ==========================================
 st.markdown("<div class='section-header'>📊 DASHBOARD FINANCIERO</div>", unsafe_allow_html=True)
 col_graf_circulo, col_graf_linea = st.columns([1, 1.5])
@@ -411,17 +411,13 @@ with col_graf_circulo:
     labels = ['Materiales', 'Mano de Obra', 'Saldo Disponible']
     values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
     
-    # APLICACIÓN DE COLORES DE LA NUEVA CAPTURA DEL GRÁFICO (Azul acero, azul oscuro, verde salvia)
     colores_dona = [COLOR_DONA_1, COLOR_DONA_2, COLOR_DONA_3] 
     
     if sum(values) == 0: values = [0.0001, 0.0001, max(1.0, presupuesto_actual_total)]
-    # Añadido hole=0.5 para hacerlo dona
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores_dona, hole=0.5)])
     fig_dona.update_layout(title=dict(text="Distribución de Costos", font=dict(color=COLOR_PRIMARIO, size=14, weight='bold')), paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", margin=dict(t=40, b=10, l=0, r=0), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
     
-    # SEPARADOR BLANCO ENTRE REBANADAS (Ancho=4px, color=#ffffff) Y TEXTO BLANCO
     fig_dona.update_traces(textfont=dict(color='white', size=14, weight='bold'), marker=dict(line=dict(color='#ffffff', width=4)))
-    
     st.plotly_chart(fig_dona, use_container_width=True)
 
 with col_graf_linea:
@@ -452,8 +448,8 @@ with tab_mat:
         with col_m3: desc = st.number_input("Desc. (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.01)
         
         col_mb1, col_mb2 = st.columns(2)
-        with col_mb1: btn_guardar_mat = st.form_submit_button("GUARDAR INGRESO")
-        with col_mb2: btn_limpiar_mat = st.form_submit_button("LIMPIAR REGISTROS")
+        with col_mb1: btn_guardar_mat = st.form_submit_button("Guardar Ingreso")
+        with col_mb2: btn_limpiar_mat = st.form_submit_button("Limpiar Registros")
 
         if btn_guardar_mat and mat_nom and und_final:
             c.execute("INSERT INTO materiales (partida, fecha, insumo, und, cantidad, precio, descuento) VALUES (?, ?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], str(f_mat), mat_nom, und_final, cant, pre, desc))
@@ -468,7 +464,7 @@ with tab_mat:
         df_mat_edit_show, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_materiales_{st.session_state['partida_actual']}",
         column_config={"fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"), "insumo": st.column_config.TextColumn("Insumo"), "und": st.column_config.TextColumn("U.M."), "cantidad": st.column_config.NumberColumn("Cant.", format="%.2f"), "precio": st.column_config.NumberColumn("Precio", format="S/ %.2f"), "descuento": st.column_config.NumberColumn("Desc.%", format="%.2f")}
     )
-    if st.button("ACTUALIZAR TABLA MATERIALES"):
+    if st.button("Actualizar Tabla"):
         c.execute("DELETE FROM materiales WHERE partida=?", (st.session_state['partida_actual'],))
         for _, row in df_mat_editado.iterrows():
             if pd.notna(row["insumo"]) and str(row["insumo"]).strip() != "":
@@ -486,7 +482,7 @@ with tab_pers:
         col_np3, col_np4 = st.columns(2)
         with col_np3: def_jornal = st.number_input("Jornal (S/)", value=120.0, step=10.0)
         with col_np4: def_alm = st.number_input("Almuerzo (S/)", value=7.0, step=1.0)
-        if st.form_submit_button("REGISTRAR PERSONAL"):
+        if st.form_submit_button("Registrar Personal"):
             if nuevo_nombre:
                 try: c.execute("INSERT INTO personal (partida, nombre, especialidad, jornal, almuerzo_costo) VALUES (?, ?, ?, ?, ?)", (st.session_state['partida_actual'], nuevo_nombre.strip(), nueva_esp, def_jornal, def_alm)); conn.commit(); st.rerun()
                 except: st.warning("Ya existe.")
@@ -501,7 +497,7 @@ with tab_pers:
         df_pers_edit_show, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_personal_{st.session_state['partida_actual']}",
         column_config={"nombre": st.column_config.TextColumn("Trabajador"), "especialidad": st.column_config.TextColumn("Categoría"), "jornal": st.column_config.NumberColumn("Jornal", format="S/ %.2f"), "almuerzo_costo": st.column_config.NumberColumn("Almuerzo", format="S/ %.2f")}
     )
-    if st.button("ACTUALIZAR PERSONAL"):
+    if st.button("Actualizar Padrón"):
         c.execute("DELETE FROM personal WHERE partida=?", (st.session_state['partida_actual'],))
         for _, row in df_pers_editado.iterrows():
             if row["nombre"] and str(row["nombre"]).strip() != "":
@@ -517,8 +513,8 @@ with tab_mo:
         almuerzo_opc = st.radio("Almuerzo", ["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"], horizontal=True)
         actividad = st.text_area("Actividad")
         col_fb1, col_fb2 = st.columns(2)
-        with col_fb1: btn_guardar = st.form_submit_button("GUARDAR ASISTENCIA")
-        with col_fb2: btn_limpiar_dia = st.form_submit_button("BORRAR DÍA")
+        with col_fb1: btn_guardar = st.form_submit_button("Guardar Asistencia")
+        with col_fb2: btn_limpiar_dia = st.form_submit_button("Borrar Día")
 
         if btn_guardar and trabajador:
             c.execute("INSERT OR REPLACE INTO asistencia (partida, trabajador, fecha, estado, almuerzo, actividad) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state['partida_actual'], trabajador, str(f_mo), estado_asis, almuerzo_opc, actividad)); conn.commit(); st.rerun()
@@ -532,7 +528,7 @@ with tab_mo:
         df_asist_edit_show, num_rows="dynamic", use_container_width=True, hide_index=True, key=f"editor_tabla_asistencia_{st.session_state['partida_actual']}",
         column_config={"fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"), "trabajador": st.column_config.SelectboxColumn("Personal", options=lista_trabajadores_db if lista_trabajadores_db else ["Sin registrar"]), "estado": st.column_config.SelectboxColumn("Estado", options=["Día Completo", "Medio Día", "Falta / Emergencia"]), "almuerzo": st.column_config.SelectboxColumn("Almuerzo", options=["Almuerza en obra / con comida de obra - S/ 0 extra", "Sale a comer afuera - S/ 7 extra"]), "actividad": st.column_config.TextColumn("Nota")}
     )
-    if st.button("ACTUALIZAR ASISTENCIA"):
+    if st.button("Actualizar Asistencia"):
         c.execute("DELETE FROM asistencia WHERE partida=?", (st.session_state['partida_actual'],))
         for _, row in df_asist_editado.iterrows():
             if pd.notna(row["trabajador"]) and str(row["trabajador"]).strip() != "":
@@ -606,7 +602,7 @@ with col_cal:
 
 with col_leyenda:
     st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #cbd5e1; height: 100%;">
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; height: 100%;">
             <h4 style="margin-top:0; border-bottom:2px solid {COLOR_PRIMARIO}; padding-bottom:5px; color:{COLOR_PRIMARIO}; font-weight:900;">LEYENDA</h4>
             <p><span style="display:inline-block; width:15px; height:15px; background:{COLOR_DONA_3}; margin-right:8px; border:1px solid #000;"></span> <b>Día Completo</b></p>
             <p><span style="display:inline-block; width:15px; height:15px; background:#facc15; margin-right:8px; border:1px solid #000;"></span> <b>Medio Día</b></p>
@@ -673,7 +669,8 @@ with tab_planilla:
                 </table>
             """, unsafe_allow_html=True)
 
-    st.markdown(f"<div style='background-color: {COLOR_PRIMARIO}; padding: 15px; border-radius: 8px; text-align: right; color: white; margin-top: 20px;'><h3 style='margin:0; color:white !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
+    # CUADRO BLANCO CON TEXTO OSCURO
+    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 20px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
 
 with tab_materiales:
     df_mat_filtrado = df_mat_db.loc[(df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])].copy() if not df_mat_db.empty else pd.DataFrame()
@@ -687,7 +684,9 @@ with tab_materiales:
         
     st.dataframe(df_mats_show, use_container_width=True, hide_index=True)
     gasto_semana_mat = df_mat_filtrado['Parcial'].sum() if not df_mat_filtrado.empty else 0.0
-    st.markdown(f"<div style='background-color: {COLOR_PRIMARIO}; padding: 15px; border-radius: 8px; text-align: right; color: white; margin-top: 10px;'><h3 style='margin:0; color:white !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
+    
+    # CUADRO BLANCO CON TEXTO OSCURO
+    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 10px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 11. TABLA RESUMEN FINANCIERO
@@ -710,12 +709,12 @@ saldo_final = round(presupuesto_actual_total - gasto_total_acumulado, 2)
 color_saldo = COLOR_DONA_3 if saldo_final >= 0 else "#ef4444"
 
 col_res1, col_res2, col_res3 = st.columns(3)
-with col_res1: st.markdown(f"<div style='background:white; padding:20px; border-radius:4px; border:1px solid #cbd5e1; border-top:5px solid #0f172a; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Pto. Aprobado</h4><h2 style='margin:10px 0 0 0; color:#0f172a; font-weight:900;'>S/ {presupuesto_actual_total:,.2f}</h2></div>", unsafe_allow_html=True)
-with col_res2: st.markdown(f"<div style='background:white; padding:20px; border-radius:4px; border:1px solid #cbd5e1; border-top:5px solid {COLOR_DONA_1}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Costo Real Acumulado</h4><h2 style='margin:10px 0 0 0; color:{COLOR_DONA_1}; font-weight:900;'>S/ {gasto_total_acumulado:,.2f}</h2></div>", unsafe_allow_html=True)
-with col_res3: st.markdown(f"<div style='background:white; padding:20px; border-radius:4px; border:1px solid #cbd5e1; border-top:5px solid {color_saldo}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>{'Saldo a Favor' if saldo_final>=0 else 'Sobregiro'}</h4><h2 style='margin:10px 0 0 0; color:{color_saldo}; font-weight:900;'>S/ {abs(saldo_final):,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res1: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #cbd5e1; border-top:5px solid #0f172a; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Pto. Aprobado</h4><h2 style='margin:10px 0 0 0; color:#0f172a; font-weight:900;'>S/ {presupuesto_actual_total:,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res2: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #cbd5e1; border-top:5px solid {COLOR_DONA_1}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>Costo Real Acumulado</h4><h2 style='margin:10px 0 0 0; color:{COLOR_DONA_1}; font-weight:900;'>S/ {gasto_total_acumulado:,.2f}</h2></div>", unsafe_allow_html=True)
+with col_res3: st.markdown(f"<div style='background:white; padding:20px; border-radius:8px; border:1px solid #cbd5e1; border-top:5px solid {color_saldo}; text-align:center;'><h4 style='margin:0; color:#475569; font-weight:800;'>{'Saldo a Favor' if saldo_final>=0 else 'Sobregiro'}</h4><h2 style='margin:10px 0 0 0; color:{color_saldo}; font-weight:900;'>S/ {abs(saldo_final):,.2f}</h2></div>", unsafe_allow_html=True)
 
 # ==========================================
-# 12. GENERADOR PDF (IDÉNTICO A TU PDF ORIGINAL)
+# 12. GENERADOR PDF
 # ==========================================
 st.markdown("<div class='section-header'>🖨️ EMISIÓN DE EXPEDIENTE (PDF OFICIAL)</div>", unsafe_allow_html=True)
 if st.button("GENERAR INFORME PDF"):
@@ -733,7 +732,6 @@ if st.button("GENERAR INFORME PDF"):
     labels_print = ['Materiales', 'Mano de Obra', 'Saldo Restante']
     values_print = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))]
     
-    # APLICACIÓN DE LA PALETA DE COLORES DE LA IMAGEN EN EL PDF
     colores_pdf = [COLOR_DONA_1, COLOR_DONA_2, COLOR_DONA_3]
     
     fig_dona_print = go.Figure(data=[go.Pie(labels=labels_print, values=values_print, marker_colors=colores_pdf, hole=0.5)])
@@ -752,7 +750,6 @@ if st.button("GENERAR INFORME PDF"):
     html_dona_str = fig_dona_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
     html_linea_str = fig_linea_print.to_html(include_plotlyjs='inline', full_html=False, config={'displayModeBar': False})
 
-    # PDF IDÉNTICO AL ORIGINAL CON MEMBRETE Y TÍTULOS 
     html_reporte = f"""
     <!DOCTYPE html>
     <html>
@@ -833,7 +830,7 @@ if st.button("GENERAR INFORME PDF"):
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']; t_esp = pers['especialidad']
-        html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_TITULOS}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
+        html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_PRIMARIO}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
         
         for s_nombre, s_ini, s_fin in semanas_mes_lista:
             df_t_s = pd.DataFrame()
@@ -881,7 +878,7 @@ if st.button("GENERAR INFORME PDF"):
     html_reporte += f"""
             </tbody>
         </table>
-        <div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_TITULOS};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
+        <div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_PRIMARIO};'>TOTAL MATERIALES MES: S/ {gasto_mat_rep:,.2f}</div>
         <script> setTimeout(function() {{ window.print(); }}, 1500); </script>
     </body>
     </html>
