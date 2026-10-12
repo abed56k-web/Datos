@@ -28,6 +28,7 @@ COLOR_AMARILLO = "#FFFF00"      # Amarillo adaptado para legibilidad en texto
 COLOR_CELESTE = "#00b0f0"       # Celeste vibrante
 COLOR_VERDE_FUERTE = "#00b050"  # Verde fuerte
 COLOR_VERDE_LIMON = "#92d050"   # Verde claro / limón
+COLOR_MORADO = "#7030A0"   # Verde claro / limón
 
 # Texto general
 COLOR_TEXTO = "#0f172a"         # Negro/Gris muy oscuro para alta legibilidad
@@ -409,7 +410,7 @@ with col_graf_circulo:
     values = [gasto_mat_real_total, gasto_mo_real_total, max(0, presupuesto_actual_total - (gasto_mat_real_total + gasto_mo_real_total))] 
     
     # APLICACIÓN DE COLORES DE LA IMAGEN EN LA DONA
-    colores_dona = [COLOR_CELESTE, COLOR_AMARILLO, COLOR_VERDE_LIMON] 
+    colores_dona = [COLOR_MORADO, COLOR_AMARILLO, COLOR_VERDE_LIMON] 
     
     if sum(values) == 0: values = [0.0001, 0.0001, max(1.0, presupuesto_actual_total)]
     fig_dona = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colores_dona, hole=0.5)])
