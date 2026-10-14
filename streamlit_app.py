@@ -45,7 +45,7 @@ COLOR_TEXTO = "#0f172a"
 COLOR_DONA_1 = "#224e6e"        
 COLOR_DONA_2 = "#1d2b43"        
 COLOR_DONA_3 = "#99c488"        
-COLOR_AMARILLO = "#facc15"      # Restaurado para el calendario de asistencia
+COLOR_AMARILLO = "#facc15"      # Color restaurado para Medio Día
 
 # ==========================================
 # 2. BASE DE DATOS PERMANENTE Y TABLAS
@@ -134,7 +134,7 @@ if not st.session_state['autenticado']:
         header {{visibility: hidden;}}
         .st-emotion-cache-1jicfl2 {{padding: 2rem 1rem;}}
         
-        /* Tarjeta Blanca de Login (Más angosta y elegante) */
+        /* Tarjeta Blanca de Login */
         div[data-testid="stForm"] {{
             background-color: white !important;
             border-radius: 12px !important;
@@ -148,7 +148,7 @@ if not st.session_state['autenticado']:
         /* Ocultar etiquetas predeterminadas */
         div[data-testid="stForm"] label {{ display: none !important; }}
         
-        /* Contenedor del Input para no deformar el ojo */
+        /* Contenedor del Input */
         div[data-testid="stForm"] div[data-baseweb="input"] {{
             background-color: #f8fafc !important;
             border: 1px solid #cbd5e1 !important;
@@ -178,7 +178,7 @@ if not st.session_state['autenticado']:
             padding: 0 10px !important;
         }}
         
-        /* Íconos Modernos SVG usando Background Image */
+        /* Íconos Modernos SVG */
         div[data-testid="stForm"] input[placeholder="Usuario"] {{
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E") !important;
             background-repeat: no-repeat !important;
@@ -210,7 +210,7 @@ if not st.session_state['autenticado']:
             background-color: white !important;
             color: #0f172a !important;
             border: 1px solid #cbd5e1 !important;
-            border-radius: 20px !important; /* Forma de píldora */
+            border-radius: 20px !important;
             font-size: 0.85rem !important;
             font-weight: 600 !important;
             padding: 6px 15px !important;
@@ -246,7 +246,7 @@ if not st.session_state['autenticado']:
         .social-icons svg {{ fill: white; width: 22px; height: 22px; cursor: pointer; transition: 0.3s; }}
         .social-icons svg:hover {{ fill: #38bdf8; transform: translateY(-2px); }}
         
-        /* Ubicación blanca pura */
+        /* Ubicación */
         .location {{ color: #ffffff !important; font-size: 0.9rem; margin-top: 15px; display:flex; align-items:center; gap:5px;}}
         
         /* Estilizar el File Uploader */
@@ -323,7 +323,7 @@ if not st.session_state['autenticado']:
                         Ayacucho - Perú
                     </div>
                 </div>
-                <div style="transform: rotate(-15deg); color: white; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 2.2rem; margin-bottom: 20px; opacity: 0.95;">
+                <div style="transform: rotate(-12deg); color: white; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 2.2rem; margin-bottom: 20px; opacity: 0.95;">
                     Tu obra,<br>en buenas manos
                 </div>
             </div>
@@ -355,8 +355,8 @@ if not st.session_state['autenticado']:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                email_login = st.text_input("Usuario", placeholder="Usuario")
-                clave_login = st.text_input("Contraseña", type="password", placeholder="Contraseña")
+                email_login = st.text_input("Usuario", placeholder="Usuario", label_visibility="collapsed")
+                clave_login = st.text_input("Contraseña", type="password", placeholder="Contraseña", label_visibility="collapsed")
                 
                 btn_login = st.form_submit_button("Ingresar ➔")
                 
@@ -368,6 +368,7 @@ if not st.session_state['autenticado']:
                     else:
                         st.error("Credenciales incorrectas. Verifique sus datos.")
             
+            # Enlaces fuera de la caja blanca
             col_links1, col_links2 = st.columns([1.3, 1])
             with col_links1:
                 st.markdown("<div style='margin-top:12px; margin-left: 10px;'><a href='#' style='color:#60a5fa; font-weight:500; font-size:0.9rem; text-decoration:none; text-shadow: 0 1px 2px rgba(0,0,0,0.5);'>¿Olvidaste tu contraseña?</a></div>", unsafe_allow_html=True)
@@ -376,6 +377,7 @@ if not st.session_state['autenticado']:
                     st.session_state['mostrar_registro'] = True
                     st.rerun()
             
+            # Panel de restauración del servidor
             st.markdown("""
                 <div style="background-color: #f0f9ff; border-radius: 6px; padding: 12px 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #bae6fd; max-width: 380px; margin-left: auto; margin-right: auto;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -516,7 +518,7 @@ st.markdown(f"""
 
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
+# 5. GESTOR DE PARTIDAS (PORTAFOLIO)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     
@@ -989,7 +991,8 @@ with tab_planilla:
                 </table>
             """, unsafe_allow_html=True)
 
-    st.markdown(f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; text-align: right; margin-top: 20px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
+    # RECUADRO SUBTOTAL CORREGIDO
+    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; border: 2px solid {COLOR_PRIMARIO}; text-align: right; margin-top: 20px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
 
 with tab_materiales:
     df_mat_filtrado = df_mat_db.loc[(df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])].copy() if not df_mat_db.empty else pd.DataFrame()
@@ -1004,7 +1007,8 @@ with tab_materiales:
     st.dataframe(df_mats_show, use_container_width=True, hide_index=True)
     gasto_semana_mat = df_mat_filtrado['Parcial'].sum() if not df_mat_filtrado.empty else 0.0
     
-    st.markdown(f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; text-align: right; margin-top: 10px;'><h3 style='margin:0; color:#ffffff !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
+    # RECUADRO SUBTOTAL CORREGIDO
+    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; border: 2px solid {COLOR_PRIMARIO}; text-align: right; margin-top: 10px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 11. TABLA RESUMEN FINANCIERO
@@ -1082,7 +1086,7 @@ if st.button("GENERAR INFORME PDF"):
             .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8pt; }}
             .info-table td {{ border: 1px solid #000; padding: 5px; }}
             .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; color: {COLOR_PRIMARIO}; }}
-            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_TITULOS}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_PRIMARIO}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; color: #000; font-weight:bold; }}
             .data-table th {{ background: {COLOR_PRIMARIO}; font-weight: 900; text-align: center; color: #ffffff; text-transform: uppercase; }}
@@ -1143,7 +1147,7 @@ if st.button("GENERAR INFORME PDF"):
     for _, row in df_resumen_final.iterrows():
         html_reporte += f"<tr><td class='text-center'>{row['Mes']}</td><td class='text-center'>{row['Semana']}</td><td class='text-center'>{row['Rango (Lunes a Sábado)']}</td><td class='text-right'>S/ {row['Gasto Mano Obra (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Materiales (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Total Semanal (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Acumulado (S/)']:,.2f}</td><td class='text-right'>S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td></tr>"
         
-    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_TITULOS};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
+    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_PRIMARIO};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
 
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
