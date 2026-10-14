@@ -41,10 +41,11 @@ COLOR_FONDO_CLARO = "#F1F5F9"
 COLOR_TITULOS = "#DC2626"       
 COLOR_TEXTO = "#0f172a"         
 
-# Colores exactos para el gráfico de Dona
+# Colores exactos para el gráfico de Dona y Calendario
 COLOR_DONA_1 = "#224e6e"        
 COLOR_DONA_2 = "#1d2b43"        
 COLOR_DONA_3 = "#99c488"        
+COLOR_AMARILLO = "#facc15"      # Restaurado para el calendario de asistencia
 
 # ==========================================
 # 2. BASE DE DATOS PERMANENTE Y TABLAS
@@ -354,8 +355,8 @@ if not st.session_state['autenticado']:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                email_login = st.text_input("Usuario", placeholder="Usuario", label_visibility="collapsed")
-                clave_login = st.text_input("Contraseña", type="password", placeholder="Contraseña", label_visibility="collapsed")
+                email_login = st.text_input("Usuario", placeholder="Usuario")
+                clave_login = st.text_input("Contraseña", type="password", placeholder="Contraseña")
                 
                 btn_login = st.form_submit_button("Ingresar ➔")
                 
@@ -367,7 +368,6 @@ if not st.session_state['autenticado']:
                     else:
                         st.error("Credenciales incorrectas. Verifique sus datos.")
             
-            # Enlaces fuera de la caja blanca (Lado a lado)
             col_links1, col_links2 = st.columns([1.3, 1])
             with col_links1:
                 st.markdown("<div style='margin-top:12px; margin-left: 10px;'><a href='#' style='color:#60a5fa; font-weight:500; font-size:0.9rem; text-decoration:none; text-shadow: 0 1px 2px rgba(0,0,0,0.5);'>¿Olvidaste tu contraseña?</a></div>", unsafe_allow_html=True)
@@ -376,7 +376,6 @@ if not st.session_state['autenticado']:
                     st.session_state['mostrar_registro'] = True
                     st.rerun()
             
-            # Panel de restauración del servidor
             st.markdown("""
                 <div style="background-color: #f0f9ff; border-radius: 6px; padding: 12px 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #bae6fd; max-width: 380px; margin-left: auto; margin-right: auto;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -517,7 +516,7 @@ st.markdown(f"""
 
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (PORTAFOLIO)
+# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     
@@ -1083,7 +1082,7 @@ if st.button("GENERAR INFORME PDF"):
             .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8pt; }}
             .info-table td {{ border: 1px solid #000; padding: 5px; }}
             .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; color: {COLOR_PRIMARIO}; }}
-            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_PRIMARIO}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_TITULOS}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; color: #000; font-weight:bold; }}
             .data-table th {{ background: {COLOR_PRIMARIO}; font-weight: 900; text-align: center; color: #ffffff; text-transform: uppercase; }}
@@ -1144,7 +1143,7 @@ if st.button("GENERAR INFORME PDF"):
     for _, row in df_resumen_final.iterrows():
         html_reporte += f"<tr><td class='text-center'>{row['Mes']}</td><td class='text-center'>{row['Semana']}</td><td class='text-center'>{row['Rango (Lunes a Sábado)']}</td><td class='text-right'>S/ {row['Gasto Mano Obra (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Materiales (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Total Semanal (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Acumulado (S/)']:,.2f}</td><td class='text-right'>S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td></tr>"
         
-    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_PRIMARIO};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
+    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_TITULOS};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
 
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
