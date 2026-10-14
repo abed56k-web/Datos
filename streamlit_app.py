@@ -143,8 +143,7 @@ if not st.session_state['autenticado']:
             max-width: 390px !important;
             margin: 0 auto !important;
         }}
-        /* Visibilidad de los Labels Usuario/Contraseña restaurada */
-        div[data-testid="stForm"] label {{ display: flex !important; color: #334155 !important; font-weight: 600 !important; font-size: 0.9rem !important; margin-bottom: 5px !important;}}
+        div[data-testid="stForm"] label {{ display: none !important; }}
         
         /* Inputs del Login */
         .stTextInput input, .stPasswordInput input {{ 
@@ -152,10 +151,10 @@ if not st.session_state['autenticado']:
             color: #0f172a !important; 
             border: 1px solid #cbd5e1 !important; 
             border-radius: 6px !important; 
-            padding: 10px 15px !important;
+            padding: 12px 15px !important;
             font-size: 0.95rem !important;
         }}
-        .stTextInput input:focus {{ border-color: #0062cc !important; box-shadow: 0 0 0 1px #0062cc !important; }}
+        .stTextInput input:focus {{ border-color: #0056b3 !important; box-shadow: 0 0 0 1px #0056b3 !important; }}
         
         /* Checkbox recordar */
         .stCheckbox label {{ display: flex !important; color: #475569 !important; font-weight: 400 !important; font-size: 0.85rem !important; margin-top: 5px;}}
@@ -168,10 +167,10 @@ if not st.session_state['autenticado']:
             border-radius: 6px !important; 
             font-size: 1.15rem !important; 
             font-weight: 600 !important;
-            padding: 10px !important;
+            padding: 12px !important;
             width: 100% !important; 
             transition: 0.3s; 
-            margin-top: 10px !important;
+            margin-top: 15px !important;
         }}
         div[data-testid="stForm"] button:hover {{ background-color: #004494 !important; transform: translateY(-1px); }}
         
@@ -228,14 +227,25 @@ if not st.session_state['autenticado']:
     col_izq, col_espacio, col_der = st.columns([1.6, 0.1, 1.1])
     
     with col_izq:
-        st.markdown("""
-            <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
-                <h2 style="color:white; margin:0; font-weight:900; font-size:1.6rem; line-height:1.2; border-left:4px solid #38bdf8; padding-left:15px;">
-                    CONTROL DE OBRAS<br>
-                    <span style="color:#38bdf8; font-size:1.4rem;">MINI - AYACUCHO</span>
-                </h2>
-            </div>
-        """, unsafe_allow_html=True)
+        if logo_b64:
+            st.markdown(f"""
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
+                    <img src="data:image/png;base64,{logo_b64}" width="70">
+                    <h2 style="color:white; margin:0; font-weight:900; font-size:1.6rem; line-height:1.2; border-left:3px solid #38bdf8; padding-left:15px;">
+                        CONTROL DE OBRAS<br>
+                        <span style="color:#38bdf8; font-size:1.3rem;">MINI - AYACUCHO</span>
+                    </h2>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
+                    <h2 style="color:white; margin:0; font-weight:900; font-size:1.6rem; line-height:1.2; border-left:4px solid #38bdf8; padding-left:15px;">
+                        CONTROL DE OBRAS<br>
+                        <span style="color:#38bdf8; font-size:1.4rem;">MINI - AYACUCHO</span>
+                    </h2>
+                </div>
+            """, unsafe_allow_html=True)
             
         st.markdown("""
             <h1 class="left-title">Bienvenido al Sistema<br><span>de Control de Obras</span></h1>
@@ -278,7 +288,7 @@ if not st.session_state['autenticado']:
                         </div>
                     </div>
                     <div class="location" style="margin-top: 5px;">
-                        <svg width="16" height="16" fill="#ffffff" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+                        <svg width="14" height="14" fill="#ffffff" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                         Ayacucho - Perú
                     </div>
                 </div>
@@ -293,9 +303,17 @@ if not st.session_state['autenticado']:
         
         if not st.session_state['mostrar_registro']:
             with st.form("form_login"):
-                # Logo cargado ADENTRO de la tarjeta blanca en la parte superior
                 if logo_b64:
-                    st.markdown(f'<div style="text-align:left; margin-bottom:15px;"><img src="data:image/png;base64,{logo_b64}" width="180"></div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="display:flex; align-items:center; margin-bottom:20px;">
+                            <img src="data:image/png;base64,{logo_b64}" width="55" style="margin-right: 15px;">
+                            <div style="border-left: 2px solid #cbd5e1; height: 40px; margin-right: 15px;"></div>
+                            <h2 style='color:#0f172a; margin:0; font-weight:900; font-size:1.1rem; line-height:1.2;'>
+                                CONTROL DE OBRAS<br>
+                                <span style='color:#0056b3; font-size:0.95rem;'>MINI - AYACUCHO</span>
+                            </h2>
+                        </div>
+                    """, unsafe_allow_html=True)
                 else:
                     st.markdown("<h2 style='color:#0f172a; margin:0 0 15px 0; font-weight:900; font-size:1.3rem; border-left:3px solid #0056b3; padding-left:10px;'>CONTROL DE OBRAS<br><span style='color:#0056b3;'>MINI</span></h2>", unsafe_allow_html=True)
                 
@@ -306,8 +324,8 @@ if not st.session_state['autenticado']:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                email_login = st.text_input("👤 Usuario")
-                clave_login = st.text_input("🔒 Contraseña", type="password")
+                email_login = st.text_input("Usuario", placeholder="👤 Usuario")
+                clave_login = st.text_input("Contraseña", type="password", placeholder="🔒 Contraseña")
                 st.checkbox("Recordarme")
                 
                 btn_login = st.form_submit_button("Ingresar ➔")
@@ -320,7 +338,6 @@ if not st.session_state['autenticado']:
                     else:
                         st.error("Credenciales incorrectas. Verifique sus datos.")
             
-            # Link de olvidaste contraseña y Botón crear cuenta en la misma línea
             col_links1, col_links2 = st.columns([1.3, 1])
             with col_links1:
                 st.markdown("<div style='margin-top:12px;'><a href='#' style='color:#0056b3; font-weight:600; font-size:0.85rem; text-decoration:none;'>¿Olvidaste tu contraseña?</a></div>", unsafe_allow_html=True)
@@ -329,7 +346,6 @@ if not st.session_state['autenticado']:
                     st.session_state['mostrar_registro'] = True
                     st.rerun()
             
-            # Panel de restauración del servidor ajustado a la imagen
             st.markdown("""
                 <div style="background-color: #f0f9ff; border-radius: 6px; padding: 12px 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #bae6fd; max-width: 380px; margin-left: auto; margin-right: auto;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -352,14 +368,26 @@ if not st.session_state['autenticado']:
                 
         else:
             with st.form("form_registro"):
+                if logo_b64:
+                    st.markdown(f"""
+                        <div style="display:flex; align-items:center; margin-bottom:20px;">
+                            <img src="data:image/png;base64,{logo_b64}" width="55" style="margin-right: 15px;">
+                            <div style="border-left: 2px solid #cbd5e1; height: 40px; margin-right: 15px;"></div>
+                            <h2 style='color:#0f172a; margin:0; font-weight:900; font-size:1.1rem; line-height:1.2;'>
+                                CONTROL DE OBRAS<br>
+                                <span style='color:#0056b3; font-size:0.95rem;'>MINI - AYACUCHO</span>
+                            </h2>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
                 st.markdown("""
                     <div style='text-align:left; margin-bottom:20px;'>
                         <h2 style='color:#0f172a; margin:0; font-weight:800; font-size:1.8rem;'>Crear Cuenta</h2>
                         <p style='color:#64748b; margin:5px 0 0 0; font-size:0.9rem;'>Registra un nuevo usuario en el sistema</p>
                     </div>
                 """, unsafe_allow_html=True)
-                email_reg = st.text_input("Nuevo Correo")
-                clave_reg = st.text_input("Crear Contraseña", type="password")
+                email_reg = st.text_input("Nuevo Correo", placeholder="👤 Correo electrónico")
+                clave_reg = st.text_input("Crear Contraseña", type="password", placeholder="🔒 Nueva contraseña")
                 btn_reg = st.form_submit_button("Registrar Cuenta ➔")
                 
                 if btn_reg:
