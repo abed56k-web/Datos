@@ -143,7 +143,8 @@ if not st.session_state['autenticado']:
             max-width: 390px !important;
             margin: 0 auto !important;
         }}
-        div[data-testid="stForm"] label {{ display: none !important; }}
+        /* Visibilidad de los Labels Usuario/Contraseña restaurada */
+        div[data-testid="stForm"] label {{ display: flex !important; color: #334155 !important; font-weight: 600 !important; font-size: 0.9rem !important; margin-bottom: 5px !important;}}
         
         /* Inputs del Login */
         .stTextInput input, .stPasswordInput input {{ 
@@ -151,10 +152,10 @@ if not st.session_state['autenticado']:
             color: #0f172a !important; 
             border: 1px solid #cbd5e1 !important; 
             border-radius: 6px !important; 
-            padding: 12px 15px !important;
+            padding: 10px 15px !important;
             font-size: 0.95rem !important;
         }}
-        .stTextInput input:focus {{ border-color: #0056b3 !important; box-shadow: 0 0 0 1px #0056b3 !important; }}
+        .stTextInput input:focus {{ border-color: #0062cc !important; box-shadow: 0 0 0 1px #0062cc !important; }}
         
         /* Checkbox recordar */
         .stCheckbox label {{ display: flex !important; color: #475569 !important; font-weight: 400 !important; font-size: 0.85rem !important; margin-top: 5px;}}
@@ -167,13 +168,30 @@ if not st.session_state['autenticado']:
             border-radius: 6px !important; 
             font-size: 1.15rem !important; 
             font-weight: 600 !important;
-            padding: 12px !important;
+            padding: 10px !important;
             width: 100% !important; 
             transition: 0.3s; 
-            margin-top: 15px !important;
+            margin-top: 10px !important;
         }}
         div[data-testid="stForm"] button:hover {{ background-color: #004494 !important; transform: translateY(-1px); }}
         
+        /* Botón Crear Cuenta (Fuera del Formulario) */
+        div[data-testid="column"] div[data-testid="stButton"] button {{
+            background-color: white !important;
+            color: #0056b3 !important;
+            border: 1px solid #0056b3 !important;
+            border-radius: 6px !important;
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+            padding: 4px 10px !important;
+            width: 100% !important;
+            margin-top: 5px !important;
+        }}
+        div[data-testid="column"] div[data-testid="stButton"] button:hover {{
+            background-color: #f1f5f9 !important;
+            color: #004494 !important;
+        }}
+
         /* Textos Izquierda: Bienvenido Blanco, Control Celeste */
         .left-title {{ color: #ffffff !important; line-height: 1.1; margin-bottom: 15px; font-weight: 800; font-size: 3.2rem; }}
         .left-title span {{ color: #38bdf8 !important; }}
@@ -198,6 +216,9 @@ if not st.session_state['autenticado']:
         .social-icons svg {{ fill: white; width: 22px; height: 22px; cursor: pointer; transition: 0.3s; }}
         .social-icons svg:hover {{ fill: #38bdf8; transform: translateY(-2px); }}
         
+        /* Ubicación blanca pura */
+        .location {{ color: #ffffff !important; font-size: 0.9rem; margin-top: 15px; display:flex; align-items:center; gap:5px;}}
+        
         /* Estilizar el File Uploader */
         div[data-testid="stFileUploader"] {{ margin-top: -15px; max-width: 380px; margin-left: auto; margin-right: auto; }}
         </style>
@@ -207,17 +228,14 @@ if not st.session_state['autenticado']:
     col_izq, col_espacio, col_der = st.columns([1.6, 0.1, 1.1])
     
     with col_izq:
-        if logo_b64:
-            st.markdown(f'<img src="data:image/png;base64,{logo_b64}" width="280" style="margin-bottom:30px;">', unsafe_allow_html=True)
-        else:
-            st.markdown("""
-                <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
-                    <h2 style="color:white; margin:0; font-weight:900; font-size:1.6rem; line-height:1.2; border-left:4px solid #38bdf8; padding-left:15px;">
-                        CONTROL DE OBRAS<br>
-                        <span style="color:#38bdf8; font-size:1.4rem;">MINI - AYACUCHO</span>
-                    </h2>
-                </div>
-            """, unsafe_allow_html=True)
+        st.markdown("""
+            <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
+                <h2 style="color:white; margin:0; font-weight:900; font-size:1.6rem; line-height:1.2; border-left:4px solid #38bdf8; padding-left:15px;">
+                    CONTROL DE OBRAS<br>
+                    <span style="color:#38bdf8; font-size:1.4rem;">MINI - AYACUCHO</span>
+                </h2>
+            </div>
+        """, unsafe_allow_html=True)
             
         st.markdown("""
             <h1 class="left-title">Bienvenido al Sistema<br><span>de Control de Obras</span></h1>
@@ -260,7 +278,7 @@ if not st.session_state['autenticado']:
                         </div>
                     </div>
                     <div class="location" style="margin-top: 5px;">
-                        <svg width="14" height="14" fill="#cbd5e1" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+                        <svg width="16" height="16" fill="#ffffff" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                         Ayacucho - Perú
                     </div>
                 </div>
@@ -275,6 +293,7 @@ if not st.session_state['autenticado']:
         
         if not st.session_state['mostrar_registro']:
             with st.form("form_login"):
+                # Logo cargado ADENTRO de la tarjeta blanca en la parte superior
                 if logo_b64:
                     st.markdown(f'<div style="text-align:left; margin-bottom:15px;"><img src="data:image/png;base64,{logo_b64}" width="180"></div>', unsafe_allow_html=True)
                 else:
@@ -287,8 +306,8 @@ if not st.session_state['autenticado']:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                email_login = st.text_input("Usuario", placeholder="👤 Usuario")
-                clave_login = st.text_input("Contraseña", type="password", placeholder="🔒 Contraseña")
+                email_login = st.text_input("👤 Usuario")
+                clave_login = st.text_input("🔒 Contraseña", type="password")
                 st.checkbox("Recordarme")
                 
                 btn_login = st.form_submit_button("Ingresar ➔")
@@ -301,22 +320,23 @@ if not st.session_state['autenticado']:
                     else:
                         st.error("Credenciales incorrectas. Verifique sus datos.")
             
-            st.markdown("""
-                <div style="display:flex; justify-content:space-between; align-items:center; max-width:380px; margin: 5px auto;">
-                    <a href='#' style='color:#0056b3; font-weight:600; font-size:0.85rem; text-decoration:none;'>¿Olvidaste tu contraseña?</a>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Crear cuenta", use_container_width=True):
-                st.session_state['mostrar_registro'] = True
-                st.rerun()
+            # Link de olvidaste contraseña y Botón crear cuenta en la misma línea
+            col_links1, col_links2 = st.columns([1.3, 1])
+            with col_links1:
+                st.markdown("<div style='margin-top:12px;'><a href='#' style='color:#0056b3; font-weight:600; font-size:0.85rem; text-decoration:none;'>¿Olvidaste tu contraseña?</a></div>", unsafe_allow_html=True)
+            with col_links2:
+                if st.button("Crear cuenta", use_container_width=True):
+                    st.session_state['mostrar_registro'] = True
+                    st.rerun()
             
+            # Panel de restauración del servidor ajustado a la imagen
             st.markdown("""
                 <div style="background-color: #f0f9ff; border-radius: 6px; padding: 12px 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #bae6fd; max-width: 380px; margin-left: auto; margin-right: auto;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 8px; height: 8px; background-color: #00e676; border-radius: 50%; box-shadow: 0 0 4px #00e676;"></div>
+                        <div style="width: 6px; height: 6px; background-color: #00e676; border-radius: 50%; box-shadow: 0 0 4px #00e676;"></div>
                         <svg width="20" height="20" fill="#0369a1" viewBox="0 0 24 24"><path d="M4 5v14h16V5H4zm14 12H6v-2h12v2zm0-4H6V9h12v4zm0-4H6V5h12v4z"/></svg>
                         <div style="display: flex; flex-direction: column;">
-                            <span style="color:#1e3a8a; font-size:0.85rem; font-weight:700; line-height: 1.2;">Se reinició el servidor</span>
+                            <span style="color:#1e3a8a; font-size:0.85rem; font-weight:600; line-height: 1.2;">Se reinició el servidor</span>
                             <span style="color:#3b82f6; font-size:0.75rem; font-weight:400; line-height: 1.2;">Restaura tu Base de Datos aquí</span>
                         </div>
                     </div>
@@ -338,8 +358,8 @@ if not st.session_state['autenticado']:
                         <p style='color:#64748b; margin:5px 0 0 0; font-size:0.9rem;'>Registra un nuevo usuario en el sistema</p>
                     </div>
                 """, unsafe_allow_html=True)
-                email_reg = st.text_input("Nuevo Correo", placeholder="👤 Correo electrónico")
-                clave_reg = st.text_input("Crear Contraseña", type="password", placeholder="🔒 Nueva contraseña")
+                email_reg = st.text_input("Nuevo Correo")
+                clave_reg = st.text_input("Crear Contraseña", type="password")
                 btn_reg = st.form_submit_button("Registrar Cuenta ➔")
                 
                 if btn_reg:
@@ -353,9 +373,11 @@ if not st.session_state['autenticado']:
                     else:
                         st.warning("Completa todos los campos solicitados.")
             
-            if st.button("⬅️ Volver a Iniciar Sesión", use_container_width=True):
-                st.session_state['mostrar_registro'] = False
-                st.rerun()
+            col_links3, col_links4 = st.columns([1.3, 1])
+            with col_links4:
+                if st.button("Volver al Login", use_container_width=True):
+                    st.session_state['mostrar_registro'] = False
+                    st.rerun()
     st.stop()
 
 
@@ -436,7 +458,7 @@ st.markdown(f"""
 
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (PORTAFOLIO)
+# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     
