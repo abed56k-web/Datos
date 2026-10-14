@@ -19,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Función mejorada para detectar .jpg, .jpeg o .png automáticamente
+# Función para detectar .jpg, .jpeg o .png automáticamente
 def get_base64_image(base_name):
     for ext in [".jpg", ".png", ".jpeg"]:
         if os.path.exists(base_name + ext):
@@ -137,37 +137,67 @@ if not st.session_state['autenticado']:
         div[data-testid="stForm"] {{
             background-color: white !important;
             border-radius: 12px !important;
-            padding: 35px 30px !important;
+            padding: 30px 25px 20px 25px !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
             border: none !important;
-            max-width: 390px !important;
+            max-width: 380px !important;
             margin: 0 auto !important;
         }}
+        
+        /* Ocultar etiquetas predeterminadas */
         div[data-testid="stForm"] label {{ display: none !important; }}
         
-        /* Inputs del Login */
-        .stTextInput input, .stPasswordInput input {{ 
-            background-color: #f8fafc !important; 
-            color: #0f172a !important; 
-            border: 1px solid #cbd5e1 !important; 
-            border-radius: 6px !important; 
-            padding: 12px 15px !important;
-            font-size: 0.95rem !important;
+        /* Contenedor del Input para no deformar el ojo */
+        div[data-testid="stForm"] div[data-baseweb="input"] {{
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            overflow: hidden;
+            margin-bottom: 5px;
         }}
-        .stTextInput input:focus {{ border-color: #0056b3 !important; box-shadow: 0 0 0 1px #0056b3 !important; }}
+        div[data-testid="stForm"] div[data-baseweb="input"]:focus-within {{
+            border-color: #0056b3 !important;
+            box-shadow: 0 0 0 1px #0056b3 !important;
+        }}
         
-        /* Checkbox recordar */
-        .stCheckbox label {{ display: flex !important; color: #475569 !important; font-weight: 400 !important; font-size: 0.85rem !important; margin-top: 5px;}}
+        /* El input real (texto y password) */
+        div[data-testid="stForm"] input {{
+            background-color: transparent !important;
+            color: #0f172a !important;
+            border: none !important;
+            padding: 12px 15px 12px 40px !important;
+            font-size: 0.95rem !important;
+            box-shadow: none !important;
+        }}
         
-        /* Botón Ingresar Azul Grande y exacto a la imagen */
+        /* Ojo de contraseña intacto */
+        div[data-testid="stForm"] div[role="button"] {{
+            background-color: transparent !important;
+            color: #64748b !important;
+            padding: 0 10px !important;
+        }}
+        
+        /* Íconos Modernos SVG usando Background Image */
+        div[data-testid="stForm"] input[placeholder="Usuario"] {{
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: 12px center !important;
+        }}
+        div[data-testid="stForm"] input[type="password"] {{
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='18' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: 12px center !important;
+        }}
+        
+        /* Botón Ingresar Azul Grande */
         div[data-testid="stForm"] button {{ 
             background-color: #0056b3 !important; 
             color: white !important; 
             border: none !important; 
             border-radius: 6px !important; 
-            font-size: 1.15rem !important; 
+            font-size: 1.1rem !important; 
             font-weight: 600 !important;
-            padding: 12px !important;
+            padding: 10px !important;
             width: 100% !important; 
             transition: 0.3s; 
             margin-top: 15px !important;
@@ -177,21 +207,21 @@ if not st.session_state['autenticado']:
         /* Botón Crear Cuenta (Fuera del Formulario) */
         div[data-testid="column"] div[data-testid="stButton"] button {{
             background-color: white !important;
-            color: #0056b3 !important;
-            border: 1px solid #0056b3 !important;
-            border-radius: 6px !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 20px !important; /* Forma de píldora */
             font-size: 0.85rem !important;
             font-weight: 600 !important;
-            padding: 4px 10px !important;
+            padding: 6px 15px !important;
             width: 100% !important;
-            margin-top: 5px !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05) !important;
         }}
         div[data-testid="column"] div[data-testid="stButton"] button:hover {{
             background-color: #f1f5f9 !important;
-            color: #004494 !important;
+            transform: translateY(-2px);
         }}
 
-        /* Textos Izquierda: Bienvenido Blanco, Control Celeste */
+        /* Textos Izquierda */
         .left-title {{ color: #ffffff !important; line-height: 1.1; margin-bottom: 15px; font-weight: 800; font-size: 3.2rem; }}
         .left-title span {{ color: #38bdf8 !important; }}
         .left-subtitle {{ color: #e2e8f0; font-size: 1.05rem; line-height: 1.5; max-width: 550px; margin-bottom: 40px; }}
@@ -292,7 +322,7 @@ if not st.session_state['autenticado']:
                         Ayacucho - Perú
                     </div>
                 </div>
-                <div style="transform: rotate(-12deg); color: white; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 2.2rem; margin-bottom: 20px; opacity: 0.95;">
+                <div style="transform: rotate(-15deg); color: white; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 2.2rem; margin-bottom: 20px; opacity: 0.95;">
                     Tu obra,<br>en buenas manos
                 </div>
             </div>
@@ -324,9 +354,8 @@ if not st.session_state['autenticado']:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                email_login = st.text_input("Usuario", placeholder="👤 Usuario")
-                clave_login = st.text_input("Contraseña", type="password", placeholder="🔒 Contraseña")
-                st.checkbox("Recordarme")
+                email_login = st.text_input("Usuario", placeholder="Usuario", label_visibility="collapsed")
+                clave_login = st.text_input("Contraseña", type="password", placeholder="Contraseña", label_visibility="collapsed")
                 
                 btn_login = st.form_submit_button("Ingresar ➔")
                 
@@ -338,21 +367,23 @@ if not st.session_state['autenticado']:
                     else:
                         st.error("Credenciales incorrectas. Verifique sus datos.")
             
+            # Enlaces fuera de la caja blanca (Lado a lado)
             col_links1, col_links2 = st.columns([1.3, 1])
             with col_links1:
-                st.markdown("<div style='margin-top:12px;'><a href='#' style='color:#0056b3; font-weight:600; font-size:0.85rem; text-decoration:none;'>¿Olvidaste tu contraseña?</a></div>", unsafe_allow_html=True)
+                st.markdown("<div style='margin-top:12px; margin-left: 10px;'><a href='#' style='color:#60a5fa; font-weight:500; font-size:0.9rem; text-decoration:none; text-shadow: 0 1px 2px rgba(0,0,0,0.5);'>¿Olvidaste tu contraseña?</a></div>", unsafe_allow_html=True)
             with col_links2:
                 if st.button("Crear cuenta", use_container_width=True):
                     st.session_state['mostrar_registro'] = True
                     st.rerun()
             
+            # Panel de restauración del servidor
             st.markdown("""
                 <div style="background-color: #f0f9ff; border-radius: 6px; padding: 12px 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #bae6fd; max-width: 380px; margin-left: auto; margin-right: auto;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 6px; height: 6px; background-color: #00e676; border-radius: 50%; box-shadow: 0 0 4px #00e676;"></div>
+                        <div style="width: 5px; height: 5px; background-color: #00e676; border-radius: 50%; box-shadow: 0 0 6px #00e676;"></div>
                         <svg width="20" height="20" fill="#0369a1" viewBox="0 0 24 24"><path d="M4 5v14h16V5H4zm14 12H6v-2h12v2zm0-4H6V9h12v4zm0-4H6V5h12v4z"/></svg>
                         <div style="display: flex; flex-direction: column;">
-                            <span style="color:#1e3a8a; font-size:0.85rem; font-weight:600; line-height: 1.2;">Se reinició el servidor</span>
+                            <span style="color:#1e3a8a; font-size:0.85rem; font-weight:500; line-height: 1.2;">Se reinició el servidor</span>
                             <span style="color:#3b82f6; font-size:0.75rem; font-weight:400; line-height: 1.2;">Restaura tu Base de Datos aquí</span>
                         </div>
                     </div>
@@ -386,8 +417,8 @@ if not st.session_state['autenticado']:
                         <p style='color:#64748b; margin:5px 0 0 0; font-size:0.9rem;'>Registra un nuevo usuario en el sistema</p>
                     </div>
                 """, unsafe_allow_html=True)
-                email_reg = st.text_input("Nuevo Correo", placeholder="👤 Correo electrónico")
-                clave_reg = st.text_input("Crear Contraseña", type="password", placeholder="🔒 Nueva contraseña")
+                email_reg = st.text_input("Nuevo Correo", placeholder="Correo electrónico", label_visibility="collapsed")
+                clave_reg = st.text_input("Crear Contraseña", type="password", placeholder="Nueva contraseña", label_visibility="collapsed")
                 btn_reg = st.form_submit_button("Registrar Cuenta ➔")
                 
                 if btn_reg:
@@ -486,7 +517,7 @@ st.markdown(f"""
 
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
+# 5. GESTOR DE PARTIDAS (PORTAFOLIO)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     
@@ -1052,7 +1083,7 @@ if st.button("GENERAR INFORME PDF"):
             .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8pt; }}
             .info-table td {{ border: 1px solid #000; padding: 5px; }}
             .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; color: {COLOR_PRIMARIO}; }}
-            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_TITULOS}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
+            .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_PRIMARIO}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; color: #000; font-weight:bold; }}
             .data-table th {{ background: {COLOR_PRIMARIO}; font-weight: 900; text-align: center; color: #ffffff; text-transform: uppercase; }}
@@ -1113,7 +1144,7 @@ if st.button("GENERAR INFORME PDF"):
     for _, row in df_resumen_final.iterrows():
         html_reporte += f"<tr><td class='text-center'>{row['Mes']}</td><td class='text-center'>{row['Semana']}</td><td class='text-center'>{row['Rango (Lunes a Sábado)']}</td><td class='text-right'>S/ {row['Gasto Mano Obra (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Materiales (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Total Semanal (S/)']:,.2f}</td><td class='text-right'>S/ {row['Gasto Acumulado (S/)']:,.2f}</td><td class='text-right'>S/ {row['Saldo vs Presupuesto (S/)']:,.2f}</td></tr>"
         
-    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_TITULOS};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
+    html_reporte += f"<tr style='background-color:#f1f5f9; font-weight:900;'><td colspan='3' class='text-right' style='color:{COLOR_PRIMARIO};'>TOTAL GENERAL:</td><td class='text-right'>S/ {gasto_mo_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mat_real_total:,.2f}</td><td class='text-right'>S/ {gasto_mo_real_total + gasto_mat_real_total:,.2f}</td><td></td><td></td></tr></tbody></table>"
 
     html_reporte += "<div class='section-title'>4. Detalle de Planilla por Trabajador</div>"
     for _, pers in df_pers_actual.iterrows():
