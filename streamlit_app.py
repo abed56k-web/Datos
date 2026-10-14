@@ -45,7 +45,7 @@ COLOR_TEXTO = "#0f172a"
 COLOR_DONA_1 = "#224e6e"        
 COLOR_DONA_2 = "#1d2b43"        
 COLOR_DONA_3 = "#99c488"        
-COLOR_AMARILLO = "#facc15"      # Color restaurado para Medio Día
+COLOR_AMARILLO = "#facc15"      # Restaurado para el calendario de asistencia
 
 # ==========================================
 # 2. BASE DE DATOS PERMANENTE Y TABLAS
@@ -991,7 +991,7 @@ with tab_planilla:
                 </table>
             """, unsafe_allow_html=True)
 
-    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 20px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: right; margin-top: 20px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL PLANILLA: S/ {gasto_semana_mo:,.2f}</h3></div>", unsafe_allow_html=True)
 
 with tab_materiales:
     df_mat_filtrado = df_mat_db.loc[(df_mat_db['fecha_dt'] >= fecha_inicio) & (df_mat_db['fecha_dt'] <= fecha_fin) & (df_mat_db['partida'] == st.session_state['partida_actual'])].copy() if not df_mat_db.empty else pd.DataFrame()
@@ -1006,7 +1006,7 @@ with tab_materiales:
     st.dataframe(df_mats_show, use_container_width=True, hide_index=True)
     gasto_semana_mat = df_mat_filtrado['Parcial'].sum() if not df_mat_filtrado.empty else 0.0
     
-    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; text-align: right; border: 1px solid #cbd5e1; margin-top: 10px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: right; margin-top: 10px;'><h3 style='margin:0; color:{COLOR_PRIMARIO} !important; font-weight:900;'>SUBTOTAL MATERIALES: S/ {gasto_semana_mat:,.2f}</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 11. TABLA RESUMEN FINANCIERO
@@ -1086,7 +1086,7 @@ if st.button("GENERAR INFORME PDF"):
             .info-label {{ background-color: #f1f5f9; font-weight: bold; width: 20%; color: {COLOR_PRIMARIO}; }}
             .section-title {{ font-size: 10pt; font-weight: bold; color: {COLOR_PRIMARIO}; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; }}
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; }}
-            .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; text-align: left; color: #000; font-weight:bold; }}
+            .data-table th, .data-table td {{ border: 1px solid #000; padding: 4px; color: #000; font-weight:bold; }}
             .data-table th {{ background: {COLOR_PRIMARIO}; font-weight: 900; text-align: center; color: #ffffff; text-transform: uppercase; }}
             .text-right {{ text-align: right; }} .text-center {{ text-align: center; }}
             .grafico-center {{ text-align: center; margin: 5px auto; page-break-inside: avoid; display: flex; justify-content: center; }}
@@ -1155,48 +1155,62 @@ if st.button("GENERAR INFORME PDF"):
     for _, pers in df_pers_actual.iterrows():
         t_nombre = pers['nombre']; t_esp = pers['especialidad']
         
-        # Verificar si el trabajador asistió en el mes actual para mostrarlo
         trabajo_en_mes = False
-        if not df_asist_db.empty:
-            m_total = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= first_m) & (df_asist_db['fecha_dt'] <= last_m) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-            if not df_asist_db.loc[m_total].empty:
+        tot_trabajador_mes = 0.0
+        html_semanas_trabajador = ""
+        
+        for s_nombre, s_ini, s_fin in semanas_mes_lista:
+            df_t_s = pd.DataFrame()
+            if not df_asist_db.empty:
+                m_ts = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= s_ini) & (df_asist_db['fecha_dt'] <= s_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
+                df_t_s = df_asist_db.loc[m_ts].sort_values('fecha')
+            
+            if not df_t_s.empty:
                 trabajo_en_mes = True
+                c_comp = len(df_t_s[df_t_s['estado'] == 'Día Completo'])
+                c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día'])
+                c_alm = len(df_t_s[df_t_s['almuerzo'].str.startswith('Sale', na=False)])
+                jornal_v = float(pers['jornal']) if pd.notna(pers['jornal']) else 120.0; alm_v = float(pers['almuerzo_costo']) if pd.notna(pers['almuerzo_costo']) else 7.0
+                tot_s_trab = (c_comp * jornal_v) + (c_med * (jornal_v / 2.0)) + (c_alm * alm_v)
+                tot_trabajador_mes += tot_s_trab
                 
+                html_semanas_trabajador += f"<p style='margin: 4px 0 2px 0; font-size: 8pt; font-weight:bold;'>{s_nombre} ({s_ini.strftime('%d/%m/%Y')} al {s_fin.strftime('%d/%m/%Y')}):</p>"
+                html_semanas_trabajador += "<table class='data-table'><thead><tr><th width='15%'>Fecha</th><th width='15%'>Día</th><th width='25%'>Asistencia</th><th width='45%'>Actividad</th></tr></thead><tbody>"
+                for _, r_as in df_t_s.iterrows():
+                    dt_f = date.fromisoformat(str(r_as['fecha']))
+                    html_semanas_trabajador += f"<tr><td class='text-center'>{dt_f.strftime('%d/%m/%Y')}</td><td class='text-center'>{dias_es_map_rep[dt_f.weekday()]}</td><td>{r_as['estado']}</td><td>{r_as['actividad']}</td></tr>"
+                html_semanas_trabajador += "</tbody></table>"
+                html_semanas_trabajador += f"<div style='text-align:right; font-size:8.5pt; font-weight:900; margin-bottom:10px;'>Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</div>"
+
         if trabajo_en_mes:
             hubo_trabajadores = True
-            html_reporte += f"<div style='font-weight:900; margin: 15px 0 5px 0; border-bottom: 1px dashed #000; color:{COLOR_PRIMARIO}; font-size:9pt;'>Obrero: {t_esp} - {t_nombre}</div>"
-            
-            for s_nombre, s_ini, s_fin in semanas_mes_lista:
-                df_t_s = pd.DataFrame()
-                if not df_asist_db.empty:
-                    m_ts = (df_asist_db['trabajador'] == t_nombre) & (df_asist_db['fecha_dt'] >= s_ini) & (df_asist_db['fecha_dt'] <= s_fin) & (df_asist_db['partida'] == st.session_state['partida_actual'])
-                    df_t_s = df_asist_db.loc[m_ts].sort_values('fecha')
-                
-                # SOLO MOSTRAR SEMANAS DONDE HUBO TRABAJO (No se muestra el texto 'Sin registros')
-                if not df_t_s.empty:
-                    c_comp = len(df_t_s[df_t_s['estado'] == 'Día Completo'])
-                    c_med = len(df_t_s[df_t_s['estado'] == 'Medio Día'])
-                    c_alm = len(df_t_s[df_t_s['almuerzo'].str.startswith('Sale', na=False)])
-                    jornal_v = float(pers['jornal']) if pd.notna(pers['jornal']) else 120.0; alm_v = float(pers['almuerzo_costo']) if pd.notna(pers['almuerzo_costo']) else 7.0
-                    tot_s_trab = (c_comp * jornal_v) + (c_med * (jornal_v / 2.0)) + (c_alm * alm_v)
-                    
-                    html_reporte += f"<p style='margin: 4px 0 2px 0; font-size: 8pt; font-weight:bold;'>{s_nombre} ({s_ini.strftime('%d/%m/%Y')} al {s_fin.strftime('%d/%m/%Y')}):</p>"
-                    html_reporte += "<table class='data-table'><thead><tr><th width='15%'>Fecha</th><th width='15%'>Día</th><th width='25%'>Asistencia</th><th width='45%'>Actividad</th></tr></thead><tbody>"
-                    for _, r_as in df_t_s.iterrows():
-                        dt_f = date.fromisoformat(str(r_as['fecha']))
-                        html_reporte += f"<tr><td class='text-center'>{dt_f.strftime('%d/%m/%Y')}</td><td class='text-center'>{dias_es_map_rep[dt_f.weekday()]}</td><td>{r_as['estado']}</td><td>{r_as['actividad']}</td></tr>"
-                    html_reporte += "</tbody></table>"
-                    html_reporte += f"<div style='text-align:right; font-size:8.5pt; font-weight:900; margin-bottom:10px;'>Subtotal {s_nombre}: S/ {tot_s_trab:,.2f}</div>"
+            html_reporte += f"""
+            <table style="width:100%; border-bottom: 1px dashed #000; margin: 15px 0 5px 0; border-collapse: collapse;">
+                <tr>
+                    <td style="font-weight:900; color:{COLOR_PRIMARIO}; font-size:9pt; padding:0; border:none; text-align:left;">Obrero: {t_esp} - {t_nombre}</td>
+                    <td style="font-weight:900; color:{COLOR_PRIMARIO}; font-size:9pt; text-align:right; padding:0; border:none;">Total Ganado: S/ {tot_trabajador_mes:,.2f}</td>
+                </tr>
+            </table>
+            """
+            html_reporte += html_semanas_trabajador
 
     if not hubo_trabajadores:
         html_reporte += "<p style='font-size:7.5pt; font-weight:bold;'><i>Sin registros de personal en este mes.</i></p>"
+    else:
+        html_reporte += f"<div style='text-align:right; font-weight:900; font-size:9pt; color:{COLOR_PRIMARIO}; margin-top:10px; margin-bottom:20px;'>TOTAL MANO DE OBRA MES: S/ {gasto_mo_real_total:,.2f}</div>"
 
     html_reporte += f"""
         <div class="section-title">5. Control de Materiales e Insumos</div>
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Fecha</th><th>Insumo / Material</th><th>UND</th><th>Cantidad</th><th>P. Unitario (S/)</th><th>Desc. (%)</th><th>Parcial (S/)</th>
+                    <th width="10%">Fecha</th>
+                    <th width="45%">Insumo / Material</th>
+                    <th width="8%">UND</th>
+                    <th width="9%">Cant.</th>
+                    <th width="10%">P.U. (S/)</th>
+                    <th width="8%">Desc. %</th>
+                    <th width="10%">Parcial</th>
                 </tr>
             </thead>
             <tbody>
@@ -1209,7 +1223,7 @@ if st.button("GENERAR INFORME PDF"):
             cant_m = float(r_m['cantidad']); prec_m = float(r_m['precio'])
             desc_m = float(r_m['descuento']) if 'descuento' in r_m and pd.notna(r_m['descuento']) else 0.0
             parc_m = cant_m * prec_m * (1 - (desc_m / 100.0)); gasto_mat_rep += parc_m
-            html_reporte += f"<tr><td class='text-center'>{dt_m.strftime('%d/%m/%Y')}</td><td>{r_m['insumo']}</td><td class='text-center'>{r_m['und']}</td><td class='text-right'>{cant_m:,.2f}</td><td class='text-right'>S/ {prec_m:,.2f}</td><td class='text-right'>{desc_m:.2f}</td><td class='text-right'>S/ {parc_m:,.2f}</td></tr>"
+            html_reporte += f"<tr><td class='text-center'>{dt_m.strftime('%d/%m/%Y')}</td><td style='text-align:left;'>{r_m['insumo']}</td><td class='text-center'>{r_m['und']}</td><td class='text-center'>{cant_m:,.2f}</td><td class='text-center'>S/ {prec_m:,.2f}</td><td class='text-center'>{desc_m:.2f}</td><td class='text-center'>S/ {parc_m:,.2f}</td></tr>"
     if gasto_mat_rep == 0.0: html_reporte += "<tr><td colspan='7' class='text-center'><i>Sin movimientos registrados.</i></td></tr>"
         
     html_reporte += f"""
