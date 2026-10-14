@@ -19,13 +19,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Función para cargar imágenes locales y pasarlas a CSS/HTML
-def get_base64_image(image_path):
-    try:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
-    except Exception:
-        return ""
+# Función mejorada para detectar .jpg, .jpeg o .png automáticamente
+def get_base64_image(base_name):
+    for ext in [".jpg", ".png", ".jpeg"]:
+        if os.path.exists(base_name + ext):
+            try:
+                with open(base_name + ext, "rb") as img_file:
+                    return base64.b64encode(img_file.read()).decode()
+            except: pass
+    return ""
 
 # ==========================================
 # CONSTANTES GLOBALES Y COLORES (PALETA INTERIOR)
@@ -113,8 +115,8 @@ if 'lista_partidas' not in st.session_state:
 # ==========================================
 if not st.session_state['autenticado']:
     
-    bg_b64 = get_base64_image("fondo.jpg")
-    logo_b64 = get_base64_image("logo.png")
+    bg_b64 = get_base64_image("fondo")
+    logo_b64 = get_base64_image("logo")
     
     bg_url = f"data:image/jpeg;base64,{bg_b64}" if bg_b64 else "https://images.unsplash.com/photo-1541888086425-d81bb19240f5?q=80&w=2070&auto=format&fit=crop"
     
@@ -131,15 +133,17 @@ if not st.session_state['autenticado']:
         header {{visibility: hidden;}}
         .st-emotion-cache-1jicfl2 {{padding: 2rem 1rem;}}
         
-        /* Tarjeta Blanca de Login (Más angosta) */
+        /* Tarjeta Blanca de Login (Más angosta y elegante) */
         div[data-testid="stForm"] {{
             background-color: white !important;
             border-radius: 12px !important;
-            padding: 35px 25px !important;
+            padding: 35px 30px !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
             border: none !important;
+            max-width: 390px !important;
+            margin: 0 auto !important;
         }}
-        div[data-testid="stForm"] label {{ color: #334155 !important; font-weight: 600 !important; font-size: 0.85rem !important; margin-bottom: 5px !important;}}
+        div[data-testid="stForm"] label {{ display: none !important; }}
         
         /* Inputs del Login */
         .stTextInput input, .stPasswordInput input {{ 
@@ -147,13 +151,17 @@ if not st.session_state['autenticado']:
             color: #0f172a !important; 
             border: 1px solid #cbd5e1 !important; 
             border-radius: 6px !important; 
-            padding: 10px 15px !important;
+            padding: 12px 15px !important;
+            font-size: 0.95rem !important;
         }}
-        .stTextInput input:focus {{ border-color: #0062cc !important; box-shadow: 0 0 0 1px #0062cc !important; }}
+        .stTextInput input:focus {{ border-color: #0056b3 !important; box-shadow: 0 0 0 1px #0056b3 !important; }}
+        
+        /* Checkbox recordar */
+        .stCheckbox label {{ display: flex !important; color: #475569 !important; font-weight: 400 !important; font-size: 0.85rem !important; margin-top: 5px;}}
         
         /* Botón Ingresar Azul Grande y exacto a la imagen */
         div[data-testid="stForm"] button {{ 
-            background-color: #0056b3 !important; /* Azul de la imagen */
+            background-color: #0056b3 !important; 
             color: white !important; 
             border: none !important; 
             border-radius: 6px !important; 
@@ -162,18 +170,17 @@ if not st.session_state['autenticado']:
             padding: 12px !important;
             width: 100% !important; 
             transition: 0.3s; 
-            margin-top: 5px !important;
-            display: flex; justify-content: center; align-items: center; gap: 10px;
+            margin-top: 15px !important;
         }}
         div[data-testid="stForm"] button:hover {{ background-color: #004494 !important; transform: translateY(-1px); }}
         
         /* Textos Izquierda: Bienvenido Blanco, Control Celeste */
-        .left-title {{ color: white; line-height: 1.1; margin-bottom: 15px; font-weight: 800; font-size: 3.2rem; }}
-        .left-title span {{ color: #38bdf8; }}
+        .left-title {{ color: #ffffff !important; line-height: 1.1; margin-bottom: 15px; font-weight: 800; font-size: 3.2rem; }}
+        .left-title span {{ color: #38bdf8 !important; }}
         .left-subtitle {{ color: #e2e8f0; font-size: 1.05rem; line-height: 1.5; max-width: 550px; margin-bottom: 40px; }}
         
         /* Íconos 5 Características */
-        .features-container {{ display: flex; gap: 20px; text-align: center; margin-bottom: 40px; flex-wrap: wrap; }}
+        .features-container {{ display: flex; gap: 20px; text-align: center; margin-bottom: 30px; flex-wrap: wrap; }}
         .feature-item {{ display: flex; flex-direction: column; align-items: center; width: 85px; }}
         .feature-icon {{ 
             background: transparent; border: 2px solid #38bdf8; color: #38bdf8; 
@@ -184,24 +191,20 @@ if not st.session_state['autenticado']:
         .feature-item:hover .feature-icon {{ background: #38bdf8; color: white; transform: scale(1.05); }}
         .feature-text {{ color: white; font-size: 0.8rem; font-weight: 600; line-height: 1.2; }}
         
-        /* Redes Sociales Footer con la línea separadora */
-        .social-footer {{ display: flex; align-items: center; gap: 15px; margin-top: 20px; color: white; font-weight: 600; font-size: 0.95rem; }}
-        .social-separator {{ height: 24px; width: 1px; background-color: white; margin: 0 10px; }}
-        .social-icons {{ display: flex; gap: 12px; }}
-        .social-icons svg {{ fill: white; width: 20px; height: 20px; cursor: pointer; transition: 0.3s; }}
+        /* Redes Sociales Footer */
+        .social-footer {{ display: flex; align-items: center; gap: 15px; color: white; font-weight: 500; font-size: 0.95rem; }}
+        .social-separator {{ height: 20px; width: 1px; background-color: rgba(255,255,255,0.3); margin: 0 5px; }}
+        .social-icons {{ display: flex; gap: 15px; }}
+        .social-icons svg {{ fill: white; width: 22px; height: 22px; cursor: pointer; transition: 0.3s; }}
         .social-icons svg:hover {{ fill: #38bdf8; transform: translateY(-2px); }}
         
-        /* Ubicación */
-        .location {{ color: #cbd5e1; font-size: 0.85rem; margin-top: 15px; display:flex; align-items:center; gap:5px;}}
-        
-        /* Estilizar el File Uploader para que no ensucie la tarjeta */
-        div[data-testid="stFileUploader"] {{ margin-top: -10px; }}
+        /* Estilizar el File Uploader */
+        div[data-testid="stFileUploader"] {{ margin-top: -15px; max-width: 380px; margin-left: auto; margin-right: auto; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # LAYOUT: Lado Izquierdo más grande (1.6) y Tarjeta más estrecha (1.0)
-    st.write("<br>", unsafe_allow_html=True)
-    col_izq, col_espacio, col_der = st.columns([1.6, 0.1, 1.0])
+    st.write("<br><br>", unsafe_allow_html=True)
+    col_izq, col_espacio, col_der = st.columns([1.6, 0.1, 1.1])
     
     with col_izq:
         if logo_b64:
@@ -243,47 +246,49 @@ if not st.session_state['autenticado']:
                 </div>
             </div>
             
-            <div class="social-footer">
-                <span>Síguenos en nuestras redes</span>
-                <div class="social-separator"></div>
-                <div class="social-icons">
-                    <!-- Facebook SVG -->
-                    <svg viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
-                    <!-- TikTok SVG -->
-                    <svg viewBox="0 0 24 24"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
-                    <!-- Instagram SVG -->
-                    <svg viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2zm-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6zm9.65 1.5a1.25 1.25 0 0 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
-                    <!-- YouTube SVG -->
-                    <svg viewBox="0 0 24 24"><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81zM10 15V9l5.2 3L10 15z"/></svg>
-                    <!-- WhatsApp SVG -->
-                    <svg viewBox="0 0 24 24"><path d="M12.03 2.5a9.53 9.53 0 0 0-8.25 14.3l-1.3 4.75 4.86-1.27a9.51 9.51 0 1 0 4.69-17.78zM12.03 20c-1.55 0-3.03-.4-4.33-1.14l-.31-.18-3.22.84.86-3.14-.2-.32A7.95 7.95 0 1 1 12.03 20zm4.37-5.96c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.71-.64-1.2-1.43-1.34-1.67-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.47-.38-.4-.54-.41-.14 0-.3 0-.46 0-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.68 2.57 4.08 3.61.57.25 1.01.4 1.36.5.57.18 1.09.16 1.5.09.47-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z"/></svg>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px;">
+                <div>
+                    <div class="social-footer">
+                        <span>Síguenos en nuestras redes</span>
+                        <div class="social-separator"></div>
+                        <div class="social-icons">
+                            <svg viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
+                            <svg viewBox="0 0 24 24"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                            <svg viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2zm-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6zm9.65 1.5a1.25 1.25 0 0 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+                            <svg viewBox="0 0 24 24"><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81zM10 15V9l5.2 3L10 15z"/></svg>
+                            <svg viewBox="0 0 24 24"><path d="M12.03 2.5a9.53 9.53 0 0 0-8.25 14.3l-1.3 4.75 4.86-1.27a9.51 9.51 0 1 0 4.69-17.78zM12.03 20c-1.55 0-3.03-.4-4.33-1.14l-.31-.18-3.22.84.86-3.14-.2-.32A7.95 7.95 0 1 1 12.03 20zm4.37-5.96c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.71-.64-1.2-1.43-1.34-1.67-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.47-.38-.4-.54-.41-.14 0-.3 0-.46 0-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.68 2.57 4.08 3.61.57.25 1.01.4 1.36.5.57.18 1.09.16 1.5.09.47-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z"/></svg>
+                        </div>
+                    </div>
+                    <div class="location" style="margin-top: 5px;">
+                        <svg width="14" height="14" fill="#cbd5e1" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+                        Ayacucho - Perú
+                    </div>
                 </div>
-            </div>
-            <div class="location">
-                <svg width="14" height="14" fill="#94a3b8" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
-                Ayacucho - Perú
+                <div style="transform: rotate(-12deg); color: white; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 2.2rem; margin-bottom: 20px; opacity: 0.95;">
+                    Tu obra,<br>en buenas manos
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
     with col_der:
-        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True) 
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True) 
         
         if not st.session_state['mostrar_registro']:
             with st.form("form_login"):
                 if logo_b64:
-                    st.markdown(f'<div style="text-align:left; margin-bottom:15px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="text-align:left; margin-bottom:15px;"><img src="data:image/png;base64,{logo_b64}" width="180"></div>', unsafe_allow_html=True)
                 else:
-                    st.markdown("<h2 style='color:#0f172a; margin:0 0 15px 0; font-weight:900; font-size:1.4rem; border-left:3px solid #0056b3; padding-left:10px;'>CONTROL DE OBRAS<br><span style='color:#0056b3;'>MINI</span></h2>", unsafe_allow_html=True)
+                    st.markdown("<h2 style='color:#0f172a; margin:0 0 15px 0; font-weight:900; font-size:1.3rem; border-left:3px solid #0056b3; padding-left:10px;'>CONTROL DE OBRAS<br><span style='color:#0056b3;'>MINI</span></h2>", unsafe_allow_html=True)
                 
                 st.markdown("""
-                    <div style='text-align:left; margin-bottom:15px;'>
-                        <h2 style='color:#0f172a; margin:0; font-weight:900; font-size:2rem;'>Iniciar Sesión</h2>
-                        <p style='color:#64748b; margin:5px 0 0 0; font-size:0.95rem;'>Accede a tu cuenta para continuar</p>
+                    <div style='text-align:left; margin-bottom:20px;'>
+                        <h2 style='color:#0f172a; margin:0; font-weight:800; font-size:1.8rem;'>Iniciar Sesión</h2>
+                        <p style='color:#64748b; margin:5px 0 0 0; font-size:0.9rem;'>Accede a tu cuenta para continuar</p>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                email_login = st.text_input("Usuario")
-                clave_login = st.text_input("Contraseña", type="password")
+                email_login = st.text_input("Usuario", placeholder="👤 Usuario")
+                clave_login = st.text_input("Contraseña", type="password", placeholder="🔒 Contraseña")
                 st.checkbox("Recordarme")
                 
                 btn_login = st.form_submit_button("Ingresar ➔")
@@ -296,21 +301,26 @@ if not st.session_state['autenticado']:
                     else:
                         st.error("Credenciales incorrectas. Verifique sus datos.")
             
-            col_links1, col_links2 = st.columns(2)
-            with col_links1:
-                st.markdown("<a href='#' style='color:#0056b3; font-weight:600; font-size:0.9rem; text-decoration:none;'>¿Olvidaste tu contraseña?</a>", unsafe_allow_html=True)
-            with col_links2:
-                if st.button("Crear cuenta", use_container_width=True):
-                    st.session_state['mostrar_registro'] = True
-                    st.rerun()
+            st.markdown("""
+                <div style="display:flex; justify-content:space-between; align-items:center; max-width:380px; margin: 5px auto;">
+                    <a href='#' style='color:#0056b3; font-weight:600; font-size:0.85rem; text-decoration:none;'>¿Olvidaste tu contraseña?</a>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Crear cuenta", use_container_width=True):
+                st.session_state['mostrar_registro'] = True
+                st.rerun()
             
             st.markdown("""
-                <div style="background-color: #e0f2fe; border-radius: 8px; padding: 15px; margin-top: 15px; display: flex; align-items: center; gap: 15px;">
-                    <div style="color: #10b981; font-size: 20px;">🟢 🗄️</div>
-                    <div>
-                        <h4 style="margin:0; color:#0369a1; font-size:0.95rem; font-weight:bold;">Se reinició el servidor</h4>
-                        <p style="margin:0; color:#0284c7; font-size:0.8rem;">Restaura tu Base de Datos aquí</p>
+                <div style="background-color: #f0f9ff; border-radius: 6px; padding: 12px 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #bae6fd; max-width: 380px; margin-left: auto; margin-right: auto;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 8px; height: 8px; background-color: #00e676; border-radius: 50%; box-shadow: 0 0 4px #00e676;"></div>
+                        <svg width="20" height="20" fill="#0369a1" viewBox="0 0 24 24"><path d="M4 5v14h16V5H4zm14 12H6v-2h12v2zm0-4H6V9h12v4zm0-4H6V5h12v4z"/></svg>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="color:#1e3a8a; font-size:0.85rem; font-weight:700; line-height: 1.2;">Se reinició el servidor</span>
+                            <span style="color:#3b82f6; font-size:0.75rem; font-weight:400; line-height: 1.2;">Restaura tu Base de Datos aquí</span>
+                        </div>
                     </div>
+                    <div style="color: #3b82f6; font-size:1.1rem; font-weight:bold;">➔</div>
                 </div>
             """, unsafe_allow_html=True)
             archivo_emergencia = st.file_uploader("Subir DB", type=["db"], label_visibility="collapsed")
@@ -324,12 +334,12 @@ if not st.session_state['autenticado']:
             with st.form("form_registro"):
                 st.markdown("""
                     <div style='text-align:left; margin-bottom:20px;'>
-                        <h2 style='color:#0f172a; margin:0; font-weight:900; font-size:2rem;'>Crear Cuenta</h2>
-                        <p style='color:#64748b; margin:5px 0 0 0; font-size:0.95rem;'>Registra un nuevo usuario en el sistema</p>
+                        <h2 style='color:#0f172a; margin:0; font-weight:800; font-size:1.8rem;'>Crear Cuenta</h2>
+                        <p style='color:#64748b; margin:5px 0 0 0; font-size:0.9rem;'>Registra un nuevo usuario en el sistema</p>
                     </div>
                 """, unsafe_allow_html=True)
-                email_reg = st.text_input("Nuevo Correo")
-                clave_reg = st.text_input("Crear Contraseña", type="password")
+                email_reg = st.text_input("Nuevo Correo", placeholder="👤 Correo electrónico")
+                clave_reg = st.text_input("Crear Contraseña", type="password", placeholder="🔒 Nueva contraseña")
                 btn_reg = st.form_submit_button("Registrar Cuenta ➔")
                 
                 if btn_reg:
@@ -385,7 +395,7 @@ st.markdown(f"""
         border-color: #94a3b8 !important;
     }}
     
-    /* Inputs de texto y números compactos y limpios. */
+    /* Inputs de texto y números compactos y limpios */
     .stTextInput input, .stNumberInput input, div[data-baseweb="select"] > div, .stTextArea textarea {{
         background-color: #f8fafc !important;
         color: #000000 !important;
@@ -426,7 +436,7 @@ st.markdown(f"""
 
 
 # ==========================================
-# 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
+# 5. GESTOR DE PARTIDAS (PORTAFOLIO)
 # ==========================================
 if st.session_state['partida_actual'] is None:
     
@@ -808,7 +818,7 @@ with col_cal:
     .cal-vacio {{ background-color: #f1f5f9; color: transparent !important; border:none; }}
     .cal-futuro {{ color: #94a3b8 !important; }}
     .cal-verde {{ background-color: {COLOR_DONA_3}; color: white !important; border: 1px solid #000 !important; }}
-    .cal-amarillo {{ background-color: #facc15; color: black !important; border: 1px solid #000 !important; }}
+    .cal-amarillo {{ background-color: {COLOR_AMARILLO}; color: black !important; border: 1px solid #000 !important; }}
     .cal-rojo {{ background-color: #ef4444; color: white !important; border: 1px solid #000 !important; }}
     </style>
     <table class="cal-table"><tr><th>DOM</th><th>LUN</th><th>MAR</th><th>MIE</th><th>JUE</th><th>VIE</th><th>SAB</th></tr>
@@ -835,7 +845,7 @@ with col_leyenda:
         <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; height: 100%;">
             <h4 style="margin-top:0; border-bottom:2px solid {COLOR_PRIMARIO}; padding-bottom:5px; color:{COLOR_PRIMARIO}; font-weight:900;">LEYENDA</h4>
             <p><span style="display:inline-block; width:15px; height:15px; background:{COLOR_DONA_3}; margin-right:8px; border:1px solid #000;"></span> <b>Día Completo</b></p>
-            <p><span style="display:inline-block; width:15px; height:15px; background:#facc15; margin-right:8px; border:1px solid #000;"></span> <b>Medio Día</b></p>
+            <p><span style="display:inline-block; width:15px; height:15px; background:{COLOR_AMARILLO}; margin-right:8px; border:1px solid #000;"></span> <b>Medio Día</b></p>
             <p><span style="display:inline-block; width:15px; height:15px; background:#ef4444; margin-right:8px; border:1px solid #000;"></span> <b>Inasistencia</b></p>
         </div>
     """, unsafe_allow_html=True)
