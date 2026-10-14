@@ -109,11 +109,10 @@ if 'lista_partidas' not in st.session_state:
     st.session_state['lista_partidas'] = partidas_bd if partidas_bd else ["Obras Provisionales"]
 
 # ==========================================
-# 3. PANTALLA DE INICIO (NUEVO DISEÑO PROFESIONAL AYACUCHO)
+# 3. PANTALLA DE INICIO (DISEÑO EXACTO AYACUCHO)
 # ==========================================
 if not st.session_state['autenticado']:
     
-    # Intentamos cargar imágenes locales
     bg_b64 = get_base64_image("fondo.jpg")
     logo_b64 = get_base64_image("logo.png")
     
@@ -121,68 +120,60 @@ if not st.session_state['autenticado']:
     
     st.markdown(f"""
         <style>
-        /* Fondo principal con el gradiente azul marino corporativo */
+        /* Fondo principal con gradiente */
         .stApp {{
-            background-image: linear-gradient(to right, #061938 0%, #061938 45%, rgba(6, 25, 56, 0.4) 100%), url("{bg_url}");
+            background-image: linear-gradient(to right, rgba(6, 25, 56, 0.95) 0%, rgba(6, 25, 56, 0.8) 45%, rgba(6, 25, 56, 0.1) 100%), url("{bg_url}");
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             font-family: 'Segoe UI', Arial, sans-serif;
         }}
-        
-        /* Ocultar elementos nativos de Streamlit */
         header {{visibility: hidden;}}
         .st-emotion-cache-1jicfl2 {{padding: 2rem 1rem;}}
         
-        /* Tarjeta Blanca de Login */
+        /* Tarjeta Blanca de Login (Más angosta) */
         div[data-testid="stForm"] {{
             background-color: white !important;
-            border-radius: 15px !important;
-            padding: 30px !important;
+            border-radius: 12px !important;
+            padding: 35px 25px !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
             border: none !important;
         }}
-        div[data-testid="stForm"] label {{ color: #334155 !important; font-weight: 600 !important; font-size: 0.9rem !important; margin-bottom: 5px !important;}}
+        div[data-testid="stForm"] label {{ color: #334155 !important; font-weight: 600 !important; font-size: 0.85rem !important; margin-bottom: 5px !important;}}
         
-        /* Inputs del Login limpios */
+        /* Inputs del Login */
         .stTextInput input, .stPasswordInput input {{ 
             background-color: #f8fafc !important; 
             color: #0f172a !important; 
             border: 1px solid #cbd5e1 !important; 
-            border-radius: 8px !important; 
+            border-radius: 6px !important; 
             padding: 10px 15px !important;
         }}
-        .stTextInput input:focus {{ border-color: #0056b3 !important; box-shadow: 0 0 0 1px #0056b3 !important; }}
+        .stTextInput input:focus {{ border-color: #0062cc !important; box-shadow: 0 0 0 1px #0062cc !important; }}
         
-        /* Checkbox recordar */
-        .stCheckbox label {{ color: #475569 !important; font-weight: 400 !important; font-size: 0.85rem !important;}}
-        
-        /* Botón Ingresar Azul Corporativo */
+        /* Botón Ingresar Azul Grande y exacto a la imagen */
         div[data-testid="stForm"] button {{ 
-            background-color: #0056b3 !important; 
+            background-color: #0056b3 !important; /* Azul de la imagen */
             color: white !important; 
             border: none !important; 
-            border-radius: 8px !important; 
-            font-size: 1.1rem !important; 
-            font-weight: 700 !important;
-            padding: 10px !important;
+            border-radius: 6px !important; 
+            font-size: 1.15rem !important; 
+            font-weight: 600 !important;
+            padding: 12px !important;
             width: 100% !important; 
             transition: 0.3s; 
-            margin-top: 10px !important;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
+            margin-top: 5px !important;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
         }}
-        div[data-testid="stForm"] button:hover {{ background-color: #004494 !important; transform: translateY(-2px); }}
+        div[data-testid="stForm"] button:hover {{ background-color: #004494 !important; transform: translateY(-1px); }}
         
-        /* Textos Izquierda */
-        .left-title {{ color: white; line-height: 1.1; margin-bottom: 15px; font-weight: 800; font-size: 3.5rem; }}
+        /* Textos Izquierda: Bienvenido Blanco, Control Celeste */
+        .left-title {{ color: white; line-height: 1.1; margin-bottom: 15px; font-weight: 800; font-size: 3.2rem; }}
         .left-title span {{ color: #38bdf8; }}
-        .left-subtitle {{ color: #e2e8f0; font-size: 1.1rem; line-height: 1.5; max-width: 550px; margin-bottom: 40px; }}
+        .left-subtitle {{ color: #e2e8f0; font-size: 1.05rem; line-height: 1.5; max-width: 550px; margin-bottom: 40px; }}
         
-        /* Íconos 5 Características (SVGs) */
-        .features-container {{ display: flex; gap: 25px; text-align: center; margin-bottom: 40px; flex-wrap: wrap; }}
+        /* Íconos 5 Características */
+        .features-container {{ display: flex; gap: 20px; text-align: center; margin-bottom: 40px; flex-wrap: wrap; }}
         .feature-item {{ display: flex; flex-direction: column; align-items: center; width: 85px; }}
         .feature-icon {{ 
             background: transparent; border: 2px solid #38bdf8; color: #38bdf8; 
@@ -193,20 +184,26 @@ if not st.session_state['autenticado']:
         .feature-item:hover .feature-icon {{ background: #38bdf8; color: white; transform: scale(1.05); }}
         .feature-text {{ color: white; font-size: 0.8rem; font-weight: 600; line-height: 1.2; }}
         
-        /* Redes Sociales Footer */
+        /* Redes Sociales Footer con la línea separadora */
         .social-footer {{ display: flex; align-items: center; gap: 15px; margin-top: 20px; color: white; font-weight: 600; font-size: 0.95rem; }}
-        .social-icons {{ display: flex; gap: 15px; }}
-        .social-icons svg {{ fill: white; width: 22px; height: 22px; cursor: pointer; transition: 0.3s; }}
+        .social-separator {{ height: 24px; width: 1px; background-color: white; margin: 0 10px; }}
+        .social-icons {{ display: flex; gap: 12px; }}
+        .social-icons svg {{ fill: white; width: 20px; height: 20px; cursor: pointer; transition: 0.3s; }}
         .social-icons svg:hover {{ fill: #38bdf8; transform: translateY(-2px); }}
-        .location {{ color: #94a3b8; font-size: 0.9rem; margin-top: 15px; display:flex; align-items:center; gap:5px;}}
+        
+        /* Ubicación */
+        .location {{ color: #cbd5e1; font-size: 0.85rem; margin-top: 15px; display:flex; align-items:center; gap:5px;}}
+        
+        /* Estilizar el File Uploader para que no ensucie la tarjeta */
+        div[data-testid="stFileUploader"] {{ margin-top: -10px; }}
         </style>
     """, unsafe_allow_html=True)
 
-    st.write("<br><br>", unsafe_allow_html=True)
-    col_izq, col_espacio, col_der = st.columns([1.3, 0.1, 1])
+    # LAYOUT: Lado Izquierdo más grande (1.6) y Tarjeta más estrecha (1.0)
+    st.write("<br>", unsafe_allow_html=True)
+    col_izq, col_espacio, col_der = st.columns([1.6, 0.1, 1.0])
     
     with col_izq:
-        # LOGO PRINCIPAL (Lado izquierdo)
         if logo_b64:
             st.markdown(f'<img src="data:image/png;base64,{logo_b64}" width="280" style="margin-bottom:30px;">', unsafe_allow_html=True)
         else:
@@ -248,6 +245,7 @@ if not st.session_state['autenticado']:
             
             <div class="social-footer">
                 <span>Síguenos en nuestras redes</span>
+                <div class="social-separator"></div>
                 <div class="social-icons">
                     <!-- Facebook SVG -->
                     <svg viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
@@ -262,30 +260,28 @@ if not st.session_state['autenticado']:
                 </div>
             </div>
             <div class="location">
-                <svg width="16" height="16" fill="#94a3b8" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+                <svg width="14" height="14" fill="#94a3b8" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                 Ayacucho - Perú
             </div>
         """, unsafe_allow_html=True)
 
     with col_der:
-        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True) 
+        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True) 
         
         if not st.session_state['mostrar_registro']:
             with st.form("form_login"):
-                # LOGO SECUNDARIO (Dentro de la tarjeta blanca)
                 if logo_b64:
                     st.markdown(f'<div style="text-align:left; margin-bottom:15px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
                 else:
                     st.markdown("<h2 style='color:#0f172a; margin:0 0 15px 0; font-weight:900; font-size:1.4rem; border-left:3px solid #0056b3; padding-left:10px;'>CONTROL DE OBRAS<br><span style='color:#0056b3;'>MINI</span></h2>", unsafe_allow_html=True)
                 
                 st.markdown("""
-                    <div style='text-align:left; margin-bottom:20px;'>
+                    <div style='text-align:left; margin-bottom:15px;'>
                         <h2 style='color:#0f172a; margin:0; font-weight:900; font-size:2rem;'>Iniciar Sesión</h2>
                         <p style='color:#64748b; margin:5px 0 0 0; font-size:0.95rem;'>Accede a tu cuenta para continuar</p>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Campos de entrada con etiquetas limpias
                 email_login = st.text_input("Usuario")
                 clave_login = st.text_input("Contraseña", type="password")
                 st.checkbox("Recordarme")
@@ -308,7 +304,6 @@ if not st.session_state['autenticado']:
                     st.session_state['mostrar_registro'] = True
                     st.rerun()
             
-            # Panel de restauración de Base de Datos
             st.markdown("""
                 <div style="background-color: #e0f2fe; border-radius: 8px; padding: 15px; margin-top: 15px; display: flex; align-items: center; gap: 15px;">
                     <div style="color: #10b981; font-size: 20px;">🟢 🗄️</div>
@@ -318,7 +313,7 @@ if not st.session_state['autenticado']:
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-            archivo_emergencia = st.file_uploader("Subir Backup (.db)", type=["db"], label_visibility="collapsed")
+            archivo_emergencia = st.file_uploader("Subir DB", type=["db"], label_visibility="collapsed")
             if archivo_emergencia is not None:
                 with open("obra_nexus.db", "wb") as f:
                     f.write(archivo_emergencia.getbuffer())
@@ -390,7 +385,7 @@ st.markdown(f"""
         border-color: #94a3b8 !important;
     }}
     
-    /* Inputs de texto y números compactos y limpios */
+    /* Inputs de texto y números compactos y limpios. */
     .stTextInput input, .stNumberInput input, div[data-baseweb="select"] > div, .stTextArea textarea {{
         background-color: #f8fafc !important;
         color: #000000 !important;
@@ -434,103 +429,109 @@ st.markdown(f"""
 # 5. GESTOR DE PARTIDAS (PORTAFOLIO EN CAJAS BLANCAS ORDENADAS)
 # ==========================================
 if st.session_state['partida_actual'] is None:
-    st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 15px 25px; border-radius: 8px; border-left: 8px solid {COLOR_PRIMARIO}; border-top: 1px solid #cbd5e1; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; margin-bottom: 25px;">
-            <h1 style="color: {COLOR_PRIMARIO} !important; margin: 0; font-size: 1.8rem; font-weight: 900;">🗂️ PORTAFOLIO DE PROYECTOS</h1>
-            <p style="color: {COLOR_TEXTO} !important; margin: 2px 0 0 0; font-weight: bold; font-size: 0.9rem;">Gestión centralizada de expedientes de obra.</p>
-        </div>
-    """, unsafe_allow_html=True)
     
-    col_p1, col_space, col_p2 = st.columns([1, 0.05, 1])
+    col_izq, col_centro, col_der = st.columns([1, 3, 1])
     
-    with col_p1:
-        try: box_abrir = st.container(border=True)
-        except TypeError: box_abrir = st.container()
+    with col_centro:
+        st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 20px 25px; border-radius: 8px; border-left: 8px solid {COLOR_PRIMARIO}; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                <h1 style="color: {COLOR_TEXTO} !important; margin: 0; font-size: 1.8rem; font-weight: 900; display: flex; align-items: center; gap: 10px;">
+                    🗃️ PORTAFOLIO DE PROYECTOS
+                </h1>
+                <p style="color: #475569 !important; margin: 5px 0 0 45px; font-size: 0.95rem;">Gestión centralizada de expedientes de obra.</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        with box_abrir:
-            st.markdown(f"<div style='border-top: 4px solid {COLOR_PRIMARIO}; padding-top: 10px; margin-bottom: 15px;'><h4 style='color:{COLOR_PRIMARIO} !important; margin:0; font-size:1.1rem; font-weight:800;'>📂 ABRIR PARTIDA EXISTENTE</h4></div>", unsafe_allow_html=True)
+        col_p1, col_p2 = st.columns(2)
+        
+        with col_p1:
+            try: box_abrir = st.container(border=True)
+            except TypeError: box_abrir = st.container()
             
-            partida_seleccionada = st.selectbox("Seleccionar partida:", st.session_state['lista_partidas'])
-            
-            c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
-            res_p = c.fetchone()
-            presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
+            with box_abrir:
+                st.markdown(f"<div style='border-top: 4px solid {COLOR_PRIMARIO}; padding-top: 10px; margin-bottom: 15px;'><h4 style='color:{COLOR_PRIMARIO} !important; margin:0; font-size:1.1rem; font-weight:800;'>📂 ABRIR PARTIDA EXISTENTE</h4></div>", unsafe_allow_html=True)
                 
-            def auto_guardar_presup_existente():
-                nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
-                guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
+                partida_seleccionada = st.selectbox("Seleccionar partida:", st.session_state['lista_partidas'])
+                
+                c.execute("SELECT total FROM presupuestos WHERE partida=?", (partida_seleccionada,))
+                res_p = c.fetchone()
+                presup_actual_gestion = float(res_p[0]) if res_p and res_p[0] is not None else 0.0
+                    
+                def auto_guardar_presup_existente():
+                    nuevo_val = st.session_state[f"edit_gestor_{partida_seleccionada}"]
+                    guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_val, 0.0, 0.0)
 
-            c1, c2 = st.columns([1.2, 1])
-            with c1: 
-                nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
-            
-            st.write("") 
-            if st.button("Ingresar ➡️"):
-                if partida_seleccionada:
-                    guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
-                    st.session_state['partida_actual'] = partida_seleccionada
-                    st.rerun()
-            
-    with col_p2:
-        try: box_crear = st.container(border=True)
-        except TypeError: box_crear = st.container()
-        
-        with box_crear:
-            st.markdown(f"<div style='border-top: 4px solid {COLOR_PRIMARIO}; padding-top: 10px; margin-bottom: 15px;'><h4 style='color:{COLOR_PRIMARIO} !important; margin:0; font-size:1.1rem; font-weight:800;'>➕ CREAR NUEVA PARTIDA</h4></div>", unsafe_allow_html=True)
-            
-            nueva_partida = st.text_input("Nombre de la nueva partida:")
-            
-            c3, c4 = st.columns([1.2, 1])
-            with c3: 
-                presupuesto_inicial_crear = st.number_input("Presupuesto Inicial (S/):", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
-            
-            st.write("") 
-            if st.button("Crear ⚡"):
-                if nueva_partida.strip():
-                    if nueva_partida not in st.session_state['lista_partidas']:
-                        st.session_state['lista_partidas'].append(nueva_partida)
-                    guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
-                    st.session_state['partida_actual'] = nueva_partida
-                    st.rerun()
-                else: st.error("Ingrese nombre válido.")
+                c1, c2 = st.columns([1.2, 1])
+                with c1: 
+                    nuevo_presupuesto_edicion = st.number_input("Presupuesto Asignado (S/):", value=presup_actual_gestion, step=500.0, key=f"edit_gestor_{partida_seleccionada}", on_change=auto_guardar_presup_existente)
                 
-    st.markdown("<div class='section-header'>⚙️ ADMINISTRADOR DE EXPEDIENTES</div>", unsafe_allow_html=True)
-    
-    if st.session_state['lista_partidas']:
-        datos_admin = []
-        for p in st.session_state['lista_partidas']:
-            c.execute("SELECT total, fecha_creacion FROM presupuestos WHERE partida=?", (p,))
-            row_pres = c.fetchone()
-            presupuesto_val = float(row_pres[0]) if (row_pres and row_pres[0] is not None) else 0.0
-            fecha_creacion = row_pres[1] if (row_pres and len(row_pres) > 1 and row_pres[1]) else str(date.today())
-            c.execute("SELECT COUNT(*) FROM personal WHERE partida=?", (p,))
-            cant_personal = int(c.fetchone()[0])
-            datos_admin.append({"Partida Original": p, "Fecha Creación": fecha_creacion, "Personal Reg.": cant_personal, "Presupuesto (S/)": presupuesto_val, "Nuevo Nombre": p, "Eliminar": False})
+                st.write("") 
+                if st.button("Ingresar ➡️"):
+                    if partida_seleccionada:
+                        guardar_presupuesto_bd(partida_seleccionada, "Ingreso Directo del Total", nuevo_presupuesto_edicion, 0.0, 0.0)
+                        st.session_state['partida_actual'] = partida_seleccionada
+                        st.rerun()
+                
+        with col_p2:
+            try: box_crear = st.container(border=True)
+            except TypeError: box_crear = st.container()
             
-        df_editado = st.data_editor(pd.DataFrame(datos_admin), hide_index=True, use_container_width=True, disabled=["Partida Original", "Fecha Creación", "Personal Reg.", "Presupuesto (S/)"], column_config={"Partida Original": st.column_config.TextColumn("Código de Partida"), "Nuevo Nombre": st.column_config.TextColumn("✏️ Renombrar"), "Eliminar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False)}, key="tabla_admin_partidas")
+            with box_crear:
+                st.markdown(f"<div style='border-top: 4px solid {COLOR_PRIMARIO}; padding-top: 10px; margin-bottom: 15px;'><h4 style='color:{COLOR_PRIMARIO} !important; margin:0; font-size:1.1rem; font-weight:800;'>➕ CREAR NUEVA PARTIDA</h4></div>", unsafe_allow_html=True)
+                
+                nueva_partida = st.text_input("Nombre de la nueva partida:")
+                
+                c3, c4 = st.columns([1.2, 1])
+                with c3: 
+                    presupuesto_inicial_crear = st.number_input("Presupuesto Inicial (S/):", min_value=0.0, value=0.0, step=500.0, key="nuevo_presup_creacion")
+                
+                st.write("") 
+                if st.button("Crear ⚡"):
+                    if nueva_partida.strip():
+                        if nueva_partida not in st.session_state['lista_partidas']:
+                            st.session_state['lista_partidas'].append(nueva_partida)
+                        guardar_presupuesto_bd(nueva_partida, "Ingreso Directo del Total", presupuesto_inicial_crear, 0.0, 0.0)
+                        st.session_state['partida_actual'] = nueva_partida
+                        st.rerun()
+                    else: st.error("Ingrese nombre válido.")
+                    
+        st.markdown("<div class='section-header' style='margin-top:40px;'>⚙️ ADMINISTRADOR DE EXPEDIENTES</div>", unsafe_allow_html=True)
         
-        if st.button("Guardar cambios"):
-            cambios = False
-            for i, row in df_editado.iterrows():
-                v_nom = row["Partida Original"]; n_nom = str(row["Nuevo Nombre"]).strip(); borrar = row["Eliminar"]
-                if borrar:
-                    c.execute("DELETE FROM presupuestos WHERE partida=?", (v_nom,)); c.execute("DELETE FROM materiales WHERE partida=?", (v_nom,)); c.execute("DELETE FROM personal WHERE partida=?", (v_nom,)); c.execute("DELETE FROM asistencia WHERE partida=?", (v_nom,))
-                    cambios = True
-                elif n_nom and n_nom != v_nom:
-                    c.execute("SELECT 1 FROM presupuestos WHERE partida=?", (n_nom,))
-                    if not c.fetchone():
-                        c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (n_nom, v_nom)); c.execute("UPDATE materiales SET partida=? WHERE partida=?", (n_nom, v_nom)); c.execute("UPDATE personal SET partida=? WHERE partida=?", (n_nom, v_nom)); c.execute("UPDATE asistencia SET partida=? WHERE partida=?", (n_nom, v_nom))
+        if st.session_state['lista_partidas']:
+            datos_admin = []
+            for p in st.session_state['lista_partidas']:
+                c.execute("SELECT total, fecha_creacion FROM presupuestos WHERE partida=?", (p,))
+                row_pres = c.fetchone()
+                presupuesto_val = float(row_pres[0]) if (row_pres and row_pres[0] is not None) else 0.0
+                fecha_creacion = row_pres[1] if (row_pres and len(row_pres) > 1 and row_pres[1]) else str(date.today())
+                c.execute("SELECT COUNT(*) FROM personal WHERE partida=?", (p,))
+                cant_personal = int(c.fetchone()[0])
+                datos_admin.append({"Partida Original": p, "Fecha Creación": fecha_creacion, "Personal Reg.": cant_personal, "Presupuesto (S/)": presupuesto_val, "Nuevo Nombre": p, "Eliminar": False})
+                
+            df_editado = st.data_editor(pd.DataFrame(datos_admin), hide_index=True, use_container_width=True, disabled=["Partida Original", "Fecha Creación", "Personal Reg.", "Presupuesto (S/)"], column_config={"Partida Original": st.column_config.TextColumn("Código de Partida"), "Nuevo Nombre": st.column_config.TextColumn("✏️ Renombrar"), "Eliminar": st.column_config.CheckboxColumn("🗑️ Borrar", default=False)}, key="tabla_admin_partidas")
+            
+            if st.button("Guardar cambios"):
+                cambios = False
+                for i, row in df_editado.iterrows():
+                    v_nom = row["Partida Original"]; n_nom = str(row["Nuevo Nombre"]).strip(); borrar = row["Eliminar"]
+                    if borrar:
+                        c.execute("DELETE FROM presupuestos WHERE partida=?", (v_nom,)); c.execute("DELETE FROM materiales WHERE partida=?", (v_nom,)); c.execute("DELETE FROM personal WHERE partida=?", (v_nom,)); c.execute("DELETE FROM asistencia WHERE partida=?", (v_nom,))
                         cambios = True
-            if cambios:
-                conn.commit()
-                c.execute("SELECT DISTINCT partida FROM presupuestos")
-                st.session_state['lista_partidas'] = [r[0] for r in c.fetchall() if r[0] and str(r[0]).strip() != ""]
-                st.rerun()
+                    elif n_nom and n_nom != v_nom:
+                        c.execute("SELECT 1 FROM presupuestos WHERE partida=?", (n_nom,))
+                        if not c.fetchone():
+                            c.execute("UPDATE presupuestos SET partida=? WHERE partida=?", (n_nom, v_nom)); c.execute("UPDATE materiales SET partida=? WHERE partida=?", (n_nom, v_nom)); c.execute("UPDATE personal SET partida=? WHERE partida=?", (n_nom, v_nom)); c.execute("UPDATE asistencia SET partida=? WHERE partida=?", (n_nom, v_nom))
+                            cambios = True
+                if cambios:
+                    conn.commit()
+                    c.execute("SELECT DISTINCT partida FROM presupuestos")
+                    st.session_state['lista_partidas'] = [r[0] for r in c.fetchall() if r[0] and str(r[0]).strip() != ""]
+                    st.rerun()
 
-    st.write("---")
-    if os.path.exists('obra_nexus.db'):
-        with open("obra_nexus.db", "rb") as file:
-            st.download_button(label="Descargar Base de Datos (.db)", data=file, file_name="proyecto_nexus.db", mime="application/octet-stream")
+        st.write("---")
+        if os.path.exists('obra_nexus.db'):
+            with open("obra_nexus.db", "rb") as file:
+                st.download_button(label="Descargar Base de Datos (.db)", data=file, file_name="proyecto_nexus.db", mime="application/octet-stream")
     st.stop()
 
 # ==========================================
